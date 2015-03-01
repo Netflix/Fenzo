@@ -1,0 +1,13 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+
+
+dependencies {
+	compile 'io.reactivex:rxjava:1.0.4'
+    compile 'org.apache.mesos:mesos:0.18.0'
+    compile 'org.slf4j:slf4j-api:1.7.0'
+    testCompile 'junit:junit-dep:4.10'
+    testCompile 'org.mockito:mockito-core:1.8.5'
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.3.0'
+}
