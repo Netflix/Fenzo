@@ -1,6 +1,16 @@
 package io.mantisrx.fenzo;
 
-import io.mantisrx.fenzo.plugins.BinPackingFitnessCalculators;
+import com.netflix.fenzo.SchedulingResult;
+import com.netflix.fenzo.TaskAssignmentResult;
+import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.TaskScheduler;
+import com.netflix.fenzo.TaskTrackerState;
+import com.netflix.fenzo.VMAssignmentResult;
+import com.netflix.fenzo.VMResource;
+import com.netflix.fenzo.VMTaskFitnessCalculator;
+import com.netflix.fenzo.VirtualMachineCurrentState;
+import com.netflix.fenzo.VirtualMachineLease;
+import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
 import junit.framework.Assert;
 import org.junit.Test;
 import rx.Observable;

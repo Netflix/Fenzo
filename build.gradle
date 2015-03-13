@@ -6,7 +6,7 @@ plugins {
 // Establish version and status
 ext.githubProjectName = 'Fenzo'
 
-group = 'io.mantisrx.fenzo'
+group = 'com.netflix.fenzo'
 
 repositories {
     jcenter()

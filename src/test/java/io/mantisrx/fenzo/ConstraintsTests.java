@@ -1,10 +1,19 @@
 package io.mantisrx.fenzo;
 
-import io.mantisrx.fenzo.plugins.BalancedHostAttrConstraint;
-import io.mantisrx.fenzo.plugins.BinPackingFitnessCalculators;
-import io.mantisrx.fenzo.plugins.ExclusiveHostConstraint;
-import io.mantisrx.fenzo.plugins.HostAttrValueConstraint;
-import io.mantisrx.fenzo.plugins.UniqueHostAttrConstraint;
+import com.netflix.fenzo.AsSoftConstraint;
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.SchedulingResult;
+import com.netflix.fenzo.TaskAssignmentResult;
+import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.TaskScheduler;
+import com.netflix.fenzo.VMAssignmentResult;
+import com.netflix.fenzo.VMTaskFitnessCalculator;
+import com.netflix.fenzo.VirtualMachineLease;
+import com.netflix.fenzo.plugins.BalancedHostAttrConstraint;
+import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
+import com.netflix.fenzo.plugins.ExclusiveHostConstraint;
+import com.netflix.fenzo.plugins.HostAttrValueConstraint;
+import com.netflix.fenzo.plugins.UniqueHostAttrConstraint;
 import junit.framework.Assert;
 import org.apache.mesos.Protos;
 import org.junit.After;

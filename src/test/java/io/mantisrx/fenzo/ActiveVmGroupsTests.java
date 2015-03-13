@@ -1,5 +1,9 @@
 package io.mantisrx.fenzo;
 
+import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.TaskScheduler;
+import com.netflix.fenzo.VMAssignmentResult;
+import com.netflix.fenzo.VirtualMachineLease;
 import junit.framework.Assert;
 import org.apache.mesos.Protos;
 import org.junit.After;

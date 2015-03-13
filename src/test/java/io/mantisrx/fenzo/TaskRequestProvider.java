@@ -1,5 +1,9 @@
 package io.mantisrx.fenzo;
 
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.VMTaskFitnessCalculator;
+
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
