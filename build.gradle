@@ -1,44 +1,19 @@
+plugins {
+    id 'nebula.netflixoss' version '2.2.9'
+    id 'java'
+}
 
 // Establish version and status
-ext.githubProjectName = rootProject.name // Change if github project name is not the same as the root project's name
+ext.githubProjectName = 'Fenzo'
 
-buildscript {
-    repositories {
-        //mavenLocal()
-        mavenCentral() // maven { url 'http://jcenter.bintray.com' }
-    }
-    apply from: file('gradle/buildscript.gradle'), to: buildscript 
+group = 'io.mantisrx.fenzo'
+
+repositories {
+    jcenter()
 }
 
-allprojects {
-    repositories { 
-        //mavenLocal()
-        mavenCentral() // maven { url: 'http://jcenter.bintray.com' }
-    }
-}
-
-apply from: file('gradle/convention.gradle')
-apply from: file('gradle/maven.gradle')
-//apply from: file('gradle/check.gradle')
-apply from: file('gradle/license.gradle')
-apply from: file('gradle/release.gradle')
-
-subprojects {
-
-    apply plugin: 'java'
-    apply plugin: 'eclipse'
-    apply plugin: 'idea'
-
-    sourceCompatibility = "1.7"
-    targetCompatibility = "1.7"
-}
-
-
-
-apply plugin: 'java'
-apply plugin: 'eclipse'
-apply plugin: 'idea'
-
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
 
 dependencies {
 	compile 'io.reactivex:rxjava:1.0.4'
@@ -46,5 +21,5 @@ dependencies {
     compile 'org.slf4j:slf4j-api:1.7.0'
     testCompile 'junit:junit-dep:4.10'
     testCompile 'org.mockito:mockito-core:1.8.5'
-    compile 'com.fasterxml.jackson.core:jackson-databind:2.3.0'
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.3.5'
 }
