@@ -1,5 +1,8 @@
 package io.mantisrx.fenzo;
 
+import com.netflix.fenzo.AutoScaleRule;
+import com.netflix.fenzo.VirtualMachineLease;
+
 public class AutoScaleRuleProvider {
 
     static AutoScaleRule createRule(final String name, final int min, final int max, final long coolDownSecs,

@@ -1,6 +1,16 @@
 package io.mantisrx.fenzo;
 
-import io.mantisrx.fenzo.plugins.BinPackingFitnessCalculators;
+import com.netflix.fenzo.AutoScaleAction;
+import com.netflix.fenzo.AutoScaleRule;
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.ScaleDownAction;
+import com.netflix.fenzo.ScaleUpAction;
+import com.netflix.fenzo.SchedulingResult;
+import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.TaskScheduler;
+import com.netflix.fenzo.VMAssignmentResult;
+import com.netflix.fenzo.VirtualMachineLease;
+import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
 import org.apache.mesos.Protos;
 import org.junit.After;
 import org.junit.Assert;

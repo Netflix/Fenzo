@@ -1,5 +1,8 @@
 package io.mantisrx.fenzo;
 
+import com.netflix.fenzo.TaskAssignmentResult;
+import com.netflix.fenzo.VMAssignmentResult;
+import com.netflix.fenzo.VirtualMachineLease;
 import org.apache.mesos.Protos;
 
 import java.util.ArrayList;
