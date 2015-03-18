@@ -1,0 +1,7 @@
+dependencies {
+	compile ("io.reactivex:rxjava:latest.release")
+    compile ("org.apache.mesos:mesos:latest.release")
+    compile ("com.fasterxml.jackson.core:jackson-databind:latest.release")
+    testCompile ("junit:junit-dep:latest.release")
+    testCompile ("org.mockito:mockito-core:latest.release")
+}

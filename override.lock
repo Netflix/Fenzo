@@ -1,0 +1,20 @@
+{
+  "org.slf4j:slf4j-api": { "locked": "1.7.10", "requested": "1.7.10" },
+  "org.slf4j:slf4j-simple": { "locked": "1.7.10", "requested": "1.7.10" },
+  "org.reflections:reflections": { "locked": "0.9.8", "requested": "0.9.8" },
+  "org.codehaus.groovy:groovy": { "locked": "2.3.9", "requested": "2.3.9" },
+  "org.spockframework:spock-core": { "locked": "1.0-groovy-2.3", "requested": "1.0-groovy-2.3" },
+  "org.quartz-scheduler:quartz": { "locked": "2.2.1", "requested": "2.2.1" },
+  "com.netflix.astyanax:astyanax-core": { "locked": "2.0.2", "requested": "2.0.2" },
+  "com.netflix.astyanax:astyanax-thrift": { "locked": "2.0.2", "requested": "2.0.2" },
+  "com.netflix.astyanax:astyanax-cassandra": { "locked": "2.0.2", "requested": "2.0.2" },
+  "com.fasterxml.jackson.core:jackson-core": { "locked": "2.4.5", "requested": "2.4.5" },
+  "com.fasterxml.jackson.core:jackson-databind": { "locked": "2.4.5", "requested": "2.4.5" },
+  "com.fasterxml.jackson.core:jackson-annotations": { "locked": "2.4.5", "requested": "2.4.5" },
+  "org.xerial.snappy:snappy-java": { "locked": "1.1.1.6", "requested": "1.1.1.6" },
+  "io.reactivex:rxjava": { "locked": "1.0.4", "requested": "1.0.4" },  
+  "org.apache.mesos:mesos": { "locked": "0.21.0", "requested": "0.21.0" },
+  "junit:junit-dep": { "locked": "4.10", "requested": "4.10" },
+  "org.mockito:mockito-core": { "locked": "1.8.5", "requested": "1.8.5" },
+  "com.fasterxml.jackson.core:jackson-databind": { "locked": "2.3.5", "requested": "2.3.5" }
+}

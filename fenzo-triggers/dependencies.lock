@@ -1,0 +1,6 @@
+{
+  "org.slf4j:slf4j-api": { "locked": "1.7.10", "requested": "1.7.10" },
+  "org.slf4j:slf4j-simple": { "locked": "1.7.10", "requested": "1.7.10" },
+  "io.reactivex:rxjava": { "locked": "1.0.4", "requested": "1.0.4" },
+  "org.quartz-scheduler:quartz": { "locked": "2.2.1", "requested": "2.2.1" }
+}
