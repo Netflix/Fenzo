@@ -1,7 +1,5 @@
 package com.netflix.fenzo.triggers;
 
-import com.netflix.fenzo.triggers.persistence.EventDao;
-import com.netflix.fenzo.triggers.persistence.InMemoryEventDao;
 import com.netflix.fenzo.triggers.persistence.InMemoryTriggerDao;
 import com.netflix.fenzo.triggers.persistence.TriggerDao;
 
@@ -17,7 +15,7 @@ public class TriggerServiceFactory {
      * @return
      */
     public static TriggerService getInstance() {
-        return new TriggerService(new InMemoryTriggerDao(), new InMemoryEventDao(), 20);
+        return new TriggerService(new InMemoryTriggerDao(), 20);
     }
 
     /**
@@ -26,17 +24,16 @@ public class TriggerServiceFactory {
      * @return
      */
     public static TriggerService getInstance(int threadPoolSize) {
-        return new TriggerService(new InMemoryTriggerDao(), new InMemoryEventDao(), threadPoolSize);
+        return new TriggerService(new InMemoryTriggerDao(), threadPoolSize);
     }
 
     /**
      *
      * @param triggerDao
-     * @param eventDao
      * @param threadPoolSize
      * @return
      */
-    public static TriggerService getInstance(TriggerDao triggerDao, EventDao eventDao, int threadPoolSize) {
-        return new TriggerService(triggerDao, eventDao, threadPoolSize);
+    public static TriggerService getInstance(TriggerDao triggerDao, int threadPoolSize) {
+        return new TriggerService(triggerDao, threadPoolSize);
     }
 }

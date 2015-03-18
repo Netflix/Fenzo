@@ -16,4 +16,5 @@
 
 dependencies {
     compile ("org.quartz-scheduler:quartz:latest.release")
+    compile ("io.reactivex:rxjava:latest.release")
 }

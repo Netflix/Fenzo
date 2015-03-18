@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- *
+ * In-memory implementation of {@code TriggerDao}
  */
 public class InMemoryTriggerDao implements TriggerDao {
 

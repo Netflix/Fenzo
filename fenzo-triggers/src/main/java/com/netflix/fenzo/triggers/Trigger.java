@@ -1,10 +1,8 @@
 package com.netflix.fenzo.triggers;
 
-import com.netflix.fenzo.triggers.plugins.JobDecorator;
+import rx.functions.Action1;
 
 import java.util.Date;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -14,33 +12,17 @@ public class Trigger {
 
     private final String id;
     private final Date createdDate;
-    private String name;
-    private Class<Job> jobClass;
-    private Map<String, Object> parameters;
-    private List<String> owners;
-    private List<String> watchers;
-    private int maxEventsToKeep;
-    private int maxDaysToKeepEventsFor;
-    private boolean notificationsEnabled;
+    private final String inputId;
+    private final Action1<String> action;
+    private final String name;
     private boolean disabled;
-    private boolean concurrentEventsEnabled;
-    private JobDecorator jobDecorator;
-    private long executionTimeoutInSeconds;
 
     protected Trigger(Builder builder) {
         this.id = UUID.randomUUID().toString();
         this.createdDate = new Date();
         this.name = builder.name;
-        this.jobClass = builder.jobClass;
-        this.parameters = builder.parameters;
-        this.owners = builder.owners;
-        this.watchers = builder.watchers;
-        this.maxDaysToKeepEventsFor = builder.maxDaysToKeepEventsFor;
-        this.maxEventsToKeep = builder.maxEventsToKeep;
-        this.notificationsEnabled = builder.notificationsEnabled;
-        this.concurrentEventsEnabled = builder.concurrentEventsEnabled;
-        this.jobDecorator = builder.jobDecorator;
-        this.executionTimeoutInSeconds = builder.executionTimeoutInSeconds;
+        this.inputId = builder.inputId;
+        this.action = builder.action;
     }
 
     public String getId() {
@@ -51,68 +33,16 @@ public class Trigger {
         return createdDate;
     }
 
+    public String getInputId() {
+        return inputId;
+    }
+
+    public Action1<String> getAction() {
+        return action;
+    }
+
     public String getName() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public Class<Job> getJobClass() {
-        return jobClass;
-    }
-
-    public void setJobClass(Class<Job> jobClass) {
-        this.jobClass = jobClass;
-    }
-
-    public Map<String, Object> getParameters() {
-        return parameters;
-    }
-
-    public void setParameters(Map<String, Object> parameters) {
-        this.parameters = parameters;
-    }
-
-    public List<String> getOwners() {
-        return owners;
-    }
-
-    public void setOwners(List<String> owners) {
-        this.owners = owners;
-    }
-
-    public List<String> getWatchers() {
-        return watchers;
-    }
-
-    public void setWatchers(List<String> watchers) {
-        this.watchers = watchers;
-    }
-
-    public int getMaxEventsToKeep() {
-        return maxEventsToKeep;
-    }
-
-    public void setMaxEventsToKeep(int maxEventsToKeep) {
-        this.maxEventsToKeep = maxEventsToKeep;
-    }
-
-    public int getMaxDaysToKeepEventsFor() {
-        return maxDaysToKeepEventsFor;
-    }
-
-    public void setMaxDaysToKeepEventsFor(int maxDaysToKeepEventsFor) {
-        this.maxDaysToKeepEventsFor = maxDaysToKeepEventsFor;
-    }
-
-    public boolean isNotificationsEnabled() {
-        return notificationsEnabled;
-    }
-
-    public void setNotificationsEnabled(boolean notificationsEnabled) {
-        this.notificationsEnabled = notificationsEnabled;
     }
 
     public boolean isDisabled() {
@@ -121,30 +51,6 @@ public class Trigger {
 
     public void setDisabled(boolean disabled) {
         this.disabled = disabled;
-    }
-
-    public boolean isConcurrentEventsEnabled() {
-        return concurrentEventsEnabled;
-    }
-
-    public void setConcurrentEventsEnabled(boolean concurrentEventsEnabled) {
-        this.concurrentEventsEnabled = concurrentEventsEnabled;
-    }
-
-    public JobDecorator getJobDecorator() {
-        return jobDecorator;
-    }
-
-    public void setJobDecorator(JobDecorator jobDecorator) {
-        this.jobDecorator = jobDecorator;
-    }
-
-    public long getExecutionTimeoutInSeconds() {
-        return executionTimeoutInSeconds;
-    }
-
-    public void setExecutionTimeoutInSeconds(long executionTimeoutInSeconds) {
-        this.executionTimeoutInSeconds = executionTimeoutInSeconds;
     }
 
     public String toString() {
@@ -156,16 +62,8 @@ public class Trigger {
      */
     public static class Builder<T extends Builder<T>> {
         private String name;
-        private Class<Job> jobClass;
-        private Map<String,String> parameters;
-        private List<String> owners;
-        private List<String> watchers;
-        private int maxEventsToKeep = 20;
-        private int maxDaysToKeepEventsFor = 1;
-        private boolean notificationsEnabled;
-        private boolean concurrentEventsEnabled = false;
-        private JobDecorator jobDecorator;
-        private long executionTimeoutInSeconds;
+        private String inputId;
+        private Action1<String> action;
 
         @SuppressWarnings("unchecked")
         protected T self() {
@@ -177,53 +75,13 @@ public class Trigger {
             return self();
         }
 
-        public T withOwners(List<String> owners) {
-            this.owners = owners;
+        public T withInputId(String inputId) {
+            this.inputId = inputId;
             return self();
         }
 
-        public T withJobClass(Class<Job> jobClass) {
-            this.jobClass = jobClass;
-            return self();
-        }
-
-        public T withParameters(Map<String, String> parameters) {
-            this.parameters = parameters;
-            return self();
-        }
-
-        public T withWatchers(List<String> watchers) {
-            this.watchers = watchers;
-            return self();
-        }
-
-        public T withMaxDaysToKeepEventsFor(int maxDaysToKeepEventsFor) {
-            this.maxDaysToKeepEventsFor = maxDaysToKeepEventsFor;
-            return self();
-        }
-
-        public T withMaxEventsToKeep(int maxEventsToKeep) {
-            this.maxEventsToKeep = maxEventsToKeep;
-            return self();
-        }
-
-        public T withNotificationsEnabled(boolean notificationsEnabled) {
-            this.notificationsEnabled = notificationsEnabled;
-            return self();
-        }
-
-        public T withConcurrentEventsEnabled(boolean concurrentEventsEnabled) {
-            this.concurrentEventsEnabled = concurrentEventsEnabled;
-            return self();
-        }
-
-        public T withJobDecorator(JobDecorator jobDecorator) {
-            this.jobDecorator = jobDecorator;
-            return self();
-        }
-
-        public T withEventExecutionTimeout(long executionTimeoutInSeconds) {
-            this.executionTimeoutInSeconds = executionTimeoutInSeconds;
+        public T withAction1(Action1<String> action) {
+            this.action = action;
             return self();
         }
 
