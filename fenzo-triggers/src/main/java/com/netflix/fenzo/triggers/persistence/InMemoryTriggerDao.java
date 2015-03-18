@@ -2,7 +2,8 @@ package com.netflix.fenzo.triggers.persistence;
 
 import com.netflix.fenzo.triggers.Trigger;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,12 +14,11 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class InMemoryTriggerDao implements TriggerDao {
 
-    private final ConcurrentMap<String, Map<String,Trigger>> groupedTriggers = new ConcurrentHashMap<String, Map<String,Trigger>>();
-    private final ConcurrentMap<String, Trigger> triggers = new ConcurrentHashMap<String, Trigger>();
+    private final ConcurrentMap<String, ConcurrentMap<String,Trigger>> groupedTriggers = new ConcurrentHashMap<String, ConcurrentMap<String,Trigger>>();
 
     @Override
     public void createTrigger(String triggerGroup, Trigger trigger) {
-        Map triggerMap = new HashMap();
+        ConcurrentMap<String, Trigger> triggerMap = new ConcurrentHashMap<String, Trigger>();
         triggerMap.put(trigger.getId(), trigger);
         Map existingTriggerMap = groupedTriggers.putIfAbsent(triggerGroup, triggerMap);
         if (existingTriggerMap != null) {
@@ -26,12 +26,20 @@ public class InMemoryTriggerDao implements TriggerDao {
                 groupedTriggers.get(triggerGroup).put(trigger.getId(), trigger);
             }
         }
-        triggers.put(trigger.getId(), trigger);
     }
 
     @Override
     public Trigger getTrigger(String triggerId) {
-        return triggers.get(triggerId);
+        for (Iterator<String> iterator1 = groupedTriggers.keySet().iterator(); iterator1.hasNext();) {
+            ConcurrentMap<String, Trigger> triggersMap = groupedTriggers.get(iterator1.next());
+            for (Iterator<String> iterator2 = triggersMap.keySet().iterator(); iterator2.hasNext();) {
+                String storedTriggerId = iterator2.next();
+                if (triggerId.equals(storedTriggerId)) {
+                    return triggersMap.get(storedTriggerId);
+                }
+            }
+        }
+        return null;
     }
 
     @Override
@@ -42,16 +50,20 @@ public class InMemoryTriggerDao implements TriggerDao {
     @Override
     public void deleteTrigger(String triggerGroup, Trigger trigger) {
         groupedTriggers.get(triggerGroup).remove(trigger.getId());
-        triggers.remove(trigger.getId());
     }
 
     @Override
     public List<Trigger> getTriggers(String triggerGroup) {
-        return (List<Trigger>) groupedTriggers.get(triggerGroup).values();
+        return new ArrayList<Trigger>(groupedTriggers.get(triggerGroup).values());
     }
 
     @Override
     public List<Trigger> getTriggers() {
-        return (List<Trigger>) triggers.values();
+        List<Trigger> triggerList = new ArrayList<Trigger>();
+        for (Iterator<String> iterator1 = groupedTriggers.keySet().iterator(); iterator1.hasNext();) {
+            ConcurrentMap<String, Trigger> triggersMap = groupedTriggers.get(iterator1.next());
+            triggerList.addAll(triggersMap.values());
+        }
+        return triggerList;
     }
 }
