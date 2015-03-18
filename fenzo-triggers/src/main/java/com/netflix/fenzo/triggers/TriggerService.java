@@ -219,7 +219,7 @@ public class TriggerService {
      */
     public void execute(Trigger trigger) throws Exception {
         try {
-            trigger.getAction().call(trigger.getInputId());
+            trigger.getAction().call(trigger.getData());
         } catch (Exception e) {
             throw new Exception(String.format("Exception occurred while executing trigger '%s'", trigger), e);
         }

@@ -8,21 +8,21 @@ import java.util.UUID;
 /**
  * Base class for all types of triggers
  */
-public class Trigger {
+public class Trigger<T> {
 
     private final String id;
     private final Date createdDate;
-    private final String inputId;
-    private final Action1<String> action;
+    private final T data;
+    private final Action1<? extends T> action;
     private final String name;
     private boolean disabled;
 
-    protected Trigger(Builder builder) {
+    public Trigger(String name, T data, Action1<T> action) {
         this.id = UUID.randomUUID().toString();
         this.createdDate = new Date();
-        this.name = builder.name;
-        this.inputId = builder.inputId;
-        this.action = builder.action;
+        this.name = name;
+        this.data = data;
+        this.action = action;
     }
 
     public String getId() {
@@ -33,11 +33,11 @@ public class Trigger {
         return createdDate;
     }
 
-    public String getInputId() {
-        return inputId;
+    public T getData() {
+        return data;
     }
 
-    public Action1<String> getAction() {
+    public Action1<? extends T> getAction() {
         return action;
     }
 
@@ -57,40 +57,4 @@ public class Trigger {
         return "Trigger (" + id + ":" + name + ")";
     }
 
-    /**
-     * Trigger builder
-     */
-    public static class Builder<T extends Builder<T>> {
-        private String name;
-        private String inputId;
-        private Action1<String> action;
-
-        @SuppressWarnings("unchecked")
-        protected T self() {
-            return (T) this;
-        }
-
-        public T withName(String name) {
-            this.name = name;
-            return self();
-        }
-
-        public T withInputId(String inputId) {
-            this.inputId = inputId;
-            return self();
-        }
-
-        public T withAction1(Action1<String> action) {
-            this.action = action;
-            return self();
-        }
-
-        public Trigger build() {
-            return new Trigger(this);
-        }
-    }
-
-    public static Builder<?> newTrigger() {
-        return new Builder();
-    }
 }

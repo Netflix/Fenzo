@@ -1,15 +1,17 @@
 package com.netflix.fenzo.triggers;
 
+import rx.functions.Action1;
+
 /**
  *
  */
-public class CronTrigger extends ScheduledTrigger {
+public class CronTrigger<T> extends ScheduledTrigger<T> {
     private String cronExpression;
     private org.quartz.CronTrigger cronTrigger;
 
-    protected CronTrigger(Builder builder) {
-        super(builder);
-        this.cronExpression = builder.cronExpression;
+    protected CronTrigger(String cronExpression, String name, T data, Action1<T> action) {
+        super(name, data, action);
+        this.cronExpression = cronExpression;
     }
 
     public String getCronExpression() {
@@ -28,24 +30,7 @@ public class CronTrigger extends ScheduledTrigger {
         this.cronTrigger = cronTrigger;
     }
 
-    public static Builder<?> newTrigger() {
-        return new Builder();
-    }
-
     public String toString() {
         return "CronTrigger (" + getId() + ":" + getName() + ":" + cronExpression + ")";
-    }
-
-    public static class Builder<T extends Builder<T>> extends ScheduledTrigger.Builder<T> {
-        private String cronExpression;
-
-        public T withCronExpression(String cronExpression) {
-            this.cronExpression = cronExpression;
-            return self();
-        }
-
-        public CronTrigger build() {
-            return new CronTrigger(this);
-        }
     }
 }
