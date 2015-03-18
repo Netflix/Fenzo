@@ -1,1 +1,13 @@
 rootProject.name='fenzo'
+include "fenzo-core", "fenzo-triggers"
+
+def setBuildFile(project) {
+  project.buildFileName = "${project.name}.gradle"
+  project.children.each {
+    setBuildFile(it)
+  }
+}
+
+rootProject.children.each {
+  setBuildFile it
+}
