@@ -455,6 +455,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     VirtualMachineCurrentState getVmCurrentState() {
         return new VirtualMachineCurrentState() {
             @Override
+            public String getHostname() {
+                return hostname;
+            }
+            @Override
             public VirtualMachineLease getCurrAvailableResources() {
                 return currTotalLease;
             }
@@ -471,6 +475,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
 
     private VirtualMachineCurrentState vmCurrentState() {
         return new VirtualMachineCurrentState() {
+            @Override
+            public String getHostname() {
+                return hostname;
+            }
             @Override
             public VirtualMachineLease getCurrAvailableResources() {
                 return currTotalLease;

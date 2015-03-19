@@ -8,6 +8,7 @@ import java.util.Collection;
  * object to influence task placement optimizations
  */
 public interface VirtualMachineCurrentState {
+    public String getHostname();
     /**
      * Returns a VM lease object representing totals of resources from all available leases for current
      * scheduling run.
