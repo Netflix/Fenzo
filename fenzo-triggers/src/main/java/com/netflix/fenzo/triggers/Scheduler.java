@@ -1,16 +1,12 @@
 package com.netflix.fenzo.triggers;
 
-import org.quartz.CronTrigger;
 import org.quartz.*;
+import org.quartz.Trigger;
 import org.quartz.impl.StdSchedulerFactory;
 
-import java.util.Map;
 import java.util.Properties;
 
-import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.JobBuilder.newJob;
-import static org.quartz.TriggerBuilder.newTrigger;
-import static org.quartz.TriggerKey.triggerKey;
 
 
 /**
@@ -51,16 +47,9 @@ class Scheduler {
         quartzScheduler.shutdown(waitForJobsToComplete);
     }
 
-    org.quartz.CronTrigger scheduleQuartzJob(Class<? extends org.quartz.Job> jobClass, String jobId, String jobGroup, Map jobDataMap, String cron) throws SchedulerException {
+    void scheduleQuartzJob(String jobId, String jobGroup, Class<? extends Job> jobClass, Trigger trigger) throws SchedulerException {
         JobDetail job = newJob(jobClass).withIdentity(jobId, jobGroup).build();
-        CronTrigger trigger = newTrigger()
-                .withIdentity(triggerKey(jobId, jobGroup))
-                .withSchedule(cronSchedule(cron))
-                .usingJobData(new JobDataMap(jobDataMap))
-                .startNow()
-                .build();
         quartzScheduler.scheduleJob(job, trigger);
-        return trigger;
     }
 
     void unscheduleQuartzJob(String jobId, String jobGroup) throws SchedulerException {

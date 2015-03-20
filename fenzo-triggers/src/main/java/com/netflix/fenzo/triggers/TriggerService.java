@@ -3,6 +3,7 @@ package com.netflix.fenzo.triggers;
 import com.netflix.fenzo.triggers.exceptions.SchedulerException;
 import com.netflix.fenzo.triggers.exceptions.TriggerNotFoundException;
 import com.netflix.fenzo.triggers.persistence.TriggerDao;
+import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.slf4j.Logger;
@@ -14,6 +15,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.quartz.TriggerBuilder.newTrigger;
+import static org.quartz.TriggerKey.triggerKey;
 
 /**
  *
@@ -152,13 +156,14 @@ public class TriggerService {
         Map jobDataMap = new HashMap();
         jobDataMap.put(TRIGGER_KEY, scheduledTrigger);
         try {
-            CronTrigger cronTrigger = (CronTrigger) scheduledTrigger;
-            org.quartz.CronTrigger quartzCronTrigger = scheduler.scheduleQuartzJob(ScheduledTriggerJob.class,
-                cronTrigger.getId(),
-                Scheduler.DEFAULT_GROUP,
-                jobDataMap,
-                cronTrigger.getCronExpression());
-            cronTrigger.setCronTrigger(quartzCronTrigger);
+            org.quartz.Trigger quartzTrigger = newTrigger()
+                .withIdentity(triggerKey(scheduledTrigger.getId(), Scheduler.DEFAULT_GROUP))
+                .withSchedule(scheduledTrigger.getScheduleBuilder())
+                .usingJobData(new JobDataMap(jobDataMap))
+                .startNow()
+                .build();
+            scheduler.scheduleQuartzJob(scheduledTrigger.getId(), Scheduler.DEFAULT_GROUP, ScheduledTriggerJob.class, quartzTrigger);
+            scheduledTrigger.setQuartzTrigger(quartzTrigger);
             logger.info("Successfully scheduled {}", scheduledTrigger);
         } catch (org.quartz.SchedulerException e) {
             throw new SchedulerException("Exception occurred while scheduling trigger: " + scheduledTrigger, e);
@@ -189,6 +194,7 @@ public class TriggerService {
         if (!initialized.get()) throw new SchedulerException("Trigger service is not initialized. initialize() must be called before calling unscheduleTrigger() method");
         try {
             scheduler.unscheduleQuartzJob(scheduledTrigger.getId(), Scheduler.DEFAULT_GROUP);
+            scheduledTrigger.setQuartzTrigger(null);
             logger.info("Successfully unscheduled {}", scheduledTrigger);
         } catch (org.quartz.SchedulerException e) {
             throw new SchedulerException("Exception occurred while unscheduling trigger: " + scheduledTrigger, e);
