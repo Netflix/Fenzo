@@ -1,5 +1,6 @@
 package com.netflix.fenzo.triggers;
 
+import org.quartz.ScheduleBuilder;
 import rx.functions.Action1;
 
 /**
@@ -12,4 +13,7 @@ public abstract class ScheduledTrigger<T> extends Trigger<T> {
         super(name, data, action);
     }
 
+    public abstract ScheduleBuilder getScheduleBuilder();
+
+    public abstract void setQuartzTrigger(org.quartz.Trigger quartzTrigger);
 }
