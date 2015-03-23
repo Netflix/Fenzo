@@ -22,10 +22,10 @@ import static org.quartz.TriggerKey.triggerKey;
 /**
  *
  */
-public class TriggerService {
+public class TriggerOperator {
 
     private static final String TRIGGER_KEY = "trigger";
-    private static final Logger logger = LoggerFactory.getLogger(TriggerService.class);
+    private static final Logger logger = LoggerFactory.getLogger(TriggerOperator.class);
 
     private final Scheduler scheduler;
     private final TriggerDao triggerDao;
@@ -37,7 +37,7 @@ public class TriggerService {
      * @param triggerDao - dao implementation for {@code Trigger}
      * @param threadPoolSize - the thread pool size for the scheduler
      */
-    public TriggerService(TriggerDao triggerDao, int threadPoolSize) {
+    public TriggerOperator(TriggerDao triggerDao, int threadPoolSize) {
         this.triggerDao = triggerDao;
         this.scheduler = Scheduler.getInstance();
         this.threadPoolSize = threadPoolSize;
@@ -53,7 +53,7 @@ public class TriggerService {
             try {
                 this.scheduler.startScheduler(threadPoolSize);
             } catch (org.quartz.SchedulerException se) {
-                throw new SchedulerException("Exception occurred while initializing TriggerService", se);
+                throw new SchedulerException("Exception occurred while initializing TriggerOperator", se);
             }
         }
         for (Iterator<Trigger> iterator = getTriggers().iterator(); iterator.hasNext();) {
@@ -69,8 +69,8 @@ public class TriggerService {
      * @param triggerId
      * @return
      */
-    public Trigger getTrigger(String triggerId) {
-        return triggerDao.getTrigger(triggerId);
+    public Trigger getTrigger(String triggerGroup, String triggerId) {
+        return triggerDao.getTrigger(triggerGroup, triggerId);
     }
 
     /**
@@ -94,15 +94,26 @@ public class TriggerService {
      * @throws SchedulerException
      */
     public void disableTrigger(String triggerGroup, String triggerId) throws TriggerNotFoundException, SchedulerException {
-        Trigger trigger = getTrigger(triggerId);
+        Trigger trigger = getTrigger(triggerGroup, triggerId);
         if (trigger != null) {
-            trigger.setDisabled(true);
-            triggerDao.updateTrigger(triggerGroup, trigger);
-            if (trigger instanceof ScheduledTrigger) {
-                unscheduleTrigger((ScheduledTrigger) trigger);
-            }
+            disableTrigger(triggerGroup, trigger);
         } else {
-            throw new TriggerNotFoundException("No trigger found for trigger id: " + triggerId);
+            throw new TriggerNotFoundException("No trigger found with trigger id: " + triggerId);
+        }
+    }
+
+    /**
+     * Disables the {@code Trigger}. If the {@code Trigger} is disabled it will NOT execute
+     * @param triggerGroup
+     * @param trigger
+     * @throws TriggerNotFoundException
+     * @throws SchedulerException
+     */
+    public void disableTrigger(String triggerGroup, Trigger trigger) throws SchedulerException {
+        trigger.setDisabled(true);
+        triggerDao.updateTrigger(triggerGroup, trigger);
+        if (trigger instanceof ScheduledTrigger) {
+            unscheduleTrigger((ScheduledTrigger) trigger);
         }
     }
 
@@ -114,15 +125,25 @@ public class TriggerService {
      * @throws SchedulerException
      */
     public void enableTrigger(String triggerGroup, String triggerId) throws TriggerNotFoundException, SchedulerException {
-        Trigger trigger = getTrigger(triggerId);
+        Trigger trigger = getTrigger(triggerGroup, triggerId);
         if (trigger != null) {
-            trigger.setDisabled(false);
-            triggerDao.updateTrigger(triggerGroup, trigger);
-            if (trigger instanceof ScheduledTrigger) {
-                scheduleTrigger((ScheduledTrigger) trigger);
-            }
+            enableTrigger(triggerGroup, trigger);
         } else {
-            throw new TriggerNotFoundException("No trigger found for trigger id: " + triggerId);
+            throw new TriggerNotFoundException("No trigger found with trigger id: " + triggerId);
+        }
+    }
+
+    /**
+     * Enables the {@code Trigger}
+     * @param triggerGroup
+     * @param trigger
+     * @throws SchedulerException
+     */
+    public void enableTrigger(String triggerGroup, Trigger trigger) throws SchedulerException {
+        trigger.setDisabled(false);
+        triggerDao.updateTrigger(triggerGroup, trigger);
+        if (trigger instanceof ScheduledTrigger) {
+            scheduleTrigger((ScheduledTrigger) trigger);
         }
     }
 
@@ -135,14 +156,26 @@ public class TriggerService {
      * @throws SchedulerException
      */
     public void deleteTrigger(String triggerGroup, String triggerId) throws TriggerNotFoundException, SchedulerException {
-        Trigger trigger = getTrigger(triggerId);
+        Trigger trigger = getTrigger(triggerGroup, triggerId);
         if (trigger != null) {
-            triggerDao.deleteTrigger(triggerGroup, trigger);
-            if (trigger instanceof ScheduledTrigger) {
-                unscheduleTrigger((ScheduledTrigger) trigger);
-            }
+            deleteTrigger(triggerGroup, trigger);
         } else {
             throw new TriggerNotFoundException("No trigger found for trigger id: " + triggerId);
+        }
+    }
+
+    /**
+     * Deletes/Removes the {@code Trigger}. If it is a {@code ScheduledTrigger} then it is also un-scheduled from
+     * scheduler
+     * @param triggerGroup
+     * @param trigger
+     * @throws TriggerNotFoundException
+     * @throws SchedulerException
+     */
+    public void deleteTrigger(String triggerGroup, Trigger trigger) throws SchedulerException {
+        triggerDao.deleteTrigger(triggerGroup, trigger);
+        if (trigger instanceof ScheduledTrigger) {
+            unscheduleTrigger((ScheduledTrigger) trigger);
         }
     }
 
@@ -178,7 +211,7 @@ public class TriggerService {
         public void execute(JobExecutionContext context) throws JobExecutionException {
             Trigger trigger = (Trigger) context.getMergedJobDataMap().get(TRIGGER_KEY);
             try {
-                TriggerService.this.execute(trigger);
+                TriggerOperator.this.execute(trigger);
             } catch (Exception e) {
                 throw new JobExecutionException(e);
             }
