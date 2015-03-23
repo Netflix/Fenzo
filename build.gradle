@@ -16,15 +16,15 @@
 
 ext.githubProjectName = 'Fenzo'
 
-buildscript {
-    repositories { jcenter() }
-//    dependencies {
-//        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:2.2.8'
-//    }
-}
+//buildscript {
+//    repositories { jcenter() }
+////    dependencies {
+////        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:2.2.8'
+////    }
+//}
 
 allprojects {
-    //apply plugin: 'nebula.netflixoss'
+    apply plugin: 'nebula'
     apply plugin: 'java'
     apply plugin: 'idea'
     
