@@ -35,7 +35,7 @@ allprojects {
 subprojects {
     repositories { jcenter() }
 
-    apply plugin: 'dependency-lock'
+    //apply plugin: 'dependency-lock'
     apply plugin: 'java'
     apply plugin: 'groovy'
 
