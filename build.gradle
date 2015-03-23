@@ -17,6 +17,7 @@
 buildscript {
     repositories { jcenter() }
     apply from: file('gradle/buildscript.gradle'), to: buildscript
+    apply from: file('gradle/release.gradle'), to: buildscript
     dependencies {
         classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:2.2.8'
     }
