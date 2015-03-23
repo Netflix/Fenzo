@@ -209,13 +209,13 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         };
     }
 
-    private int removeExpiredLeases(AssignableVMs.SlaveRejectLimiter slaveRejectLimiter) {
+    int removeExpiredLeases(AssignableVMs.SlaveRejectLimiter slaveRejectLimiter, boolean all) {
         int rejected=0;
         long now = System.currentTimeMillis();
         Set<String> leasesToExpireIds = new HashSet<>();
         leasesToExpire.drainTo(leasesToExpireIds);
         Iterator<Map.Entry<String,VirtualMachineLease>> iterator = leasesMap.entrySet().iterator();
-        boolean expireAll = expireAllLeasesNow.getAndSet(false);
+        boolean expireAll = expireAllLeasesNow.getAndSet(false) || all;
         while(iterator.hasNext()) {
             VirtualMachineLease l = iterator.next().getValue();
             if(expireAll || leasesToExpireIds.contains(l.getId())) {
@@ -316,7 +316,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             exclusiveTaskId = null;
     }
 
-    int prepareForScheduling(AssignableVMs.SlaveRejectLimiter slaveRejectLimiter) {
+    void prepareForScheduling() {
         List<String> tasks = new ArrayList<>();
         workersToUnAssign.drainTo(tasks);
         for(String t: tasks) {
@@ -325,9 +325,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             clearIfExclusive(t);
         }
         assignmentResults.clear();
-        final int rejected = removeExpiredLeases(slaveRejectLimiter);// do before setting available resources
         setAvailableResources();
-        return rejected;
     }
 
     String getAttrValue(String attrName) {

@@ -257,11 +257,11 @@ public class TaskScheduler {
         try (AutoCloseable
                      ac = stateMonitor.enter()) {
             long start = System.currentTimeMillis();
+            final SchedulingResult schedulingResult = doSchedule(requests, newLeases);
             if(counter.incrementAndGet() % 1000L == 0) {
                 logger.info("Purging (" + counter.get()+ ") inactive VMs");
                 assignableVMs.purgeInactiveVMs();
             }
-            final SchedulingResult schedulingResult = doSchedule(requests, newLeases);
             schedulingResult.setRuntime(System.currentTimeMillis() - start);
             return schedulingResult;
         } catch (Exception e) {
@@ -279,7 +279,7 @@ public class TaskScheduler {
             List<? extends TaskRequest> requests,
             List<VirtualMachineLease> newLeases) {
         AtomicInteger rejectedCount = new AtomicInteger(assignableVMs.addLeases(newLeases));
-        List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs(rejectedCount);
+        List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs();
         //logger.info("Got " + avms.size() + " AVMs to schedule on");
         int totalNumAllocations=0;
         Set<TaskRequest> failedTasks = new HashSet<>(requests);
@@ -337,6 +337,7 @@ public class TaskScheduler {
                 }
             }
         }
+        rejectedCount.addAndGet(assignableVMs.cleanup());
         List<VirtualMachineLease> idleResourcesList = new ArrayList<>();
         for(AssignableVirtualMachine avm: avms) {
             VMAssignmentResult assignmentResult = avm.resetAndGetSuccessfullyAssignedRequests();

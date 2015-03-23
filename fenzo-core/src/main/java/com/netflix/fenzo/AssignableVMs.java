@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import rx.functions.Action1;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,10 +20,11 @@ class AssignableVMs {
         private long lastRejectAt=0;
         private int rejectedCount;
         private final int limit;
-        private final long rejectDelay=30000;
+        private final long rejectDelay;
 
-        SlaveRejectLimiter(int limit) {
+        SlaveRejectLimiter(int limit, long leaseOfferExpirySecs) {
             this.limit = limit;
+            rejectDelay = leaseOfferExpirySecs;
         }
         synchronized boolean reject() {
             if(rejectedCount==limit)
@@ -62,7 +64,7 @@ class AssignableVMs {
         this.leaseOfferExpirySecs = leaseOfferExpirySecs;
         this.attrNameToGroupMaxResources = attrNameToGroupMaxResources;
         maxResourcesMap = new HashMap<>();
-        slaveRejectLimiter = new SlaveRejectLimiter(2);  // ToDo make this configurable?
+        slaveRejectLimiter = new SlaveRejectLimiter(2, leaseOfferExpirySecs);  // ToDo make this configurable?
         activeVmGroups = new ActiveVmGroups();
     }
 
@@ -169,16 +171,15 @@ class AssignableVMs {
         }
     }
 
-    List<AssignableVirtualMachine> prepareAndGetOrderedVMs(AtomicInteger rejectedCount) {
+    List<AssignableVirtualMachine> prepareAndGetOrderedVMs() {
         expireAnyUnknownLeaseIds();
         List<AssignableVirtualMachine> vms = new ArrayList<>();
         taskTracker.clearAssignedTasks();
         // ToDo make this parallel
         slaveRejectLimiter.reset();
-        int rejected=0;
         for(Map.Entry<String, AssignableVirtualMachine> entry: virtualMachinesMap.entrySet()) {
             AssignableVirtualMachine avm = entry.getValue();
-            rejected += avm.prepareForScheduling(slaveRejectLimiter);
+            avm.prepareForScheduling();
             if(isInActiveVmGroup(entry.getValue()) && entry.getValue().isAssignableNow()) {
                 // for now, only add it if it is available right now
                 vms.add(avm);
@@ -186,8 +187,18 @@ class AssignableVMs {
             saveMaxResources(avm);
         }
         //Collections.sort(vms);
-        rejectedCount.set(rejected);
         return vms;
+    }
+
+    int cleanup() {
+        int rejected=0;
+        List<AssignableVirtualMachine> randomized = new ArrayList<>(virtualMachinesMap.values());
+        // randomize the list so we don't always reject leases of the same slave before hitting the reject limit
+        Collections.shuffle(randomized);
+        for(AssignableVirtualMachine avm: randomized) {
+            rejected += avm.removeExpiredLeases(slaveRejectLimiter, !isInActiveVmGroup(avm));
+        }
+        return rejected;
     }
 
     int getTotalNumVMs() {

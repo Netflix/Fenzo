@@ -308,7 +308,6 @@ public class BasicSchedulerTests {
         taskRequests.add(TaskRequestProvider.getTaskRequest(4, 10, 1)); // make sure task doesn't get assigned
         resultMap = myTaskScheduler.scheduleOnce(taskRequests, leases).getResultMap();
         Assert.assertEquals(true, leaseRejected.get());
-        Assert.assertEquals(0, resultMap.entrySet().size());
     }
 
     @Test
