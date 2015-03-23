@@ -29,14 +29,12 @@ public class InMemoryTriggerDao implements TriggerDao {
     }
 
     @Override
-    public Trigger getTrigger(String triggerId) {
-        for (Iterator<String> iterator1 = groupedTriggers.keySet().iterator(); iterator1.hasNext();) {
-            ConcurrentMap<String, Trigger> triggersMap = groupedTriggers.get(iterator1.next());
-            for (Iterator<String> iterator2 = triggersMap.keySet().iterator(); iterator2.hasNext();) {
-                String storedTriggerId = iterator2.next();
-                if (triggerId.equals(storedTriggerId)) {
-                    return triggersMap.get(storedTriggerId);
-                }
+    public Trigger getTrigger(String triggerGroup, String triggerId) {
+        ConcurrentMap<String, Trigger> triggersMap = groupedTriggers.get(triggerGroup);
+        for (Iterator<String> iterator2 = triggersMap.keySet().iterator(); iterator2.hasNext();) {
+            String storedTriggerId = iterator2.next();
+            if (triggerId.equals(storedTriggerId)) {
+                return triggersMap.get(triggerId);
             }
         }
         return null;
