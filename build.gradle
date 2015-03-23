@@ -24,7 +24,7 @@ buildscript {
 ext.githubProjectName = 'Fenzo'
 
 allprojects {
-    apply plugin: 'nebula.netflixoss'
+    //apply plugin: 'nebula.netflixoss'
     apply plugin: 'idea'
     
     group = 'com.netflix.fenzo'
