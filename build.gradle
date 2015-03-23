@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
+ext.githubProjectName = 'Fenzo'
+
 buildscript {
     repositories { jcenter() }
     apply from: file('gradle/buildscript.gradle'), to: buildscript
-    dependencies {
-        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:2.2.8'
-    }
+//    dependencies {
+//        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:2.2.8'
+//    }
 }
-
-ext.githubProjectName = 'Fenzo'
 
 allprojects {
     //apply plugin: 'nebula.netflixoss'
@@ -40,6 +40,8 @@ apply from: file('gradle/license.gradle')
 apply from: file('gradle/release.gradle')
 
 subprojects {
+    group = 'com.netflix.fenzo'
+
     repositories { jcenter() }
 
     //apply plugin: 'dependency-lock'
