@@ -13,9 +13,12 @@ import rx.functions.Action1;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class ActiveVmGroupsTests {
     private static final String activeVmGrpAttrName = "ASG";
@@ -64,5 +67,67 @@ public class ActiveVmGroupsTests {
         resultMap = taskScheduler.scheduleOnce(tasks, leases).getResultMap();
         Assert.assertEquals(1, resultMap.size());
         Assert.assertEquals(tasks.get(0).getId(), resultMap.values().iterator().next().getTasksAssigned().iterator().next().getTaskId());
+    }
+
+    @Test
+    public void testOffersRejectOnInactiveVMs() {
+        final Set<String> hostsSet = new HashSet<>();
+        for(int i=0; i<10; i++)
+            hostsSet.add("host"+i);
+        TaskScheduler ts = new TaskScheduler.Builder()
+                .withLeaseOfferExpirySecs(2)
+                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
+                    @Override
+                    public void call(VirtualMachineLease lease) {
+                        hostsSet.remove(lease.hostname());
+                    }
+                })
+                .build();
+        ts.setActiveVmGroupAttributeName(activeVmGrpAttrName);
+        ts.setActiveVmGroups(Arrays.asList(activeVmGrp));
+        List<VirtualMachineLease> leases = new ArrayList<>();
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        for(String h: hostsSet) {
+            leases.add(LeaseProvider.getLeaseOffer(h, 4, 4000, ports, attributes2));
+        }
+        leases.add(LeaseProvider.getLeaseOffer("hostA", 4, 4000, ports, attributes1));
+        leases.add(LeaseProvider.getLeaseOffer("hostB", 4, 4000, ports, attributes1));
+        ts.scheduleOnce(Collections.EMPTY_LIST, leases);
+        for(int i=0; i< 3; i++) {
+            ts.scheduleOnce(Collections.EMPTY_LIST, Collections.EMPTY_LIST);
+            System.out.println("...");
+            try{Thread.sleep(1000);}catch(InterruptedException ie){}
+        }
+        System.out.println("Not rejected leases for " + hostsSet.size() + " hosts");
+        Assert.assertEquals(0, hostsSet.size());
+    }
+
+    @Test
+    public void testRandomizedOfferRejection() {
+        final Set<String> hostsSet = new HashSet<>();
+        final List<String> hostsToAdd = new ArrayList<>();
+        final List<VirtualMachineLease> leases = LeaseProvider.getLeases(10, 4, 4000, 1, 10);
+        TaskScheduler ts = new TaskScheduler.Builder()
+                .withLeaseOfferExpirySecs(2)
+                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
+                    @Override
+                    public void call(VirtualMachineLease virtualMachineLease) {
+                        hostsSet.add(virtualMachineLease.hostname());
+                        hostsToAdd.add(virtualMachineLease.hostname());
+                    }
+                })
+                .build();
+        for(int i=0; i<9; i++) {
+            if(!hostsToAdd.isEmpty()) {
+                for(String h: hostsToAdd)
+                    leases.add(LeaseProvider.getLeaseOffer(h, 4, 4000, 1, 10));
+                hostsToAdd.clear();
+            }
+            ts.scheduleOnce(Collections.EMPTY_LIST, leases);
+            leases.clear();
+            try{Thread.sleep(1000);}catch(InterruptedException ie){}
+        }
+        Assert.assertTrue(hostsSet.size()>2);
     }
 }
