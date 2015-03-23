@@ -18,7 +18,6 @@ ext.githubProjectName = 'Fenzo'
 
 buildscript {
     repositories { jcenter() }
-    apply from: file('gradle/buildscript.gradle'), to: buildscript
 //    dependencies {
 //        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:2.2.8'
 //    }
@@ -26,18 +25,13 @@ buildscript {
 
 allprojects {
     //apply plugin: 'nebula.netflixoss'
+    apply plugin: 'java'
     apply plugin: 'idea'
     
     group = 'com.netflix.fenzo'
     sourceCompatibility = 1.7
 	targetCompatibility = 1.7
 }
-
-apply from: file('gradle/convention.gradle')
-apply from: file('gradle/maven.gradle')
-//apply from: file('gradle/check.gradle')
-apply from: file('gradle/license.gradle')
-apply from: file('gradle/release.gradle')
 
 subprojects {
     group = 'com.netflix.fenzo'
