@@ -37,7 +37,7 @@ public class AutoScalerTest {
     static String hostAttrName = "MachineType";
     final int minIdle=5;
     final int maxIdle=10;
-    final long coolDownSecs=5;
+    final long coolDownSecs=2;
     String hostAttrVal1="4coreServers";
     String hostAttrVal2="8coreServers";
     int cpus1=4;
@@ -486,15 +486,15 @@ public class AutoScalerTest {
                 .subscribe();
         int i=0;
         boolean first=true;
-        do {
-            Thread.sleep(1000);
+        while (i++<coolDownSecs+2 && latch.getCount()>0) {
             scheduler.scheduleOnce(requests, leases);
             if(first) {
                 first=false;
                 requests.clear();
                 leases.clear();
             }
-        } while (i++<coolDownSecs+2 && latch.getCount()>0);
+            Thread.sleep(1000);
+        }
         Assert.assertEquals(0, latch.getCount());
         // remove any existing leases in scheduler
         // now generate offers for hosts that were scale down and ensure they don't get used
@@ -507,7 +507,6 @@ public class AutoScalerTest {
         i=0;
         first=true;
         do {
-            Thread.sleep(1000);
             SchedulingResult schedulingResult = scheduler.scheduleOnce(requests, leases);
             if(!schedulingResult.getResultMap().isEmpty()) {
                 for(Map.Entry<String, VMAssignmentResult> entry: schedulingResult.getResultMap().entrySet()) {
@@ -520,6 +519,7 @@ public class AutoScalerTest {
             if(first) {
                 leases.clear();
             }
+            Thread.sleep(1000);
         } while(i++<coolDownSecs-1);
     }
 
