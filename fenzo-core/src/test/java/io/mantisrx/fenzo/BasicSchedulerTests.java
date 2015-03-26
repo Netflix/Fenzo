@@ -313,7 +313,7 @@ public class BasicSchedulerTests {
     @Test
     public void testOfferExpiryOnSeveralSlaves() throws Exception {
         final AtomicInteger rejectCount = new AtomicInteger();
-        final long leaseExpirySecs=2;
+        final long leaseExpirySecs=1;
         TaskScheduler scheduler = new TaskScheduler.Builder()
                 .withLeaseOfferExpirySecs(leaseExpirySecs)
                 .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
@@ -330,13 +330,12 @@ public class BasicSchedulerTests {
         Assert.assertEquals(0, resultMap.entrySet().size());
         leases.clear(); // don't pass in the same lease again.
         // wait for lease to expire
-        try{Thread.sleep(leaseExpirySecs*1000+1000);}catch (InterruptedException ie){}
+        try{Thread.sleep(leaseExpirySecs*1000+250);}catch (InterruptedException ie){}
         taskRequests.clear();
         taskRequests.add(TaskRequestProvider.getTaskRequest(5, 10, 1)); // make sure task doesn't get assigned
         resultMap = scheduler.scheduleOnce(taskRequests, leases).getResultMap();
         Assert.assertEquals(0, resultMap.size());
-        Assert.assertEquals(2, rejectCount.get()); // NOTE: we know only 2 leases are rejected at a time, so will have to hard code that until
-        // scheduler provides a configurable value to set on it
+        Assert.assertTrue(rejectCount.get()>0);
     }
 
     /**
