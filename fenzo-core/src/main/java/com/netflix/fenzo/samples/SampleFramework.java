@@ -88,6 +88,7 @@ public class SampleFramework {
         private Protos.Offer offer;
         private double cpuCores;
         private double memoryMB;
+        private double networkMbps=0.0;
         private double diskMB;
         private String hostname;
         private String slaveID;
@@ -100,11 +101,14 @@ public class SampleFramework {
             this.slaveID = offer.getSlaveId().getValue();
             offeredTime = System.currentTimeMillis();
             // parse out resources from offer
+            // expects network bandwidth to come in as consumable scalar resource named "network"
             for (Protos.Resource resource : offer.getResourcesList()) {
                 if ("cpus".equals(resource.getName())) {
                     cpuCores = resource.getScalar().getValue();
                 } else if ("mem".equals(resource.getName())) {
                     memoryMB = resource.getScalar().getValue();
+                } else if("network".equals(resource.getName())) {
+                    networkMbps = resource.getScalar().getValue();
                 } else if ("disk".equals(resource.getName())) {
                     diskMB = resource.getScalar().getValue();
                 } else if ("ports".equals(resource.getName())) {
@@ -136,6 +140,10 @@ public class SampleFramework {
         @Override
         public double memoryMB() {
             return memoryMB;
+        }
+        @Override
+        public double networkMbps() {
+            return networkMbps;
         }
         @Override
         public double diskMB() {

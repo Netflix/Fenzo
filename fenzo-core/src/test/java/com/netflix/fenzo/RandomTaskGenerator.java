@@ -1,8 +1,4 @@
-package io.mantisrx.fenzo;
-
-import com.netflix.fenzo.ConstraintEvaluator;
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.VMTaskFitnessCalculator;
+package com.netflix.fenzo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,6 +62,10 @@ public class RandomTaskGenerator {
         @Override
         public double getMemory() {
             return taskRequest.getMemory();
+        }
+        @Override
+        public double getNetworkMbps() {
+            return 0.0;
         }
         @Override
         public double getDisk() {

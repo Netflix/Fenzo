@@ -68,6 +68,41 @@ public class BinPackingFitnessCalculators {
             return (cpuFitness + memoryFitness) / 2.0;
         }
     };
+    public final static VMTaskFitnessCalculator networkBinPacker = new VMTaskFitnessCalculator() {
+        @Override
+        public String getName() {
+            return "NetworkBinPacker";
+        }
+        @Override
+        public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
+            return calculateResourceFitness(taskRequest, targetVM, taskTrackerState,
+                    new Func1<TaskRequest, Double>() {
+                        @Override
+                        public Double call(TaskRequest request) {
+                            return request.getNetworkMbps();
+                        }
+                    },
+                    new Func1<VirtualMachineLease, Double>() {
+                        @Override
+                        public Double call(VirtualMachineLease l) {
+                            return l.networkMbps();
+                        }
+                    });
+        }
+    };
+    public final static VMTaskFitnessCalculator cpuMemNetworkBinPacker = new VMTaskFitnessCalculator() {
+        @Override
+        public String getName() {
+            return "CPUAndMemoryAndNetworkBinPacker";
+        }
+        @Override
+        public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
+            double cpuFitness = cpuBinPacker.calculateFitness(taskRequest, targetVM, taskTrackerState);
+            double memFitness = memoryBinPacker.calculateFitness(taskRequest, targetVM, taskTrackerState);
+            double networkFitness = networkBinPacker.calculateFitness(taskRequest, targetVM, taskTrackerState);
+            return (cpuFitness + memFitness + networkFitness)/3.0;
+        }
+    };
 
     private static double calculateResourceFitness(TaskRequest request, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState,
                                                    Func1<TaskRequest, Double> taskResourceGetter,

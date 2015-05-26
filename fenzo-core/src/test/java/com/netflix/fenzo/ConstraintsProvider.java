@@ -1,9 +1,5 @@
-package io.mantisrx.fenzo;
+package com.netflix.fenzo;
 
-import com.netflix.fenzo.ConstraintEvaluator;
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.TaskTrackerState;
-import com.netflix.fenzo.VirtualMachineCurrentState;
 import org.apache.mesos.Protos;
 
 import java.util.Map;

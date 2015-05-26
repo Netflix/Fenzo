@@ -143,12 +143,13 @@ public class TaskScheduler {
 
     private final AssignableVMs assignableVMs;
     private static final Logger logger = LoggerFactory.getLogger(TaskScheduler.class);
+    private static final long purgeVMsIntervalSecs = 60;
+    private long lastVMPurgeAt=System.currentTimeMillis();
     private final Builder builder;
     private final StateMonitor stateMonitor;
     private final Observable<TaskAssignmentResult> assignmentResultObservable;
     private final Observable<AutoScalerInput> autoScalerInputObservable;
     private final AutoScaler autoScaler;
-    private final AtomicLong counter = new AtomicLong();
 
     private final int EXEC_SVC_THREADS=Runtime.getRuntime().availableProcessors();
     private final ExecutorService executorService = Executors.newFixedThreadPool(EXEC_SVC_THREADS);
@@ -258,8 +259,9 @@ public class TaskScheduler {
                      ac = stateMonitor.enter()) {
             long start = System.currentTimeMillis();
             final SchedulingResult schedulingResult = doSchedule(requests, newLeases);
-            if(counter.incrementAndGet() % 1000L == 0) {
-                logger.info("Purging (" + counter.get()+ ") inactive VMs");
+            if((lastVMPurgeAt + purgeVMsIntervalSecs*1000) < System.currentTimeMillis()) {
+                lastVMPurgeAt = System.currentTimeMillis();
+                logger.info("Purging inactive VMs");
                 assignableVMs.purgeInactiveVMs();
             }
             schedulingResult.setRuntime(System.currentTimeMillis() - start);
@@ -431,6 +433,14 @@ public class TaskScheduler {
         assignableVMs.expireAllLeases(hostname);
     }
 
+    public boolean expireAllLeasesBySlaveId(String slaveId) {
+        final String hostname = assignableVMs.getHostnameFromSlaveId(slaveId);
+        if(hostname == null)
+            return false;
+        expireAllLeases(hostname);
+        return true;
+    }
+
     public void expireAllLeases() {
         logger.info("Expiring all leases");
         assignableVMs.expireAllLeases();
@@ -474,9 +484,29 @@ public class TaskScheduler {
         };
     }
 
+    /**
+     * Disable a VM with the given hostname. If the hostname is not known yet, a new object for it is created and
+     * therefore, the disabling is remembered when offers come in later.
+     * @param hostname Name of the host to disable.
+     * @param durationMillis duration, in mSec, from now until which to disable
+     */
     public void disableVM(String hostname, long durationMillis) {
         logger.info("Disable VM " + hostname + " for " + durationMillis + " millis");
         assignableVMs.disableUntil(hostname, System.currentTimeMillis()+durationMillis);
+    }
+
+    /**
+     * Disable a VM given it's slave ID.
+     * @param slaveID The slave ID
+     * @param durationMillis duration, in mSec, from now until which to disable
+     * @return True if slave ID was found and disabled, false otherwise.
+     */
+    public boolean disableVMBySlaveId(String slaveID, long durationMillis) {
+        final String hostname = assignableVMs.getHostnameFromSlaveId(slaveID);
+        if(hostname == null)
+            return false;
+        disableVM(hostname, durationMillis);
+        return true;
     }
 
     public void enableVM(String hostname) {

@@ -59,6 +59,11 @@ public class TaskGenerator implements Runnable {
             }
 
             @Override
+            public double getNetworkMbps() {
+                return 0;
+            }
+
+            @Override
             public double getDisk() {
                 return 10;
             }
