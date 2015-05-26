@@ -1,7 +1,4 @@
-package io.mantisrx.fenzo;
-
-import com.netflix.fenzo.AutoScaleRule;
-import com.netflix.fenzo.VirtualMachineLease;
+package com.netflix.fenzo;
 
 public class AutoScaleRuleProvider {
 

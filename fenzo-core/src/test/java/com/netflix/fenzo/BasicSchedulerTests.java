@@ -1,14 +1,5 @@
-package io.mantisrx.fenzo;
+package com.netflix.fenzo;
 
-import com.netflix.fenzo.SchedulingResult;
-import com.netflix.fenzo.TaskAssignmentResult;
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.TaskScheduler;
-import com.netflix.fenzo.TaskTrackerState;
-import com.netflix.fenzo.VMAssignmentResult;
-import com.netflix.fenzo.VMTaskFitnessCalculator;
-import com.netflix.fenzo.VirtualMachineCurrentState;
-import com.netflix.fenzo.VirtualMachineLease;
 import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Before;
@@ -97,6 +88,19 @@ public class BasicSchedulerTests {
         Map<String,VMAssignmentResult> resultMap = taskScheduler.scheduleOnce(taskRequests, leases).getResultMap();
         Assert.assertEquals(1, resultMap.entrySet().size());
         Assert.assertEquals(1, resultMap.values().iterator().next().getTasksAssigned().size());
+    }
+
+    @Test
+    public void testInsufficientNetworkMbps() throws Exception {
+        List<VirtualMachineLease> leases = new ArrayList<>();
+        leases.add(LeaseProvider.getLeaseOffer("server1", 4, 100, 1024, null));
+        List<TaskRequest> taskRequests = new ArrayList<>();
+        taskRequests.add(TaskRequestProvider.getTaskRequest(1, 5, 512, 0));
+        taskRequests.add(TaskRequestProvider.getTaskRequest(1, 5, 512, 0));
+        taskRequests.add(TaskRequestProvider.getTaskRequest(1, 5, 512, 0));
+        Map<String,VMAssignmentResult> resultMap = taskScheduler.scheduleOnce(taskRequests, leases).getResultMap();
+        Assert.assertEquals(1, resultMap.entrySet().size());
+        Assert.assertEquals(2, resultMap.values().iterator().next().getTasksAssigned().size());
     }
 
     @Test
@@ -286,7 +290,7 @@ public class BasicSchedulerTests {
     @Test
     public void testOfferExpiry() throws Exception {
         final AtomicBoolean leaseRejected = new AtomicBoolean(false);
-        final long leaseExpirySecs=2;
+        final long leaseExpirySecs=1;
         TaskScheduler myTaskScheduler = new TaskScheduler.Builder()
                 .withLeaseOfferExpirySecs(leaseExpirySecs)
                 .withLeaseRejectAction(new Action1<VirtualMachineLease>() {

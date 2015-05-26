@@ -3,21 +3,17 @@ package com.netflix.fenzo;
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.Observable;
-import rx.functions.Action1;
-import rx.functions.Func1;
-import rx.subjects.PublishSubject;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 class AutoScaler {
 
@@ -52,55 +48,92 @@ class AutoScaler {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(AutoScaler.class);
-    private final PublishSubject<AutoScaleAction> autoScaleActionPublishSubject = PublishSubject.create();
+    private volatile AutoscalerCallback callback=null;
     private final String mapHostnameAttributeName;
     private final String scaleDownBalancedByAttributeName;
     private ShortfallEvaluator shortfallEvaluator;
     private final ActiveVmGroups activeVmGroups;
+    private final AutoScaleRules autoScaleRules;
+    private final boolean disableShortfallEvaluation;
+    private final String attributeName;
+    private final AssignableVMs assignableVMs;
+    private final ThreadPoolExecutor executor =
+            new ThreadPoolExecutor(1, 1, Long.MAX_VALUE, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(100),
+                     new ThreadPoolExecutor.DiscardOldestPolicy());
+    final ConcurrentMap<String, ScalingActivity> scalingActivityMap = new ConcurrentHashMap<>();
 
     AutoScaler(final String attributeName, String mapHostnameAttributeName, String scaleDownBalancedByAttributeName,
-               final AutoScaleRules autoScaleRules, Observable<AutoScalerInput> autoScalerInputObservable,
+               final AutoScaleRules autoScaleRules,
                final AssignableVMs assignableVMs, TaskScheduler phantomTaskScheduler,
                final boolean disableShortfallEvaluation, ActiveVmGroups activeVmGroups) {
         this.mapHostnameAttributeName = mapHostnameAttributeName;
         this.scaleDownBalancedByAttributeName = scaleDownBalancedByAttributeName;
-        this.shortfallEvaluator = new ShortfallEvaluator(phantomTaskScheduler, new Func1<String, Map<VMResource, Double>>() {
-            @Override
-            public Map<VMResource, Double> call(String s) {
-                return assignableVMs.getMaxResources(s);
-            }
-        });
-        final ConcurrentMap<String, ScalingActivity> scalingActivityMap = new ConcurrentHashMap<>();
-        autoScalerInputObservable
-                .doOnError(new Action1<Throwable>() {
-                    @Override
-                    public void call(Throwable throwable) {
-                        logger.warn("Error in auto scaler handler: " + throwable.getMessage(), throwable);
-                    }
-                })
-                .retry()
-                .flatMap(new Func1<AutoScalerInput, Observable<HostAttributeGroup>>() {
-                    @Override
-                    public Observable<HostAttributeGroup> call(AutoScalerInput autoScalerInput) {
-                        Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
-                        if(!disableShortfallEvaluation) {
-                            Map<String, Integer> shortfall = shortfallEvaluator.getShortfall(hostAttributeGroupMap.keySet(), autoScalerInput.getFailures());
-                            for (Map.Entry<String, Integer> entry : shortfall.entrySet()) {
-                                hostAttributeGroupMap.get(entry.getKey()).shortFall = entry.getValue() == null ? 0 : entry.getValue();
-                            }
+        this.shortfallEvaluator = new ShortfallEvaluator(phantomTaskScheduler);
+        this.attributeName = attributeName;
+        this.autoScaleRules = autoScaleRules;
+        this.assignableVMs = assignableVMs;
+        this.disableShortfallEvaluation = disableShortfallEvaluation;
+//        autoScalerInputObservable
+//                .onErrorResumeNext(new Func1<Throwable, Observable<? extends AutoScalerInput>>() {
+//                    @Override
+//                    public Observable<? extends AutoScalerInput> call(Throwable throwable) {
+//                        logger.warn("Error in auto scaler handler: " + throwable.getMessage(), throwable);
+//                        return Observable.empty();
+//                    }
+//                })
+//                .flatMap(new Func1<AutoScalerInput, Observable<HostAttributeGroup>>() {
+//                    @Override
+//                    public Observable<HostAttributeGroup> call(AutoScalerInput autoScalerInput) {
+//                        Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
+//                        if(!disableShortfallEvaluation) {
+//                            Map<String, Integer> shortfall = shortfallEvaluator.getShortfall(hostAttributeGroupMap.keySet(), autoScalerInput.getFailures());
+//                            for (Map.Entry<String, Integer> entry : shortfall.entrySet()) {
+//                                hostAttributeGroupMap.get(entry.getKey()).shortFall = entry.getValue() == null ? 0 : entry.getValue();
+//                            }
+//                        }
+//                        populateIdleResources(autoScalerInput.getIdleResourcesList(), hostAttributeGroupMap, attributeName);
+//                        return Observable.from(hostAttributeGroupMap.values());
+//                    }
+//                })
+//                .onErrorResumeNext(new Func1<Throwable, Observable<? extends HostAttributeGroup>>() {
+//                    @Override
+//                    public Observable<? extends HostAttributeGroup> call(Throwable throwable) {
+//                        logger.warn("Error in autoscaler: " + throwable.getMessage(), throwable);
+//                        return Observable.empty();
+//                    }
+//                })
+//                .doOnNext(new Action1<HostAttributeGroup>() {
+//                    @Override
+//                    public void call(HostAttributeGroup hostAttributeGroup) {
+//                        processScalingNeeds(hostAttributeGroup, scalingActivityMap, assignableVMs);
+//                    }
+//                })
+//                .subscribe();
+        this.activeVmGroups = activeVmGroups;
+    }
+
+    void scheduleAutoscale(final AutoScalerInput autoScalerInput) {
+        try {
+            executor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
+                    if (!disableShortfallEvaluation) {
+                        Map<String, Integer> shortfall = shortfallEvaluator.getShortfall(hostAttributeGroupMap.keySet(), autoScalerInput.getFailures());
+                        for (Map.Entry<String, Integer> entry : shortfall.entrySet()) {
+                            hostAttributeGroupMap.get(entry.getKey()).shortFall = entry.getValue() == null ? 0 : entry.getValue();
                         }
-                        populateIdleResources(autoScalerInput.getIdleResourcesList(), hostAttributeGroupMap, attributeName);
-                        return Observable.from(hostAttributeGroupMap.values());
                     }
-                })
-                .doOnNext(new Action1<HostAttributeGroup>() {
-                    @Override
-                    public void call(HostAttributeGroup hostAttributeGroup) {
+                    populateIdleResources(autoScalerInput.getIdleResourcesList(), hostAttributeGroupMap, attributeName);
+                    for (HostAttributeGroup hostAttributeGroup : hostAttributeGroupMap.values()) {
                         processScalingNeeds(hostAttributeGroup, scalingActivityMap, assignableVMs);
                     }
-                })
-                .subscribe();
-        this.activeVmGroups = activeVmGroups;
+                }
+            });
+        }
+        catch (RejectedExecutionException e) {
+            logger.warn("Autoscaler execution request rejected: " + e.getMessage());
+        }
     }
 
     private boolean shouldScaleNow(boolean scaleUp, long now, ScalingActivity prevScalingActivity, AutoScaleRule rule) {
@@ -137,8 +170,9 @@ class AutoScaler {
             }
             logger.info("Scaling down " + rule.getRuleName() + " by "
                     + excess + " hosts (" + sBuilder.toString() + ")");
-            autoScaleActionPublishSubject.onNext(
-                    new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values()));
+            callback.process(
+                    new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values())
+            );
         } else if(hostAttributeGroup.shortFall>0 || (excess<=0 && shouldScaleUp(now, prevScalingActivity, rule))) {
             if (hostAttributeGroup.shortFall>0 || rule.getMinIdleHostsToKeep() > hostAttributeGroup.idleHosts.size()) {
                 // scale up to rule.getMaxIdleHostsToKeep() instead of just until rule.getMinIdleHostsToKeep()
@@ -154,8 +188,9 @@ class AutoScaler {
                 scalingActivity.type = AutoScaleAction.Type.Up;
                 logger.info("Scaling up " + rule.getRuleName() + " by "
                         + shortage + "hosts");
-                autoScaleActionPublishSubject.onNext(
-                        new ScaleUpAction(rule.getRuleName(), getEffectiveShortage(shortage, scalingActivity.shortfall)));
+                callback.process(
+                        new ScaleUpAction(rule.getRuleName(), getEffectiveShortage(shortage, scalingActivity.shortfall))
+                );
             }
         }
     }
@@ -237,7 +272,7 @@ class AutoScaler {
         return attribute.getText().getValue();
     }
 
-    public Observable<AutoScaleAction> getObservable() {
-        return autoScaleActionPublishSubject;
+    public void setCallback(AutoscalerCallback callback) {
+        this.callback = callback;
     }
 }

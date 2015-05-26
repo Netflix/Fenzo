@@ -28,6 +28,7 @@ public interface VirtualMachineLease {
     public String getSlaveID();
 	public double cpuCores();
 	public double memoryMB();
+    public double networkMbps();
 	public double diskMB();
 	public List<Range> portRanges();
 	public Protos.Offer getOffer();

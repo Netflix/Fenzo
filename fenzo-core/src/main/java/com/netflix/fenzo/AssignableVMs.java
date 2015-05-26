@@ -24,7 +24,7 @@ class AssignableVMs {
 
         SlaveRejectLimiter(int limit, long leaseOfferExpirySecs) {
             this.limit = limit;
-            rejectDelay = leaseOfferExpirySecs;
+            this.rejectDelay = leaseOfferExpirySecs;
         }
         synchronized boolean reject() {
             if(rejectedCount==limit)
@@ -44,11 +44,12 @@ class AssignableVMs {
     private final long leaseOfferExpirySecs;
     private static final Logger logger = LoggerFactory.getLogger(AssignableVMs.class);
     private final ConcurrentMap<String, String> leaseIdToHostnameMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, String> slaveIdToHostnameMap = new ConcurrentHashMap<>();
     private final TaskTracker taskTracker = new TaskTracker();
     private final String attrNameToGroupMaxResources;
     private final Map<String, Map<VMResource, Double>> maxResourcesMap;
     private final SlaveRejectLimiter slaveRejectLimiter;
-    private final AssignableVirtualMachine dummyVM = new AssignableVirtualMachine(null, "", null, 0L, null) {
+    private final AssignableVirtualMachine dummyVM = new AssignableVirtualMachine(null, null, "", null, 0L, null) {
         @Override
         void assignResult(TaskAssignmentResult result) {
             throw new UnsupportedOperationException();
@@ -64,7 +65,7 @@ class AssignableVMs {
         this.leaseOfferExpirySecs = leaseOfferExpirySecs;
         this.attrNameToGroupMaxResources = attrNameToGroupMaxResources;
         maxResourcesMap = new HashMap<>();
-        slaveRejectLimiter = new SlaveRejectLimiter(2, leaseOfferExpirySecs);  // ToDo make this configurable?
+        slaveRejectLimiter = new SlaveRejectLimiter(4, leaseOfferExpirySecs);  // ToDo make this configurable?
         activeVmGroups = new ActiveVmGroups();
     }
 
@@ -76,9 +77,7 @@ class AssignableVMs {
     }
 
     void setTaskAssigned(TaskRequest request, String host) {
-        if(virtualMachinesMap.get(host) == null)
-            virtualMachinesMap.putIfAbsent(host,
-                    new AssignableVirtualMachine(leaseIdToHostnameMap, host, leaseRejectAction, leaseOfferExpirySecs, taskTracker));
+        createAvmIfAbsent(host);
         AssignableVirtualMachine avm = virtualMachinesMap.get(host);
         avm.setAssignedTask(request);
     }
@@ -96,13 +95,18 @@ class AssignableVMs {
         int rejected=0;
         for(VirtualMachineLease l: leases) {
             String host = l.hostname();
-            if(virtualMachinesMap.get(host) == null)
-                virtualMachinesMap.putIfAbsent(host,
-                        new AssignableVirtualMachine(leaseIdToHostnameMap, host, leaseRejectAction, leaseOfferExpirySecs, taskTracker));
+            createAvmIfAbsent(host);
             if(!virtualMachinesMap.get(host).addLease(l))
                 rejected++;
         }
         return rejected;
+    }
+
+    private void createAvmIfAbsent(String hostname) {
+        if(virtualMachinesMap.get(hostname) == null)
+            virtualMachinesMap.putIfAbsent(hostname,
+                    new AssignableVirtualMachine(slaveIdToHostnameMap, leaseIdToHostnameMap, hostname,
+                            leaseRejectAction, leaseOfferExpirySecs, taskTracker));
     }
 
     void expireLease(String leaseId) {
@@ -132,11 +136,9 @@ class AssignableVMs {
     }
 
     void disableUntil(String host, long until) {
+        createAvmIfAbsent(host);
         AssignableVirtualMachine avm = virtualMachinesMap.get(host);
-        if(avm != null)
-            avm.setDisabledUntil(until);
-        else
-            logger.warn("Can't disable host " + host + " until " + until + ", no such host");
+        avm.setDisabledUntil(until);
     }
 
     void enableVM(String host) {
@@ -145,6 +147,10 @@ class AssignableVMs {
             avm.enable();
         else
             logger.warn("Can't enable host " + host + ", no such host");
+    }
+
+    String getHostnameFromSlaveId(String slaveId) {
+        return slaveIdToHostnameMap.get(slaveId);
     }
 
     void setActiveVmGroupAttributeName(String attributeName) {
@@ -211,6 +217,8 @@ class AssignableVMs {
             if(avm != null) {
                 if(!avm.isActive()) {
                     virtualMachinesMap.remove(hostname, avm);
+                    if(avm.getCurrSlaveId() != null)
+                        slaveIdToHostnameMap.remove(avm.getCurrSlaveId(), avm.getHostname());
                     logger.info("Removed inactive host " + hostname);
                 }
             }
@@ -233,6 +241,7 @@ class AssignableVMs {
                         case Disk:
                         case Memory:
                         case Ports:
+                        case Network:
                             Double savedVal = savedMaxResources.get(r)==null? 0.0 : savedMaxResources.get(r);
                             savedMaxResources.put(r, Math.max(savedVal, maxResources.get(r)));
                     }
@@ -268,6 +277,10 @@ class AssignableVMs {
                     case Ports:
                         if(maxResources.get(VMResource.Ports) < task.getPorts())
                             return new AssignmentFailure(VMResource.Ports, task.getPorts(), 0.0, maxResources.get(VMResource.Ports));
+                        break;
+                    case Network:
+                        if(maxResources.get(VMResource.Network) < task.getNetworkMbps())
+                            return new AssignmentFailure(VMResource.Network, task.getNetworkMbps(), 0.0, maxResources.get(VMResource.Network));
                         break;
                     case VirtualMachine:
                     case Fitness:

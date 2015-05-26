@@ -1,11 +1,5 @@
-package io.mantisrx.fenzo;
+package com.netflix.fenzo;
 
-import com.netflix.fenzo.SchedulingResult;
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.TaskScheduler;
-import com.netflix.fenzo.VMAssignmentResult;
-import com.netflix.fenzo.VMTaskFitnessCalculator;
-import com.netflix.fenzo.VirtualMachineLease;
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
 import junit.framework.Assert;
 import org.junit.After;
@@ -119,6 +113,11 @@ public class BinPackingSchedulerTests {
         testBinPackingWithSeveralHosts("Memory");
     }
 
+    @Test
+    public void testNetworkBinPackingWithSeveralHosts() {
+        testBinPackingWithSeveralHosts("Network");
+    }
+
     private void testBinPackingWithSeveralHosts(String resource) {
         TaskScheduler scheduler=null;
         switch (resource) {
@@ -128,6 +127,9 @@ public class BinPackingSchedulerTests {
             case "Memory":
                 scheduler = getScheduler(BinPackingFitnessCalculators.memoryBinPacker);
                 break;
+            case "Network":
+                scheduler = getScheduler(BinPackingFitnessCalculators.networkBinPacker);
+                break;
             default:
                 Assert.fail("Unknown resource type " + resource);
         }
@@ -135,14 +137,16 @@ public class BinPackingSchedulerTests {
         double cpuCores2=8;
         double memory1=400;
         double memory2=800;
+        double network1=400;
+        double network2 = 800;
         int N = 10; // #instances
         // First create N 8-core machines and then N 4-core machines
-        List<VirtualMachineLease> leases = LeaseProvider.getLeases(N, cpuCores2, memory2, 1, 100);
-        leases.addAll(LeaseProvider.getLeases(N, N, cpuCores1, memory1, 1, 100));
+        List<VirtualMachineLease> leases = LeaseProvider.getLeases(N, cpuCores2, memory2, network2, 1, 100);
+        leases.addAll(LeaseProvider.getLeases(N, N, cpuCores1, memory1, network1, 1, 100));
         // Create as many tasks as to fill all of the 4-core machines, and then one more
         List<TaskRequest> taskRequests = new ArrayList<>();
         for(int i=0; i<N*cpuCores1+1; i++)
-            taskRequests.add(TaskRequestProvider.getTaskRequest(1, memory1/cpuCores1, 1));
+            taskRequests.add(TaskRequestProvider.getTaskRequest(1, memory1/cpuCores1, network1/cpuCores1, 1));
         Map<String,VMAssignmentResult> resultMap = scheduler.scheduleOnce(taskRequests, leases).getResultMap();
         Assert.assertEquals(N+1, resultMap.size());
         int hosts1=0;

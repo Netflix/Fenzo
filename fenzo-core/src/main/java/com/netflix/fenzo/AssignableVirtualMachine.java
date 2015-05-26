@@ -20,7 +20,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
 
@@ -91,6 +90,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private double currUsedCpus=0.0;
     private double currTotalMemory=0.0;
     private double currUsedMemory=0.0;
+    private double currTotalNetworkMbps=0.0;
+    private double currUsedNetworkMbps=0.0;
     private double currTotalDisk=0.0;
     private double currUsedDisk=0.0;
     private VirtualMachineLease currTotalLease=null;
@@ -104,15 +105,19 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private final Map<TaskRequest, TaskAssignmentResult> assignmentResults;
     private static final Logger logger = LoggerFactory.getLogger(AssignableVirtualMachine.class);
     private final ConcurrentMap<String, String> leaseIdToHostnameMap;
+    private final ConcurrentMap<String, String> slaveIdToHostnameMap;
+    private String currSlaveId=null;
     private final TaskTracker taskTracker;
-    private long disabledUntil=0L;
+    private volatile long disabledUntil=0L;
     // This may have to be configurable, but, for now weight the job's soft constraints more than system wide fitness calculators
     private double softConstraintWeightPercentage=75.0;
     private String exclusiveTaskId =null;
 
-    public AssignableVirtualMachine(ConcurrentMap<String, String> leaseIdToHostnameMap,
+    public AssignableVirtualMachine(ConcurrentMap<String, String> slaveIdToHostnameMap,
+                                    ConcurrentMap<String, String> leaseIdToHostnameMap,
                                     String hostname, Action1<VirtualMachineLease> leaseRejectAction,
                                     long leaseOfferExpirySecs, TaskTracker taskTracker) {
+        this.slaveIdToHostnameMap = slaveIdToHostnameMap;
         this.leaseIdToHostnameMap = leaseIdToHostnameMap;
         this.hostname = hostname;
         this.leaseRejectAction = leaseRejectAction==null?
@@ -139,6 +144,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         for(VirtualMachineLease l: leasesMap.values()) {
             currTotalCpus += l.cpuCores();
             currTotalMemory += l.memoryMB();
+            currTotalNetworkMbps += l.networkMbps();
             currTotalDisk += l.diskMB();
             if(l.portRanges()!=null)
                 currPortRanges.addRanges(l.portRanges());
@@ -153,6 +159,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         currUsedCpus=0.0;
         currTotalMemory=0.0;
         currUsedMemory=0.0;
+        currTotalNetworkMbps=0.0;
+        currUsedNetworkMbps=0.0;
         currTotalDisk=0.0;
         currUsedDisk=0.0;
         currPortRanges.clear();
@@ -189,6 +197,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             @Override
             public double memoryMB() {
                 return currTotalMemory;
+            }
+            @Override
+            public double networkMbps() {
+                return currTotalNetworkMbps;
             }
             @Override
             public double diskMB() {
@@ -234,7 +246,15 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return rejected;
     }
 
+    String getCurrSlaveId() {
+        return currSlaveId;
+    }
+
     boolean addLease(VirtualMachineLease lease) {
+        if(currSlaveId != lease.getSlaveID()) {
+            currSlaveId = lease.getSlaveID();
+            slaveIdToHostnameMap.put(lease.getSlaveID(), hostname);
+        }
         if(System.currentTimeMillis()<disabledUntil) {
             leaseRejectAction.call(lease);
             return false;
@@ -338,16 +358,19 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     Map<VMResource, Double> getMaxResources() {
         double cpus=0.0;
         double memory=0.0;
+        double network=0.0;
         double ports=0.0;
         double disk=0.0;
         for(TaskRequest r: previouslyAssignedTasksMap.values()) {
             cpus += r.getCPUs();
             memory += r.getMemory();
+            network += r.getNetworkMbps();
             ports += r.getPorts();
             disk += r.getDisk();
         }
         cpus += getCurrTotalLease().cpuCores();
         memory += getCurrTotalLease().memoryMB();
+        network += getCurrTotalLease().networkMbps();
         List<VirtualMachineLease.Range> ranges = getCurrTotalLease().portRanges();
         for(VirtualMachineLease.Range r: ranges)
             ports += r.getEnd()-r.getBeg();
@@ -355,6 +378,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         Map<VMResource, Double> result = new HashMap<>();
         result.put(VMResource.CPU, cpus);
         result.put(VMResource.Memory, memory);
+        result.put(VMResource.Network, network);
         result.put(VMResource.Ports, ports);
         result.put(VMResource.Disk, disk);
         return result;
@@ -419,6 +443,12 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                     VMResource.Memory, request.getMemory(), currUsedMemory,
                     currTotalMemory);
             logger.info(hostname+":"+request.getId()+" Insufficient memory: " + failure.toString());
+            failures.add(failure);
+        }
+        if((currUsedNetworkMbps+request.getNetworkMbps()) > currTotalNetworkMbps) {
+            AssignmentFailure failure = new AssignmentFailure(
+                    VMResource.Network, request.getNetworkMbps(), currUsedNetworkMbps, currTotalNetworkMbps);
+            logger.info(hostname+":"+request.getId()+" Insufficient network: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedDisk+request.getDisk()) > currTotalDisk) {
@@ -515,6 +545,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     void assignResult(TaskAssignmentResult result) {
         currUsedCpus += result.getRequest().getCPUs();
         currUsedMemory += result.getRequest().getMemory();
+        currUsedNetworkMbps += result.getRequest().getNetworkMbps();
         for(int p=0; p<result.getRequest().getPorts(); p++){
             result.addPort(currPortRanges.consumeNextPort());
         }

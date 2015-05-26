@@ -1,4 +1,4 @@
-package io.mantisrx.fenzo;
+package com.netflix.fenzo;
 
 import rx.functions.Action1;
 

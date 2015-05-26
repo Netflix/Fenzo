@@ -6,6 +6,7 @@ public interface TaskRequest {
     public String getId();
     public double getCPUs();
     public double getMemory();
+    public double getNetworkMbps();
     public double getDisk();
     public int getPorts();
     public List<? extends ConstraintEvaluator> getHardConstraints();

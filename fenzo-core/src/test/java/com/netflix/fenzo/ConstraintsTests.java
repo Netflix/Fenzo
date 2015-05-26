@@ -1,14 +1,5 @@
-package io.mantisrx.fenzo;
+package com.netflix.fenzo;
 
-import com.netflix.fenzo.AsSoftConstraint;
-import com.netflix.fenzo.ConstraintEvaluator;
-import com.netflix.fenzo.SchedulingResult;
-import com.netflix.fenzo.TaskAssignmentResult;
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.TaskScheduler;
-import com.netflix.fenzo.VMAssignmentResult;
-import com.netflix.fenzo.VMTaskFitnessCalculator;
-import com.netflix.fenzo.VirtualMachineLease;
 import com.netflix.fenzo.plugins.BalancedHostAttrConstraint;
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
 import com.netflix.fenzo.plugins.ExclusiveHostConstraint;
