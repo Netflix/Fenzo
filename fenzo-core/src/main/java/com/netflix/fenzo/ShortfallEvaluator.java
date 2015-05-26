@@ -11,13 +11,10 @@ import java.util.Set;
 class ShortfallEvaluator {
     private static final long TOO_OLD_THRESHOLD_MILLIS = 15 * 60000; // 15 mins
     private final TaskScheduler phantomTaskScheduler;
-    private final Func1<String, Map<VMResource, Double>> maxResourcesGetterFunc;
     private final Map<String, Long> requestedForTasksSet = new HashMap<>();
 
-    ShortfallEvaluator(TaskScheduler phantomTaskScheduler,
-                              Func1<String, Map<VMResource, Double>> maxResourcesGetterFunc) {
+    ShortfallEvaluator(TaskScheduler phantomTaskScheduler) {
         this.phantomTaskScheduler = phantomTaskScheduler;
-        this.maxResourcesGetterFunc = maxResourcesGetterFunc;
     }
 
     Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures) {

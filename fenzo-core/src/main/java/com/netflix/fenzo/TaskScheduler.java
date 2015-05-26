@@ -173,7 +173,7 @@ public class TaskScheduler {
                 autoScaleRules.addRule(rule);
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
                     builder.autoScaleDownBalancedByAttributeName,
-                    autoScaleRules, autoScalerInputObservable, assignableVMs, null,
+                    autoScaleRules, assignableVMs, null,
                     builder.disableShortfallEvaluation, assignableVMs.getActiveVmGroups());
         }
         else {
@@ -181,10 +181,10 @@ public class TaskScheduler {
         }
     }
 
-    public Observable<AutoScaleAction> getAutoScaleActionsObservable() {
+    public void setAutoscalerCallback(AutoscalerCallback callback) {
         if(autoScaler==null)
             throw new IllegalStateException("No autoScale rules setup");
-        return autoScaler.getObservable();
+        autoScaler.setCallback(callback);
     }
 
     private void sendAssignmentFailures(TaskRequest request, List<TaskAssignmentResult> results) {
@@ -349,7 +349,10 @@ public class TaskScheduler {
                 resultMap.put(avm.getHostname(), assignmentResult);
             }
         }
-        builder.idleResourcesSubject.onNext(new AutoScalerInput(idleResourcesList, failedTasks));
+        final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, failedTasks);
+        builder.idleResourcesSubject.onNext(autoScalerInput);
+        if(autoScaler!=null)
+            autoScaler.scheduleAutoscale(autoScalerInput);
         schedulingResult.setLeasesAdded(newLeases.size());
         schedulingResult.setLeasesRejected(rejectedCount.get());
         schedulingResult.setNumAllocations(totalNumAllocations);
