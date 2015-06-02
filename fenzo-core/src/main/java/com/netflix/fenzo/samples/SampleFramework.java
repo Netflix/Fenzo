@@ -1,3 +1,19 @@
+/*
+ * Copyright 2015 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.netflix.fenzo.samples;
 
 import com.netflix.fenzo.SchedulingResult;
@@ -21,8 +37,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class SampleFramework {
@@ -91,14 +105,14 @@ public class SampleFramework {
         private double networkMbps=0.0;
         private double diskMB;
         private String hostname;
-        private String slaveID;
+        private String vmID;
         private List<Range> portRanges;
         private Map<String, Protos.Attribute> attributeMap;
         private long offeredTime;
         VMLeaseObject(Protos.Offer offer) {
             this.offer = offer;
             hostname = offer.getHostname();
-            this.slaveID = offer.getSlaveId().getValue();
+            this.vmID = offer.getSlaveId().getValue();
             offeredTime = System.currentTimeMillis();
             // parse out resources from offer
             // expects network bandwidth to come in as consumable scalar resource named "network"
@@ -130,8 +144,8 @@ public class SampleFramework {
             return hostname;
         }
         @Override
-        public String getSlaveID() {
-            return slaveID;
+        public String getVMID() {
+            return vmID;
         }
         @Override
         public double cpuCores() {
@@ -259,7 +273,7 @@ public class SampleFramework {
                 for(VMAssignmentResult result: resultMap.values()) {
                     List<VirtualMachineLease> leasesUsed = result.getLeasesUsed();
                     List<Protos.TaskInfo> taskInfos = new ArrayList<>();
-                    StringBuilder stringBuilder = new StringBuilder("Launching on slave " + leasesUsed.get(0).hostname() + " tasks ");
+                    StringBuilder stringBuilder = new StringBuilder("Launching on VM " + leasesUsed.get(0).hostname() + " tasks ");
                     for(TaskAssignmentResult t: result.getTasksAssigned()) {
                         stringBuilder.append(t.getTaskId()).append(", ");
                         taskInfos.add(getTaskInfo(leasesUsed, t.getTaskId()));

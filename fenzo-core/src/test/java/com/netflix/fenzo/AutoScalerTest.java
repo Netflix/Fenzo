@@ -1,3 +1,19 @@
+/*
+ * Copyright 2015 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
@@ -395,8 +411,8 @@ public class AutoScalerTest {
         do {
             Thread.sleep(1000);
             final SchedulingResult schedulingResult = scheduler.scheduleOnce(requests, leases);
-//            System.out.println("idleSlaves#: " + schedulingResult.getIdleSlavesCount() + ", #leasesAdded=" +
-//                    schedulingResult.getLeasesAdded() + ", #totalSlaves=" + schedulingResult.getTotalSlavesCount());
+//            System.out.println("idleVms#: " + schedulingResult.getIdleVMsCount() + ", #leasesAdded=" +
+//                    schedulingResult.getLeasesAdded() + ", #totalVms=" + schedulingResult.getTotalVMsCount());
 //            System.out.println("#leasesRejected=" + schedulingResult.getLeasesRejected());
             final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
             for(Map.Entry<String, VMAssignmentResult> entry: resultMap.entrySet()) {

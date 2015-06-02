@@ -1,3 +1,19 @@
+/*
+ * Copyright 2015 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.netflix.fenzo;
 
 
@@ -97,27 +113,27 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private VirtualMachineLease currTotalLease=null;
     private PortRanges currPortRanges = new PortRanges();
     private Map<String, Protos.Attribute> currAttributesMap = new HashMap<>();
-    // previouslyAssignedTasksMap contains tasks on this slave before current scheduling iteration started. This is
+    // previouslyAssignedTasksMap contains tasks on this VM before current scheduling iteration started. This is
     // available for optimization of scheduling assignments for such things as locality with other similar tasks, etc.
     private final Map<String, TaskRequest> previouslyAssignedTasksMap;
-    // assignmentResults contains results of assignments on this slave from the current scheduling iteration; they
+    // assignmentResults contains results of assignments on this VM from the current scheduling iteration; they
     // haven't been launched yet
     private final Map<TaskRequest, TaskAssignmentResult> assignmentResults;
     private static final Logger logger = LoggerFactory.getLogger(AssignableVirtualMachine.class);
     private final ConcurrentMap<String, String> leaseIdToHostnameMap;
-    private final ConcurrentMap<String, String> slaveIdToHostnameMap;
-    private String currSlaveId=null;
+    private final ConcurrentMap<String, String> vmIdToHostnameMap;
+    private String currVMId =null;
     private final TaskTracker taskTracker;
     private volatile long disabledUntil=0L;
     // This may have to be configurable, but, for now weight the job's soft constraints more than system wide fitness calculators
     private double softConstraintWeightPercentage=75.0;
     private String exclusiveTaskId =null;
 
-    public AssignableVirtualMachine(ConcurrentMap<String, String> slaveIdToHostnameMap,
+    public AssignableVirtualMachine(ConcurrentMap<String, String> vmIdToHostnameMap,
                                     ConcurrentMap<String, String> leaseIdToHostnameMap,
                                     String hostname, Action1<VirtualMachineLease> leaseRejectAction,
                                     long leaseOfferExpirySecs, TaskTracker taskTracker) {
-        this.slaveIdToHostnameMap = slaveIdToHostnameMap;
+        this.vmIdToHostnameMap = vmIdToHostnameMap;
         this.leaseIdToHostnameMap = leaseIdToHostnameMap;
         this.hostname = hostname;
         this.leaseRejectAction = leaseRejectAction==null?
@@ -187,8 +203,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                 return hostname;
             }
             @Override
-            public String getSlaveID() {
-                return "NoSlaveID-InternalVMLease";
+            public String getVMID() {
+                return "NoVMID-InternalVMLease";
             }
             @Override
             public double cpuCores() {
@@ -221,7 +237,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         };
     }
 
-    int removeExpiredLeases(AssignableVMs.SlaveRejectLimiter slaveRejectLimiter, boolean all) {
+    int removeExpiredLeases(AssignableVMs.VMRejectLimiter vmRejectLimiter, boolean all) {
         int rejected=0;
         long now = System.currentTimeMillis();
         Set<String> leasesToExpireIds = new HashSet<>();
@@ -236,7 +252,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                     leaseRejectAction.call(l);
                 iterator.remove();
             }
-            else if(l.getOfferedTime() < (now - leaseOfferExpirySecs*1000) && slaveRejectLimiter.reject()) {
+            else if(l.getOfferedTime() < (now - leaseOfferExpirySecs*1000) && vmRejectLimiter.reject()) {
                 leaseIdToHostnameMap.remove(l.getId());
                 leaseRejectAction.call(l);
                 iterator.remove();
@@ -246,14 +262,14 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return rejected;
     }
 
-    String getCurrSlaveId() {
-        return currSlaveId;
+    String getCurrVMId() {
+        return currVMId;
     }
 
     boolean addLease(VirtualMachineLease lease) {
-        if(currSlaveId != lease.getSlaveID()) {
-            currSlaveId = lease.getSlaveID();
-            slaveIdToHostnameMap.put(lease.getSlaveID(), hostname);
+        if(currVMId != lease.getVMID()) {
+            currVMId = lease.getVMID();
+            vmIdToHostnameMap.put(lease.getVMID(), hostname);
         }
         if(System.currentTimeMillis()<disabledUntil) {
             leaseRejectAction.call(lease);

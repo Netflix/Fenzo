@@ -1,3 +1,19 @@
+/*
+ * Copyright 2015 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.netflix.fenzo;
 
 import org.slf4j.Logger;
@@ -11,18 +27,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 
 class AssignableVMs {
 
-    static class SlaveRejectLimiter {
+    static class VMRejectLimiter {
         private long lastRejectAt=0;
         private int rejectedCount;
         private final int limit;
         private final long rejectDelay;
 
-        SlaveRejectLimiter(int limit, long leaseOfferExpirySecs) {
+        VMRejectLimiter(int limit, long leaseOfferExpirySecs) {
             this.limit = limit;
             this.rejectDelay = leaseOfferExpirySecs;
         }
@@ -44,11 +58,11 @@ class AssignableVMs {
     private final long leaseOfferExpirySecs;
     private static final Logger logger = LoggerFactory.getLogger(AssignableVMs.class);
     private final ConcurrentMap<String, String> leaseIdToHostnameMap = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, String> slaveIdToHostnameMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, String> vmIdToHostnameMap = new ConcurrentHashMap<>();
     private final TaskTracker taskTracker = new TaskTracker();
     private final String attrNameToGroupMaxResources;
     private final Map<String, Map<VMResource, Double>> maxResourcesMap;
-    private final SlaveRejectLimiter slaveRejectLimiter;
+    private final VMRejectLimiter vmRejectLimiter;
     private final AssignableVirtualMachine dummyVM = new AssignableVirtualMachine(null, null, "", null, 0L, null) {
         @Override
         void assignResult(TaskAssignmentResult result) {
@@ -65,7 +79,7 @@ class AssignableVMs {
         this.leaseOfferExpirySecs = leaseOfferExpirySecs;
         this.attrNameToGroupMaxResources = attrNameToGroupMaxResources;
         maxResourcesMap = new HashMap<>();
-        slaveRejectLimiter = new SlaveRejectLimiter(4, leaseOfferExpirySecs);  // ToDo make this configurable?
+        vmRejectLimiter = new VMRejectLimiter(4, leaseOfferExpirySecs);  // ToDo make this configurable?
         activeVmGroups = new ActiveVmGroups();
     }
 
@@ -105,7 +119,7 @@ class AssignableVMs {
     private void createAvmIfAbsent(String hostname) {
         if(virtualMachinesMap.get(hostname) == null)
             virtualMachinesMap.putIfAbsent(hostname,
-                    new AssignableVirtualMachine(slaveIdToHostnameMap, leaseIdToHostnameMap, hostname,
+                    new AssignableVirtualMachine(vmIdToHostnameMap, leaseIdToHostnameMap, hostname,
                             leaseRejectAction, leaseOfferExpirySecs, taskTracker));
     }
 
@@ -149,8 +163,8 @@ class AssignableVMs {
             logger.warn("Can't enable host " + host + ", no such host");
     }
 
-    String getHostnameFromSlaveId(String slaveId) {
-        return slaveIdToHostnameMap.get(slaveId);
+    String getHostnameFromVMId(String vmId) {
+        return vmIdToHostnameMap.get(vmId);
     }
 
     void setActiveVmGroupAttributeName(String attributeName) {
@@ -182,7 +196,7 @@ class AssignableVMs {
         List<AssignableVirtualMachine> vms = new ArrayList<>();
         taskTracker.clearAssignedTasks();
         // ToDo make this parallel
-        slaveRejectLimiter.reset();
+        vmRejectLimiter.reset();
         for(Map.Entry<String, AssignableVirtualMachine> entry: virtualMachinesMap.entrySet()) {
             AssignableVirtualMachine avm = entry.getValue();
             avm.prepareForScheduling();
@@ -199,10 +213,10 @@ class AssignableVMs {
     int cleanup() {
         int rejected=0;
         List<AssignableVirtualMachine> randomized = new ArrayList<>(virtualMachinesMap.values());
-        // randomize the list so we don't always reject leases of the same slave before hitting the reject limit
+        // randomize the list so we don't always reject leases of the same VM before hitting the reject limit
         Collections.shuffle(randomized);
         for(AssignableVirtualMachine avm: randomized) {
-            rejected += avm.removeExpiredLeases(slaveRejectLimiter, !isInActiveVmGroup(avm));
+            rejected += avm.removeExpiredLeases(vmRejectLimiter, !isInActiveVmGroup(avm));
         }
         return rejected;
     }
@@ -217,8 +231,8 @@ class AssignableVMs {
             if(avm != null) {
                 if(!avm.isActive()) {
                     virtualMachinesMap.remove(hostname, avm);
-                    if(avm.getCurrSlaveId() != null)
-                        slaveIdToHostnameMap.remove(avm.getCurrSlaveId(), avm.getHostname());
+                    if(avm.getCurrVMId() != null)
+                        vmIdToHostnameMap.remove(avm.getCurrVMId(), avm.getHostname());
                     logger.info("Removed inactive host " + hostname);
                 }
             }

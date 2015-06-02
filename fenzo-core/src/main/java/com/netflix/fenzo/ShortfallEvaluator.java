@@ -1,3 +1,19 @@
+/*
+ * Copyright 2015 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.netflix.fenzo;
 
 import java.util.HashMap;
@@ -29,10 +45,10 @@ class ShortfallEvaluator {
         // process does not step on the original scheduler's state information. Or, if it does, it can be reliably undone.
         //
         // However, setting up the free resources is not defined yet since it involves setting up the appropriate
-        // slave attributes that we have no knowledge of.
+        // VM attributes that we have no knowledge of.
         //
         // Therefore, we fall back to a naive approach that is conservative enough to work for now.
-        // We assume that each task may need an entire new slave. This has the effect of aggressively scaling up. This
+        // We assume that each task may need an entire new VM. This has the effect of aggressively scaling up. This
         // is better than falling short of resources, so we will go with it. The scale down will take care of things when
         // shortfall is taken care of.
         // We need to ensure, though, that we don't ask for resources for the same tasks multiple times. That is, we

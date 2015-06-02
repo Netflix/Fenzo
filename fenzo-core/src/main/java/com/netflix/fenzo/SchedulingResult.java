@@ -1,3 +1,19 @@
+/*
+ * Copyright 2015 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.netflix.fenzo;
 
 import java.util.HashMap;
@@ -11,8 +27,8 @@ public class SchedulingResult {
     private int leasesRejected;
     private long runtime;
     private int numAllocations;
-    private int totalSlavesCount;
-    private int idleSlavesCount;
+    private int totalVMsCount;
+    private int idleVMsCount;
 
     SchedulingResult(Map<String, VMAssignmentResult> resultMap) {
         this.resultMap = resultMap;
@@ -63,19 +79,19 @@ public class SchedulingResult {
         this.numAllocations = numAllocations;
     }
 
-    public int getTotalSlavesCount() {
-        return totalSlavesCount;
+    public int getTotalVMsCount() {
+        return totalVMsCount;
     }
 
-    void setTotalSlavesCount(int totalSlavesCount) {
-        this.totalSlavesCount = totalSlavesCount;
+    void setTotalVMsCount(int totalVMsCount) {
+        this.totalVMsCount = totalVMsCount;
     }
 
-    public int getIdleSlavesCount() {
-        return idleSlavesCount;
+    public int getIdleVMsCount() {
+        return idleVMsCount;
     }
 
-    void setIdleSlavesCount(int idleSlavesCount) {
-        this.idleSlavesCount = idleSlavesCount;
+    void setIdleVMsCount(int idleVMsCount) {
+        this.idleVMsCount = idleVMsCount;
     }
 }
