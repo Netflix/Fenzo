@@ -44,7 +44,7 @@ class LeaseProvider {
                 return hostname;
             }
             @Override
-            public String getSlaveID() {
+            public String getVMID() {
                 return UUID.randomUUID().toString();
             }
             @Override

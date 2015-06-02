@@ -315,7 +315,7 @@ public class BasicSchedulerTests {
     }
 
     @Test
-    public void testOfferExpiryOnSeveralSlaves() throws Exception {
+    public void testOfferExpiryOnSeveralVms() throws Exception {
         final AtomicInteger rejectCount = new AtomicInteger();
         final long leaseExpirySecs=1;
         TaskScheduler scheduler = new TaskScheduler.Builder()

@@ -11,8 +11,8 @@ public class SchedulingResult {
     private int leasesRejected;
     private long runtime;
     private int numAllocations;
-    private int totalSlavesCount;
-    private int idleSlavesCount;
+    private int totalVMsCount;
+    private int idleVMsCount;
 
     SchedulingResult(Map<String, VMAssignmentResult> resultMap) {
         this.resultMap = resultMap;
@@ -63,19 +63,19 @@ public class SchedulingResult {
         this.numAllocations = numAllocations;
     }
 
-    public int getTotalSlavesCount() {
-        return totalSlavesCount;
+    public int getTotalVMsCount() {
+        return totalVMsCount;
     }
 
-    void setTotalSlavesCount(int totalSlavesCount) {
-        this.totalSlavesCount = totalSlavesCount;
+    void setTotalVMsCount(int totalVMsCount) {
+        this.totalVMsCount = totalVMsCount;
     }
 
-    public int getIdleSlavesCount() {
-        return idleSlavesCount;
+    public int getIdleVMsCount() {
+        return idleVMsCount;
     }
 
-    void setIdleSlavesCount(int idleSlavesCount) {
-        this.idleSlavesCount = idleSlavesCount;
+    void setIdleVMsCount(int idleVMsCount) {
+        this.idleVMsCount = idleVMsCount;
     }
 }

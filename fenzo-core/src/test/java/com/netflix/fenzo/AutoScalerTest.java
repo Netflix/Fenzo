@@ -395,8 +395,8 @@ public class AutoScalerTest {
         do {
             Thread.sleep(1000);
             final SchedulingResult schedulingResult = scheduler.scheduleOnce(requests, leases);
-//            System.out.println("idleSlaves#: " + schedulingResult.getIdleSlavesCount() + ", #leasesAdded=" +
-//                    schedulingResult.getLeasesAdded() + ", #totalSlaves=" + schedulingResult.getTotalSlavesCount());
+//            System.out.println("idleVms#: " + schedulingResult.getIdleVMsCount() + ", #leasesAdded=" +
+//                    schedulingResult.getLeasesAdded() + ", #totalVms=" + schedulingResult.getTotalVMsCount());
 //            System.out.println("#leasesRejected=" + schedulingResult.getLeasesRejected());
             final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
             for(Map.Entry<String, VMAssignmentResult> entry: resultMap.entrySet()) {

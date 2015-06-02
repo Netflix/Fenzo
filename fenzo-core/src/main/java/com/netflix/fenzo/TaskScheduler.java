@@ -24,7 +24,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * <code>TaskScheduler</code> provides a scheduling service for assigning resources to tasks. User calls the method
@@ -358,8 +357,8 @@ public class TaskScheduler {
         schedulingResult.setLeasesAdded(newLeases.size());
         schedulingResult.setLeasesRejected(rejectedCount.get());
         schedulingResult.setNumAllocations(totalNumAllocations);
-        schedulingResult.setTotalSlavesCount(assignableVMs.getTotalNumVMs());
-        schedulingResult.setIdleSlavesCount(idleResourcesList.size());
+        schedulingResult.setTotalVMsCount(assignableVMs.getTotalNumVMs());
+        schedulingResult.setIdleVMsCount(idleResourcesList.size());
         return schedulingResult;
     }
 
@@ -433,8 +432,8 @@ public class TaskScheduler {
         assignableVMs.expireAllLeases(hostname);
     }
 
-    public boolean expireAllLeasesBySlaveId(String slaveId) {
-        final String hostname = assignableVMs.getHostnameFromSlaveId(slaveId);
+    public boolean expireAllLeasesByVMId(String vmId) {
+        final String hostname = assignableVMs.getHostnameFromVMId(vmId);
         if(hostname == null)
             return false;
         expireAllLeases(hostname);
@@ -496,13 +495,13 @@ public class TaskScheduler {
     }
 
     /**
-     * Disable a VM given it's slave ID.
-     * @param slaveID The slave ID
+     * Disable a VM given it's ID.
+     * @param vmID The VM ID
      * @param durationMillis duration, in mSec, from now until which to disable
-     * @return True if slave ID was found and disabled, false otherwise.
+     * @return True if VM ID was found and disabled, false otherwise.
      */
-    public boolean disableVMBySlaveId(String slaveID, long durationMillis) {
-        final String hostname = assignableVMs.getHostnameFromSlaveId(slaveID);
+    public boolean disableVMByVMId(String vmID, long durationMillis) {
+        final String hostname = assignableVMs.getHostnameFromVMId(vmID);
         if(hostname == null)
             return false;
         disableVM(hostname, durationMillis);

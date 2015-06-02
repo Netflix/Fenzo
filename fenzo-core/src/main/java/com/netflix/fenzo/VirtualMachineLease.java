@@ -25,7 +25,7 @@ public interface VirtualMachineLease {
     public String getId();
     public long getOfferedTime();
 	public String hostname();
-    public String getSlaveID();
+    public String getVMID();
 	public double cpuCores();
 	public double memoryMB();
     public double networkMbps();
