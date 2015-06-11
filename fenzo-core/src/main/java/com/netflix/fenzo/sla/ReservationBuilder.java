@@ -1,0 +1,82 @@
+/*
+ * Copyright 2015 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.netflix.fenzo.sla;
+
+public class ReservationBuilder {
+    private double cores=Double.MAX_VALUE;
+    private double memory=Double.MAX_VALUE;
+    private double networkMbps=Double.MAX_VALUE;
+    private double disk=Double.MAX_VALUE;
+    private final String taskGroupName;
+
+    public ReservationBuilder(String taskGroupName) {
+        this.taskGroupName = taskGroupName;
+    }
+
+    public ReservationBuilder withCores(double cores) {
+        this.cores = cores;
+        return this;
+    }
+
+    public ReservationBuilder withMemory(double memory) {
+        this.memory = memory;
+        return this;
+    }
+
+    public ReservationBuilder withNetworkMbps(double networkMbps) {
+        this.networkMbps = networkMbps;
+        return this;
+    }
+
+    public ReservationBuilder withDisk(double disk) {
+        this.disk = disk;
+        return this;
+    }
+
+    public Reservation build() {
+        final double c = cores;
+        final double m = memory;
+        final double n = networkMbps;
+        final double d = disk;
+        return new Reservation() {
+            @Override
+            public String getTaskGroupName() {
+                return taskGroupName;
+            }
+
+            @Override
+            public double getCores() {
+                return c;
+            }
+
+            @Override
+            public double getMemory() {
+                return m;
+            }
+
+            @Override
+            public double getNetworkMbps() {
+                return n;
+            }
+
+            @Override
+            public double getDisk() {
+                return d;
+            }
+        };
+    }
+}

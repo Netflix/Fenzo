@@ -59,7 +59,7 @@ class AssignableVMs {
     private static final Logger logger = LoggerFactory.getLogger(AssignableVMs.class);
     private final ConcurrentMap<String, String> leaseIdToHostnameMap = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> vmIdToHostnameMap = new ConcurrentHashMap<>();
-    private final TaskTracker taskTracker = new TaskTracker();
+    private final TaskTracker taskTracker;
     private final String attrNameToGroupMaxResources;
     private final Map<String, Map<VMResource, Double>> maxResourcesMap;
     private final VMRejectLimiter vmRejectLimiter;
@@ -73,7 +73,8 @@ class AssignableVMs {
     private String activeVmGroupAttributeName=null;
     private final List<String> unknownLeaseIdsToExpire = new ArrayList<>();
 
-    AssignableVMs(Action1<VirtualMachineLease> leaseRejectAction, long leaseOfferExpirySecs, String attrNameToGroupMaxResources) {
+    AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction, long leaseOfferExpirySecs, String attrNameToGroupMaxResources) {
+        this.taskTracker = taskTracker;
         virtualMachinesMap = new ConcurrentHashMap<>();
         this.leaseRejectAction = leaseRejectAction;
         this.leaseOfferExpirySecs = leaseOfferExpirySecs;
@@ -195,8 +196,8 @@ class AssignableVMs {
         expireAnyUnknownLeaseIds();
         List<AssignableVirtualMachine> vms = new ArrayList<>();
         taskTracker.clearAssignedTasks();
-        // ToDo make this parallel
         vmRejectLimiter.reset();
+        // ToDo make this parallel maybe?
         for(Map.Entry<String, AssignableVirtualMachine> entry: virtualMachinesMap.entrySet()) {
             AssignableVirtualMachine avm = entry.getValue();
             avm.prepareForScheduling();
@@ -298,6 +299,7 @@ class AssignableVMs {
                         break;
                     case VirtualMachine:
                     case Fitness:
+                    case Reservation:
                         break;
                     default:
                         logger.error("Unknown resource type: " + res);

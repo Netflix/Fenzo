@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-package com.netflix.fenzo;
+package com.netflix.fenzo.sla;
 
-public enum VMResource {
-    Reservation,
-    VirtualMachine,
-    CPU,
-    Memory,
-    Network,
-    Ports,
-    Disk,
-    Fitness
+public interface Reservation {
+    String getTaskGroupName();
+    double getCores();
+    double getMemory();
+    double getNetworkMbps();
+    double getDisk();
 }

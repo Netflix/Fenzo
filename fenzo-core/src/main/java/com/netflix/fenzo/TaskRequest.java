@@ -20,6 +20,7 @@ import java.util.List;
 
 public interface TaskRequest {
     public String getId();
+    public String taskGroupName();
     public double getCPUs();
     public double getMemory();
     public double getNetworkMbps();

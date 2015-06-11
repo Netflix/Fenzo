@@ -24,17 +24,20 @@ class TaskRequestProvider {
     private static final AtomicInteger id = new AtomicInteger();
 
     static TaskRequest getTaskRequest(final double cpus, final double memory, final int ports) {
-        return getTaskRequest(cpus, memory, 0.0, ports, null, null);
+        return getTaskRequest("", cpus, memory, 0.0, ports, null, null);
     }
     static TaskRequest getTaskRequest(final double cpus, final double memory, double network, final int ports) {
-        return getTaskRequest(cpus, memory, network, ports, null, null);
+        return getTaskRequest("", cpus, memory, network, ports, null, null);
     }
     static TaskRequest getTaskRequest(final double cpus, final double memory, final int ports,
                                       final List<? extends ConstraintEvaluator> hardConstraints,
                                       final List<? extends VMTaskFitnessCalculator> softConstraints) {
-        return getTaskRequest(cpus, memory, 0.0, ports, hardConstraints, softConstraints);
+        return getTaskRequest("", cpus, memory, 0.0, ports, hardConstraints, softConstraints);
     }
-    static TaskRequest getTaskRequest(final double cpus, final double memory, final double network, final int ports,
+    static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, double network, final int ports) {
+        return getTaskRequest(grpName, cpus, memory, network, ports, null, null);
+    }
+    static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double network, final int ports,
                                       final List<? extends ConstraintEvaluator> hardConstraints,
                                       final List<? extends VMTaskFitnessCalculator> softConstraints) {
         final String taskId = ""+id.incrementAndGet();
@@ -43,6 +46,12 @@ class TaskRequestProvider {
             public String getId() {
                 return taskId;
             }
+
+            @Override
+            public String taskGroupName() {
+                return grpName;
+            }
+
             @Override
             public double getCPUs() {
                 return cpus;

@@ -451,32 +451,32 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.CPU, request.getCPUs(), currUsedCpus,
                     currTotalCpus);
-            logger.info(hostname+":"+request.getId()+" Insufficient cpus: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient cpus: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedMemory+request.getMemory()) > currTotalMemory) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.Memory, request.getMemory(), currUsedMemory,
                     currTotalMemory);
-            logger.info(hostname+":"+request.getId()+" Insufficient memory: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient memory: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedNetworkMbps+request.getNetworkMbps()) > currTotalNetworkMbps) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.Network, request.getNetworkMbps(), currUsedNetworkMbps, currTotalNetworkMbps);
-            logger.info(hostname+":"+request.getId()+" Insufficient network: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient network: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedDisk+request.getDisk()) > currTotalDisk) {
             AssignmentFailure failure = new AssignmentFailure(VMResource.Disk, request.getDisk(), currUsedDisk, currTotalDisk);
-            logger.info(hostname+":"+request.getId()+" Insufficient disk: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient disk: " + failure.toString());
             failures.add(failure);
         }
         if(!currPortRanges.hasPorts(request.getPorts())) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.Ports, request.getPorts(), currPortRanges.currUsedPorts,
                     currPortRanges.totalPorts);
-            logger.info(hostname+":"+request.getId()+" Insufficient ports: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient ports: " + failure.toString());
             failures.add(failure);
         }
         return failures;

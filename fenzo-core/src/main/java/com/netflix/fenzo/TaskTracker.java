@@ -16,12 +16,84 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.sla.Reservation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class TaskTracker {
+
+    public static class TaskGroupUsage implements Reservation {
+        private final String taskGroupName;
+        private double cores=0.0;
+        private double memory=0.0;
+        private double networkMbps=0.0;
+        private double disk=0.0;
+
+        private TaskGroupUsage(String taskGroupName) {
+            this.taskGroupName = taskGroupName;
+        }
+
+        @Override
+        public String getTaskGroupName() {
+            return taskGroupName;
+        }
+
+        @Override
+        public double getCores() {
+            return cores;
+        }
+
+        @Override
+        public double getMemory() {
+            return memory;
+        }
+
+        @Override
+        public double getNetworkMbps() {
+            return networkMbps;
+        }
+
+        @Override
+        public double getDisk() {
+            return disk;
+        }
+
+        void addUsage(TaskRequest task) {
+            cores += task.getCPUs();
+            memory += task.getMemory();
+            networkMbps += task.getNetworkMbps();
+            disk += task.getDisk();
+        }
+
+        void subtractUsage(TaskRequest task) {
+            cores -= task.getCPUs();
+            if(cores < 0.0) {
+                logger.warn("correcting cores usage <0.0");
+                cores=0.0;
+            }
+            memory -= task.getMemory();
+            if(memory<0.0) {
+                logger.warn("correcting memory usage<0.0");
+                memory=0.0;
+            }
+            networkMbps -= task.getNetworkMbps();
+            if(networkMbps<0.0) {
+                logger.warn("correcting networkMbps usage<0.0");
+                networkMbps=0.0;
+            }
+            disk -= task.getDisk();
+            if(disk<0.0) {
+                logger.warn("correcting disk usage<0.0");
+                disk=0.0;
+            }
+        }
+    }
 
     public static class ActiveTask {
         private TaskRequest taskRequest;
@@ -38,19 +110,34 @@ public class TaskTracker {
         }
     }
 
-    private final ConcurrentMap<String, ActiveTask> runningTasks = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, ActiveTask> assignedTasks = new ConcurrentHashMap<>();
+    private static final Logger logger = LoggerFactory.getLogger(TaskTracker.class);
+    private final Map<String, ActiveTask> runningTasks = new HashMap<>();
+    private final Map<String, ActiveTask> assignedTasks = new HashMap<>();
+    private final Map<String, TaskGroupUsage> taskGroupUsages = new HashMap<>();
 
     // package scoped
     TaskTracker() {
     }
 
     boolean addRunningTask(TaskRequest request, AssignableVirtualMachine avm) {
-        return runningTasks.putIfAbsent(request.getId(), new ActiveTask(request, avm)) == null;
+        final boolean added = runningTasks.put(request.getId(), new ActiveTask(request, avm)) == null;
+        if(added)
+            addUsage(request);
+        return added;
     }
 
     boolean removeRunningTask(String taskId) {
-        return runningTasks.remove(taskId)!=null;
+        final ActiveTask removed = runningTasks.remove(taskId);
+        if(removed != null) {
+            final TaskRequest task = removed.getTaskRequest();
+            final TaskGroupUsage usage = taskGroupUsages.get(task.taskGroupName());
+            if(usage==null)
+                logger.warn("Unexpected to not find usage for task group " + task.taskGroupName() +
+                        " to remove usage of task " + task.getId());
+            else
+                usage.subtractUsage(task);
+        }
+        return removed != null;
     }
 
     Map<String, ActiveTask> getAllRunningTasks() {
@@ -58,14 +145,32 @@ public class TaskTracker {
     }
 
     boolean addAssignedTask(TaskRequest request, AssignableVirtualMachine avm) {
-        return assignedTasks.putIfAbsent(request.getId(), new ActiveTask(request, avm)) == null;
+        final boolean assigned = assignedTasks.put(request.getId(), new ActiveTask(request, avm)) == null;
+        if(assigned)
+            addUsage(request);
+        return assigned;
+    }
+
+    private void addUsage(TaskRequest request) {
+        TaskGroupUsage usage = taskGroupUsages.get(request.taskGroupName());
+        if(usage==null) {
+            taskGroupUsages.put(request.taskGroupName(), new TaskGroupUsage(request.taskGroupName()));
+            usage = taskGroupUsages.get(request.taskGroupName());
+        }
+        usage.addUsage(request);
     }
 
     void clearAssignedTasks() {
+        for(ActiveTask t: assignedTasks.values())
+            taskGroupUsages.get(t.getTaskRequest().taskGroupName()).subtractUsage(t.getTaskRequest());
         assignedTasks.clear();
     }
 
     Map<String, ActiveTask> getAllAssignedTasks() {
         return Collections.unmodifiableMap(assignedTasks);
+    }
+
+    public TaskGroupUsage getUsage(String taskGroupName) {
+        return taskGroupUsages.get(taskGroupName);
     }
 }

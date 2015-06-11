@@ -16,6 +16,8 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.sla.Reservation;
+import com.netflix.fenzo.sla.ReservationEvaluator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -94,6 +96,7 @@ public class TaskScheduler {
             }
         };
         private boolean disableShortfallEvaluation=false;
+        private Map<String, Reservation> reservations=null;
 
         public Builder withLeaseRejectAction(Action1<VirtualMachineLease> leaseRejectAction) {
             this.leaseRejectAction = leaseRejectAction;
@@ -125,6 +128,10 @@ public class TaskScheduler {
         }
         public Builder disableShortfallEvaluation() {
             disableShortfallEvaluation = true;
+            return this;
+        }
+        public Builder withInitialReservations(Map<String, Reservation> reservations) {
+            this.reservations = reservations;
             return this;
         }
         public Builder withAutoScaleRule(AutoScaleRule rule) {
@@ -165,16 +172,19 @@ public class TaskScheduler {
     private final Observable<TaskAssignmentResult> assignmentResultObservable;
     private final Observable<AutoScalerInput> autoScalerInputObservable;
     private final AutoScaler autoScaler;
-
     private final int EXEC_SVC_THREADS=Runtime.getRuntime().availableProcessors();
     private final ExecutorService executorService = Executors.newFixedThreadPool(EXEC_SVC_THREADS);
+    private final ReservationEvaluator reservationEvaluator;
 
     private TaskScheduler(Builder builder) {
         if(builder.leaseRejectAction ==null)
             throw new IllegalArgumentException("Lease reject action must be non-null");
         this.builder = builder;
         this.stateMonitor = new StateMonitor();
-        assignableVMs = new AssignableVMs(builder.leaseRejectAction, builder.leaseOfferExpirySecs, builder.autoScaleByAttributeName);
+        TaskTracker taskTracker = new TaskTracker();
+        reservationEvaluator = new ReservationEvaluator(taskTracker, builder.reservations);
+        assignableVMs = new AssignableVMs(taskTracker, builder.leaseRejectAction,
+                builder.leaseOfferExpirySecs, builder.autoScaleByAttributeName);
         assignmentResultObservable = builder
                 .assignmentResultSubject
                 .onBackpressureDrop()
@@ -245,6 +255,18 @@ public class TaskScheduler {
         });
     }
 
+    public Map<String, Reservation> getReservations() {
+        return reservationEvaluator.getReservations();
+    }
+
+    public void addOrReplaceReservation(Reservation reservation) {
+        reservationEvaluator.replaceReservation(reservation);
+    }
+
+    public void removeReservation(String groupName) {
+        reservationEvaluator.remReservation(groupName);
+    }
+
     /**
      * Schedule given task requests using newly added resource leases in addition to previously unused leases.
      * This is the main scheduling method that attempts to assign resources to the given task requests. Resource
@@ -297,13 +319,27 @@ public class TaskScheduler {
             List<VirtualMachineLease> newLeases) {
         AtomicInteger rejectedCount = new AtomicInteger(assignableVMs.addLeases(newLeases));
         List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs();
+        final boolean hasReservations = reservationEvaluator.prepare();
         //logger.info("Got " + avms.size() + " AVMs to schedule on");
         int totalNumAllocations=0;
-        Set<TaskRequest> failedTasks = new HashSet<>(requests);
+        Set<TaskRequest> failedTasksForAutoScaler = new HashSet<>(requests);
         Map<String, VMAssignmentResult> resultMap = new HashMap<>(avms.size());
         final SchedulingResult schedulingResult = new SchedulingResult(resultMap);
         if(!avms.isEmpty()) {
             for(final TaskRequest task: requests) {
+                if(hasReservations) {
+                    if(reservationEvaluator.taskGroupFailed(task.taskGroupName()))
+                        continue;
+                    final AssignmentFailure reservationFailure = reservationEvaluator.hasReservations(task);
+                    if(reservationFailure != null) {
+                        final List<TaskAssignmentResult> failures = Arrays.asList(new TaskAssignmentResult(assignableVMs.getDummyVM(),
+                                task, false, Arrays.asList(reservationFailure), null, 0.0));
+                        sendAssignmentFailures(task, failures);
+                        schedulingResult.addFailures(task, failures);
+                        failedTasksForAutoScaler.remove(task); // don't scale up for reservation failures
+                        continue;
+                    }
+                }
                 final AssignmentFailure maxResourceFailure = assignableVMs.getFailedMaxResource(null, task);
                 if(maxResourceFailure != null) {
                     final List<TaskAssignmentResult> failures = Arrays.asList(new TaskAssignmentResult(assignableVMs.getDummyVM(), task, false,
@@ -312,6 +348,7 @@ public class TaskScheduler {
                     schedulingResult.addFailures(task, failures);
                     continue;
                 }
+                // create batches of VMs to evaluate assignments concurrently across the batches
                 final BlockingQueue<AssignableVirtualMachine> virtualMachines = new ArrayBlockingQueue<>(avms.size(), false, avms);
                 int nThreads = (int)Math.ceil((double)avms.size()/ PARALLEL_SCHED_EVAL_MIN_BATCH_SIZE);
                 List<Future<EvalResult>> futures = new ArrayList<>();
@@ -350,7 +387,7 @@ public class TaskScheduler {
                 }
                 else {
                     successfulResult.assignResult();
-                    failedTasks.remove(task);
+                    failedTasksForAutoScaler.remove(task);
                 }
             }
         }
@@ -366,7 +403,7 @@ public class TaskScheduler {
                 resultMap.put(avm.getHostname(), assignmentResult);
             }
         }
-        final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, failedTasks);
+        final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, failedTasksForAutoScaler);
         builder.idleResourcesSubject.onNext(autoScalerInput);
         if(autoScaler!=null)
             autoScaler.scheduleAutoscale(autoScalerInput);

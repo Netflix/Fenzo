@@ -203,7 +203,7 @@ class AutoScaler {
                 scalingActivity.scaledNumInstances = shortage;
                 scalingActivity.type = AutoScaleAction.Type.Up;
                 logger.info("Scaling up " + rule.getRuleName() + " by "
-                        + shortage + "hosts");
+                        + shortage + " hosts");
                 callback.process(
                         new ScaleUpAction(rule.getRuleName(), getEffectiveShortage(shortage, scalingActivity.shortfall))
                 );
