@@ -199,6 +199,7 @@ public class ResAllocsTests {
             }
         });
         Set<String> assignedHosts = new HashSet<>();
+        long now = System.currentTimeMillis();
         for(int i=0; i<coolDownSecs+2; i++) {
             if(i>0) {
                 tasks.clear();
@@ -220,6 +221,7 @@ public class ResAllocsTests {
             }
             Thread.sleep(1000);
         }
+        System.out.println("mSecs taken: " + (System.currentTimeMillis()-now));
         Assert.assertEquals("Assigned hosts should have been 1, it is: " + assignedHosts, 1, assignedHosts.size());
         Assert.assertFalse("Unexpected to get scale up request", gotScaleUpRequest.get());
         for(int t=0; t<cpus1*2; t++)
@@ -227,24 +229,29 @@ public class ResAllocsTests {
         tasks.add(TaskRequestProvider.getTaskRequest(grp1, 1, 100, 10, 1));
         for(int i=0; i<coolDownSecs+2 && !gotScaleUpRequest.get(); i++) {
             final Map<String, VMAssignmentResult> resultMap = scheduler.scheduleOnce(tasks, leases).getResultMap();
-            int successes1=0;
-            int successes2=0;
-            assignedHosts.clear();
-            for(Map.Entry<String, VMAssignmentResult> entry: resultMap.entrySet()) {
-                for(TaskAssignmentResult r: entry.getValue().getTasksAssigned()) {
-                    if(r.isSuccessful()) {
-                        if(r.getRequest().taskGroupName().equals(grp2)) {
-                            successes2++;
-                            assignedHosts.add(entry.getKey());
+            if(i==0) {
+                int successes1=0;
+                int successes2=0;
+                assignedHosts.clear();
+                for(Map.Entry<String, VMAssignmentResult> entry: resultMap.entrySet()) {
+                    for(TaskAssignmentResult r: entry.getValue().getTasksAssigned()) {
+                        if(r.isSuccessful()) {
+                            if(r.getRequest().taskGroupName().equals(grp2)) {
+                                successes2++;
+                                assignedHosts.add(entry.getKey());
+                            }
+                            else
+                                successes1++;
                         }
-                        else
-                            successes1++;
                     }
                 }
+                Assert.assertEquals("Didn't expect grp1 task to be assigned", successes1, 0);
+                Assert.assertEquals(successes2, tasks.size()-1);
+                Assert.assertEquals(2, assignedHosts.size());
+                tasks.clear();
+                leases.clear();
             }
-            Assert.assertEquals("Didn't expect grp1 task to be assigned", successes1, 0);
-            Assert.assertEquals(successes2, tasks.size()-1);
-            Assert.assertEquals(2, assignedHosts.size());
+            Thread.sleep(1000);
         }
         Thread.sleep(coolDownSecs+1); // wait for scale up request to happen
         Assert.assertTrue("Didn't get scale up request", gotScaleUpRequest.get());
