@@ -28,7 +28,8 @@ import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -193,13 +194,11 @@ public class TaskScheduler {
                 .idleResourcesSubject
                 .onBackpressureDrop()
                 .observeOn(Schedulers.computation());
-        if(!builder.autoScaleRules.isEmpty()) {
-            AutoScaleRules autoScaleRules = new AutoScaleRules();
-            for(AutoScaleRule rule: builder.autoScaleRules)
-                autoScaleRules.addRule(rule);
+        if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
+
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
                     builder.autoScaleDownBalancedByAttributeName,
-                    autoScaleRules, assignableVMs, null,
+                    builder.autoScaleRules, assignableVMs, null,
                     builder.disableShortfallEvaluation, assignableVMs.getActiveVmGroups());
         }
         else {
@@ -209,14 +208,14 @@ public class TaskScheduler {
 
     public void setAutoscalerCallback(AutoscalerCallback callback) {
         if(autoScaler==null)
-            throw new IllegalStateException("No autoScale rules setup");
+            throw new IllegalStateException("No autoScale by attribute name setup");
         autoScaler.setCallback(callback);
     }
 
     private void sendAssignmentFailures(TaskRequest request, List<TaskAssignmentResult> results) {
         if(results.isEmpty()) // no VM available to run it on
             builder.assignmentResultSubject.onNext(new TaskAssignmentResult(null, request, false,
-                    Arrays.asList(new AssignmentFailure(VMResource.VirtualMachine, 1, 0, 0)), null, 0.0));
+                    Collections.singletonList(new AssignmentFailure(VMResource.VirtualMachine, 1, 0, 0)), null, 0.0));
         for(TaskAssignmentResult result: results)
             if(result != null && !result.isSuccessful())
                 builder.assignmentResultSubject.onNext(result);
@@ -265,6 +264,20 @@ public class TaskScheduler {
 
     public void removeReservation(String groupName) {
         reservationEvaluator.remReservation(groupName);
+    }
+
+    public Collection<AutoScaleRule> getAutoScaleRules() {
+        if(autoScaler==null)
+            return Collections.emptyList();
+        return autoScaler.getRules();
+    }
+
+    public void addOrReplaceAutoScaleRule(AutoScaleRule rule) {
+        autoScaler.replaceRule(rule);
+    }
+
+    public void removeAutoScaleRule(String ruleName) {
+        autoScaler.removeRule(ruleName);
     }
 
     /**
@@ -332,8 +345,8 @@ public class TaskScheduler {
                         continue;
                     final AssignmentFailure reservationFailure = reservationEvaluator.hasReservations(task);
                     if(reservationFailure != null) {
-                        final List<TaskAssignmentResult> failures = Arrays.asList(new TaskAssignmentResult(assignableVMs.getDummyVM(),
-                                task, false, Arrays.asList(reservationFailure), null, 0.0));
+                        final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(),
+                                task, false, Collections.singletonList(reservationFailure), null, 0.0));
                         sendAssignmentFailures(task, failures);
                         schedulingResult.addFailures(task, failures);
                         failedTasksForAutoScaler.remove(task); // don't scale up for reservation failures
@@ -342,8 +355,8 @@ public class TaskScheduler {
                 }
                 final AssignmentFailure maxResourceFailure = assignableVMs.getFailedMaxResource(null, task);
                 if(maxResourceFailure != null) {
-                    final List<TaskAssignmentResult> failures = Arrays.asList(new TaskAssignmentResult(assignableVMs.getDummyVM(), task, false,
-                            Arrays.asList(maxResourceFailure), null, 0.0));
+                    final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(), task, false,
+                            Collections.singletonList(maxResourceFailure), null, 0.0));
                     sendAssignmentFailures(task, failures);
                     schedulingResult.addFailures(task, failures);
                     continue;

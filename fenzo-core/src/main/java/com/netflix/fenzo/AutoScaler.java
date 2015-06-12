@@ -21,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,14 +81,14 @@ class AutoScaler {
     final ConcurrentMap<String, ScalingActivity> scalingActivityMap = new ConcurrentHashMap<>();
 
     AutoScaler(final String attributeName, String mapHostnameAttributeName, String scaleDownBalancedByAttributeName,
-               final AutoScaleRules autoScaleRules,
+               final List<AutoScaleRule> autoScaleRules,
                final AssignableVMs assignableVMs, TaskScheduler phantomTaskScheduler,
                final boolean disableShortfallEvaluation, ActiveVmGroups activeVmGroups) {
         this.mapHostnameAttributeName = mapHostnameAttributeName;
         this.scaleDownBalancedByAttributeName = scaleDownBalancedByAttributeName;
         this.shortfallEvaluator = new ShortfallEvaluator(phantomTaskScheduler);
         this.attributeName = attributeName;
-        this.autoScaleRules = autoScaleRules;
+        this.autoScaleRules = new AutoScaleRules(autoScaleRules);
         this.assignableVMs = assignableVMs;
         this.disableShortfallEvaluation = disableShortfallEvaluation;
 //        autoScalerInputObservable
@@ -128,11 +130,27 @@ class AutoScaler {
         this.activeVmGroups = activeVmGroups;
     }
 
+    Collection<AutoScaleRule> getRules() {
+        return Collections.unmodifiableCollection(autoScaleRules.getRules());
+    }
+
+    void replaceRule(AutoScaleRule rule) {
+        if(rule == null)
+            throw new NullPointerException("Can't add null rule");
+        autoScaleRules.replaceRule(rule);
+    }
+
+    void removeRule(String ruleName) {
+        if(ruleName != null)
+            autoScaleRules.remRule(ruleName);
+    }
+
     void scheduleAutoscale(final AutoScalerInput autoScalerInput) {
         try {
             executor.submit(new Runnable() {
                 @Override
                 public void run() {
+                    autoScaleRules.prepare();
                     Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
                     if (!disableShortfallEvaluation) {
                         Map<String, Integer> shortfall = shortfallEvaluator.getShortfall(hostAttributeGroupMap.keySet(), autoScalerInput.getFailures());
