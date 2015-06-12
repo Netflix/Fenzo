@@ -72,6 +72,11 @@ public class RandomTaskGenerator {
         }
 
         @Override
+        public String taskGroupName() {
+            return "";
+        }
+
+        @Override
         public double getCPUs() {
             return taskRequest.getCPUs();
         }

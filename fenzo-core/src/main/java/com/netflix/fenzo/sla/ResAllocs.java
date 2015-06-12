@@ -14,18 +14,12 @@
  * limitations under the License.
  */
 
-package com.netflix.fenzo;
+package com.netflix.fenzo.sla;
 
-import java.util.List;
-
-public interface TaskRequest {
-    public String getId();
-    public String taskGroupName();
-    public double getCPUs();
-    public double getMemory();
-    public double getNetworkMbps();
-    public double getDisk();
-    public int getPorts();
-    public List<? extends ConstraintEvaluator> getHardConstraints();
-    public List<? extends VMTaskFitnessCalculator> getSoftConstraints();
+public interface ResAllocs {
+    String getTaskGroupName();
+    double getCores();
+    double getMemory();
+    double getNetworkMbps();
+    double getDisk();
 }

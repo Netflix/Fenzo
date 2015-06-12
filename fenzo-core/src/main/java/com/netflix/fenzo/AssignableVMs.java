@@ -59,7 +59,7 @@ class AssignableVMs {
     private static final Logger logger = LoggerFactory.getLogger(AssignableVMs.class);
     private final ConcurrentMap<String, String> leaseIdToHostnameMap = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> vmIdToHostnameMap = new ConcurrentHashMap<>();
-    private final TaskTracker taskTracker = new TaskTracker();
+    private final TaskTracker taskTracker;
     private final String attrNameToGroupMaxResources;
     private final Map<String, Map<VMResource, Double>> maxResourcesMap;
     private final VMRejectLimiter vmRejectLimiter;
@@ -73,7 +73,8 @@ class AssignableVMs {
     private String activeVmGroupAttributeName=null;
     private final List<String> unknownLeaseIdsToExpire = new ArrayList<>();
 
-    AssignableVMs(Action1<VirtualMachineLease> leaseRejectAction, long leaseOfferExpirySecs, String attrNameToGroupMaxResources) {
+    AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction, long leaseOfferExpirySecs, String attrNameToGroupMaxResources) {
+        this.taskTracker = taskTracker;
         virtualMachinesMap = new ConcurrentHashMap<>();
         this.leaseRejectAction = leaseRejectAction;
         this.leaseOfferExpirySecs = leaseOfferExpirySecs;
@@ -195,8 +196,8 @@ class AssignableVMs {
         expireAnyUnknownLeaseIds();
         List<AssignableVirtualMachine> vms = new ArrayList<>();
         taskTracker.clearAssignedTasks();
-        // ToDo make this parallel
         vmRejectLimiter.reset();
+        // ToDo make this parallel maybe?
         for(Map.Entry<String, AssignableVirtualMachine> entry: virtualMachinesMap.entrySet()) {
             AssignableVirtualMachine avm = entry.getValue();
             avm.prepareForScheduling();
@@ -269,43 +270,50 @@ class AssignableVMs {
     }
 
     AssignmentFailure getFailedMaxResource(String attrValue, TaskRequest task) {
+        AssignmentFailure savedFailure = null;
         for(Map.Entry<String, Map<VMResource, Double>> entry: maxResourcesMap.entrySet()) {
             if(attrValue!=null && !attrValue.equals(entry.getKey()))
                 continue;
             final Map<VMResource, Double> maxResources = entry.getValue();
+            AssignmentFailure failure = null;
             for(VMResource res: VMResource.values()) {
                 switch (res) {
                     case CPU:
                         if(maxResources.get(VMResource.CPU) < task.getCPUs()) {
-                            return new AssignmentFailure(VMResource.CPU, task.getCPUs(), 0.0, maxResources.get(VMResource.CPU));
+                            failure = new AssignmentFailure(VMResource.CPU, task.getCPUs(), 0.0, maxResources.get(VMResource.CPU));
                         }
                         break;
                     case Memory:
                         if(maxResources.get(VMResource.Memory) < task.getMemory())
-                            return new AssignmentFailure(VMResource.Memory, task.getMemory(), 0.0, maxResources.get(VMResource.Memory));
+                            failure = new AssignmentFailure(VMResource.Memory, task.getMemory(), 0.0, maxResources.get(VMResource.Memory));
                         break;
                     case Disk:
                         if(maxResources.get(VMResource.Disk) < task.getDisk())
-                            return new AssignmentFailure(VMResource.Disk, task.getDisk(), 0.0, maxResources.get(VMResource.Disk));
+                            failure = new AssignmentFailure(VMResource.Disk, task.getDisk(), 0.0, maxResources.get(VMResource.Disk));
                         break;
                     case Ports:
                         if(maxResources.get(VMResource.Ports) < task.getPorts())
-                            return new AssignmentFailure(VMResource.Ports, task.getPorts(), 0.0, maxResources.get(VMResource.Ports));
+                            failure = new AssignmentFailure(VMResource.Ports, task.getPorts(), 0.0, maxResources.get(VMResource.Ports));
                         break;
                     case Network:
                         if(maxResources.get(VMResource.Network) < task.getNetworkMbps())
-                            return new AssignmentFailure(VMResource.Network, task.getNetworkMbps(), 0.0, maxResources.get(VMResource.Network));
+                            failure = new AssignmentFailure(VMResource.Network, task.getNetworkMbps(), 0.0, maxResources.get(VMResource.Network));
                         break;
                     case VirtualMachine:
                     case Fitness:
+                    case ResAllocs:
                         break;
                     default:
                         logger.error("Unknown resource type: " + res);
                 }
+                if(failure!=null)
+                    break;
             }
-            return null; // at least one set of maxResources satisfies the task
+            if(failure == null)
+                return null;
+            savedFailure = failure;
         }
-        return null;
+        return savedFailure;
     }
 
     ActiveVmGroups getActiveVmGroups() {

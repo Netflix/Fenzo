@@ -17,16 +17,16 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
+import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.mesos.Protos;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import rx.Observable;
 import rx.functions.Action1;
+import rx.functions.Func1;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,8 +44,8 @@ public class AutoScalerTest {
     final int minIdle=5;
     final int maxIdle=10;
     final long coolDownSecs=2;
-    String hostAttrVal1="4coreServers";
-    String hostAttrVal2="8coreServers";
+    final String hostAttrVal1="4coreServers";
+    final String hostAttrVal2="8coreServers";
     int cpus1=4;
     int memory1=40000;
     int cpus2=8;
@@ -72,7 +72,7 @@ public class AutoScalerTest {
         for(AutoScaleRule rule: rules)
             builder.withAutoScaleRule(rule);
         return builder
-                .withFitnessCalculator(BinPackingFitnessCalculators.cpuBinPacker)
+                .withFitnessCalculator(BinPackingFitnessCalculators.cpuMemBinPacker)
                 .withLeaseOfferExpirySecs(3600)
                 .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
                     @Override
@@ -354,7 +354,7 @@ public class AutoScalerTest {
         List<ConstraintEvaluator> hardConstraints = new ArrayList<>();
         hardConstraints.add(ConstraintsProvider.getHostAttributeHardConstraint(zoneAttrName, ""+1));
         for(int j=0; j<cpus1*2; j++) {
-            requests.add(TaskRequestProvider.getTaskRequest(1, memory1/cpus1, 1, hardConstraints, Collections.EMPTY_LIST));
+            requests.add(TaskRequestProvider.getTaskRequest(1, memory1/cpus1, 1, hardConstraints, null));
         }
         final List<VirtualMachineLease> leases = new ArrayList<>();
         final AutoScaleRule rule = AutoScaleRuleProvider.createRule(hostAttrVal1, 3, mxIdl, coolDownSecs, cpus1/2, memory1/2);
@@ -389,21 +389,21 @@ public class AutoScalerTest {
         List<VirtualMachineLease.Range> ports = new ArrayList<>();
         ports.add(new VirtualMachineLease.Range(1, 10));
         // create three attributes, each with unique zone value
-        Map<String, Protos.Attribute>[] attributes = new HashMap[3];
+        List<Map<String, Protos.Attribute>> attributes = new ArrayList<>(3);
         Protos.Attribute attr = Protos.Attribute.newBuilder().setName(hostAttrName)
                 .setType(Protos.Value.Type.TEXT)
                 .setText(Protos.Value.Text.newBuilder().setValue(hostAttrVal1)).build();
-        for(int i=0; i<attributes.length; i++) {
-            attributes[i] = new HashMap<>();
+        for(int i=0; i<3; i++) {
+            attributes.add(new HashMap<String, Protos.Attribute>());
             Protos.Attribute attribute = Protos.Attribute.newBuilder().setName(zoneAttrName)
                     .setType(Protos.Value.Type.TEXT)
                     .setText(Protos.Value.Text.newBuilder().setValue(""+i)).build();
-            attributes[i].put(zoneAttrName, attribute);
-            attributes[i].put(hostAttrName, attr);
+            attributes.get(i).put(zoneAttrName, attribute);
+            attributes.get(i).put(hostAttrName, attr);
         }
         for(int l=0; l<mxIdl+6; l++) {
             final int zoneNum = l % 3;
-            leases.add(LeaseProvider.getLeaseOffer("host"+l, cpus1, memory1, ports, attributes[zoneNum]));
+            leases.add(LeaseProvider.getLeaseOffer("host"+l, cpus1, memory1, ports, attributes.get(zoneNum)));
             zoneCounts[zoneNum]++;
         }
         int i=0;
@@ -427,8 +427,8 @@ public class AutoScalerTest {
         } while (i++<coolDownSecs+2 && latch.getCount()>0);
         if(latch.getCount()>0)
             Assert.fail("Didn't get scale down");
-        for(int z=0; z<zoneCounts.length; z++) {
-            Assert.assertEquals(4, zoneCounts[z]);
+        for (int zoneCount : zoneCounts) {
+            Assert.assertEquals(4, zoneCount);
         }
     }
 
@@ -499,6 +499,7 @@ public class AutoScalerTest {
             }
             if(first) {
                 leases.clear();
+                first = false;
             }
             Thread.sleep(1000);
         } while(i++<coolDownSecs-1);
@@ -544,6 +545,196 @@ public class AutoScalerTest {
         waitSuccessful = latchRef.get().await(coolDownSecs, TimeUnit.SECONDS);
         Assert.assertTrue(waitSuccessful);
         Assert.assertEquals(newRequests, scaleUpRequested.get());
+    }
+
+    @Test
+    public void testAddingNewRule() throws Exception {
+        TaskScheduler scheduler = getScheduler(true, AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, 1, 1000));
+        final List<TaskRequest> requests = new ArrayList<>();
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        Map<String, Protos.Attribute> attributes1 = new HashMap<>();
+        final Protos.Attribute attribute1 = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue(hostAttrVal1)).build();
+        attributes1.put(hostAttrName, attribute1);
+        Map<String, Protos.Attribute> attributes2 = new HashMap<>();
+        Protos.Attribute attribute2 = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue(hostAttrVal2)).build();
+        attributes2.put(hostAttrName, attribute2);
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        for(int l=0; l<minIdle; l++) {
+            leases.add(LeaseProvider.getLeaseOffer("smallhost"+l, cpus1, memory1, ports, attributes1));
+            leases.add(LeaseProvider.getLeaseOffer("bighost"+l, cpus2, memory2, ports, attributes2));
+        }
+        // fill the big hosts, there's no autoscale rule for it
+        // make small tasks sticky on small hosts with a constraint
+        ConstraintEvaluator attrConstraint = new HostAttrValueConstraint(hostAttrName, new Func1<String, String>() {
+            @Override
+            public String call(String s) {
+                return hostAttrVal1;
+            }
+        });
+        for(int h=0; h<leases.size()/2; h++) {
+            requests.add(TaskRequestProvider.getTaskRequest(6.0, 100, 1));
+            requests.add(TaskRequestProvider.getTaskRequest(1.0, 10, 1, Collections.singletonList(attrConstraint), null));
+        }
+        final CountDownLatch latchSmallHosts = new CountDownLatch(1);
+        final AtomicReference<Integer> hostsToAdd = new AtomicReference<>(0);
+        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+            @Override
+            public void process(AutoScaleAction action) {
+                switch (action.getRuleName()) {
+                    case hostAttrVal1:
+                        System.out.println("Got scale up for small hosts " + System.currentTimeMillis());
+                        hostsToAdd.set(((ScaleUpAction)action).getScaleUpCount());
+                        latchSmallHosts.countDown();
+                        break;
+                    case hostAttrVal2:
+                        Assert.fail("Wasn't expecting scale action for big hosts");
+                        break;
+                    default:
+                        Assert.fail("Unexpected scale action rule name " + action.getRuleName());
+                }
+            }
+        });
+        for(int i=0; i<coolDownSecs+2; i++) {
+            final SchedulingResult schedulingResult = scheduler.scheduleOnce(requests, leases);
+            if(i==0) {
+                //Assert.assertTrue(schedulingResult.getFailures().isEmpty());
+                int successes = 0;
+                final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
+                for (Map.Entry<String, VMAssignmentResult> entry : resultMap.entrySet()) {
+                    for (TaskAssignmentResult r : entry.getValue().getTasksAssigned())
+                        if (r.isSuccessful()) {
+                            successes++;
+                            scheduler.getTaskAssigner().call(r.getRequest(), entry.getKey());
+                            switch ((int)r.getRequest().getCPUs()) {
+                                case 1:
+                                    Assert.assertTrue("Expecting assignment on small host", entry.getKey().startsWith("smallhost"));
+                                    break;
+                                case 6:
+                                    Assert.assertTrue("Expecting assignment on big host", entry.getKey().startsWith("bighost"));
+                                    break;
+                                default:
+                                    Assert.fail("Unexpected task CPUs: " + r.getRequest().getCPUs());
+                            }
+                        }
+                }
+                Assert.assertEquals("#assigned", requests.size(), successes);
+                requests.clear();
+                leases.clear();
+            }
+            Thread.sleep(1000);
+        }
+        if(!latchSmallHosts.await(5, TimeUnit.SECONDS))
+            Assert.fail("Small hosts scale up not triggered");
+        Assert.assertTrue("Small hosts to add>0", hostsToAdd.get()>0);
+        for(int i=0; i<hostsToAdd.get(); i++)
+            leases.add(LeaseProvider.getLeaseOffer("smallhost"+100+i, cpus1, memory1, ports, attributes1));
+        final CountDownLatch latchBigHosts = new CountDownLatch(1);
+        scheduler.addOrReplaceAutoScaleRule(AutoScaleRuleProvider.createRule(hostAttrVal2, minIdle, maxIdle, coolDownSecs, 1, 1000));
+        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+            @Override
+            public void process(AutoScaleAction action) {
+                switch (action.getRuleName()) {
+                    case hostAttrVal1:
+                        Assert.fail("Wasn't expecting scale action on " + hostAttrVal1);
+                        break;
+                    case hostAttrVal2:
+                        System.out.println("Got scale up for big hosts " + System.currentTimeMillis());
+                        latchBigHosts.countDown();
+                        break;
+                    default:
+                        Assert.fail("Unknown scale action rule name: " + action.getRuleName());
+                }
+            }
+        });
+        for(int i=0; i<coolDownSecs+2; i++) {
+            scheduler.scheduleOnce(requests, leases);
+            if (i == 0) {
+                leases.clear();
+            }
+            Thread.sleep(1000);
+        }
+        if(!latchBigHosts.await(5, TimeUnit.SECONDS))
+            Assert.fail("Big hosts scale up not triggered");
+    }
+
+    @Test
+    public void testRemovingExistingRule() throws Exception {
+        TaskScheduler scheduler = getScheduler(true, AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, 1, 1000));
+        final List<TaskRequest> requests = new ArrayList<>();
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        Map<String, Protos.Attribute> attributes1 = new HashMap<>();
+        final Protos.Attribute attribute1 = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue(hostAttrVal1)).build();
+        attributes1.put(hostAttrName, attribute1);
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        for(int l=0; l<minIdle; l++) {
+            leases.add(LeaseProvider.getLeaseOffer("smallhost"+l, cpus1, memory1, ports, attributes1));
+        }
+        for(int h=0; h<leases.size()/2; h++) {
+            requests.add(TaskRequestProvider.getTaskRequest(3.0, 100, 1));
+        }
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicBoolean keepGoing = new AtomicBoolean(true);
+        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+            @Override
+            public void process(AutoScaleAction action) {
+                if(action.getType() == AutoScaleAction.Type.Up) {
+                    latch.countDown();
+                    keepGoing.set(false);
+                }
+            }
+        });
+        for(int i=0; i<coolDownSecs+2 && keepGoing.get(); i++) {
+            final SchedulingResult schedulingResult = scheduler.scheduleOnce(requests, leases);
+            if(i==0) {
+                //Assert.assertTrue(schedulingResult.getFailures().isEmpty());
+                int successes = 0;
+                final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
+                for (Map.Entry<String, VMAssignmentResult> entry : resultMap.entrySet()) {
+                    for (TaskAssignmentResult r : entry.getValue().getTasksAssigned())
+                        if (r.isSuccessful()) {
+                            successes++;
+                            scheduler.getTaskAssigner().call(r.getRequest(), entry.getKey());
+                        }
+                }
+                Assert.assertEquals("#assigned", requests.size(), successes);
+                requests.clear();
+                leases.clear();
+            }
+            Thread.sleep(1000);
+        }
+        if(!latch.await(2, TimeUnit.SECONDS))
+            Assert.fail("Didn't get scale up action");
+        scheduler.removeAutoScaleRule(hostAttrVal1);
+        scheduler.addOrReplaceAutoScaleRule(AutoScaleRuleProvider.createRule(hostAttrVal2, minIdle, maxIdle, coolDownSecs, 1, 1000));
+        final AtomicBoolean gotHost2scaleup = new AtomicBoolean(false);
+        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+            @Override
+            public void process(AutoScaleAction action) {
+                if(action.getType() == AutoScaleAction.Type.Up) {
+                    switch (action.getRuleName()) {
+                        case hostAttrVal1:
+                            Assert.fail("Shouldn't have gotten autoscale action");
+                            break;
+                        case hostAttrVal2:
+                            gotHost2scaleup.set(true);
+                            break;
+                    }
+                }
+            }
+        });
+        for(int i=0; i<coolDownSecs+2; i++) {
+            scheduler.scheduleOnce(requests, leases);
+            Thread.sleep(1000);
+        }
+        Assert.assertTrue("Host type 2 scale action", gotHost2scaleup.get());
     }
 
     private boolean isInCollection(String host, Collection<String> hostList) {

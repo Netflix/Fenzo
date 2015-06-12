@@ -18,17 +18,58 @@ package com.netflix.fenzo;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class AutoScaleRules {
     private final Map<String, AutoScaleRule> ruleMap;
+    private final BlockingQueue<AutoScaleRule> addQ = new LinkedBlockingQueue<>();
+    private final List<AutoScaleRule> addList = new LinkedList<>();
+    private final BlockingQueue<String> remQ = new LinkedBlockingQueue<>();
+    private final List<String> remList = new LinkedList<>();
 
-    AutoScaleRules() {
+    AutoScaleRules(List<AutoScaleRule> autoScaleRules) {
         ruleMap = new HashMap<>();
+        if(autoScaleRules!=null && !autoScaleRules.isEmpty())
+            for(AutoScaleRule r: autoScaleRules)
+                ruleMap.put(r.getRuleName(), r);
     }
 
-    public void addRule(AutoScaleRule rule) {
-        ruleMap.put(rule.getRuleName(), rule);
+    void replaceRule(AutoScaleRule rule) {
+        if(rule != null)
+            addQ.offer(rule);
+    }
+
+    void remRule(String ruleName) {
+        if(ruleName != null)
+            remQ.offer(ruleName);
+    }
+
+    void prepare() {
+        addQ.drainTo(addList);
+        if(!addList.isEmpty()) {
+            final Iterator<AutoScaleRule> iterator = addList.iterator();
+            while(iterator.hasNext()) {
+                final AutoScaleRule r = iterator.next();
+                if(r != null && r.getRuleName()!=null)
+                    ruleMap.put(r.getRuleName(), r);
+                iterator.remove();
+            }
+        }
+        remQ.drainTo(remList);
+        if(!remList.isEmpty()) {
+            final Iterator<String> iterator = remList.iterator();
+            while(iterator.hasNext()) {
+                final String name = iterator.next();
+                if(name != null)
+                    ruleMap.remove(name);
+                iterator.remove();
+            }
+        }
     }
 
     public AutoScaleRule get(String attrValue) {

@@ -65,6 +65,11 @@ public class TaskGenerator implements Runnable {
             }
 
             @Override
+            public String taskGroupName() {
+                return "";
+            }
+
+            @Override
             public double getCPUs() {
                 return 1.0;
             }

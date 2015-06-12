@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import rx.functions.Action1;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -75,9 +77,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             return ranges;
         }
         boolean hasPorts(int num) {
-            if(num+currUsedPorts > totalPorts)
-                return false;
-            return true;
+            return num + currUsedPorts <= totalPorts;
         }
         private int consumeNextPort() {
             int forward=0;
@@ -240,7 +240,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     int removeExpiredLeases(AssignableVMs.VMRejectLimiter vmRejectLimiter, boolean all) {
         int rejected=0;
         long now = System.currentTimeMillis();
-        Set<String> leasesToExpireIds = new HashSet<>();
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") Set<String> leasesToExpireIds = new HashSet<>();
         leasesToExpire.drainTo(leasesToExpireIds);
         Iterator<Map.Entry<String,VirtualMachineLease>> iterator = leasesMap.entrySet().iterator();
         boolean expireAll = expireAllLeasesNow.getAndSet(false) || all;
@@ -267,7 +267,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     boolean addLease(VirtualMachineLease lease) {
-        if(currVMId != lease.getVMID()) {
+        if(!Objects.equals(currVMId, lease.getVMID())) {
             currVMId = lease.getVMID();
             vmIdToHostnameMap.put(lease.getVMID(), hostname);
         }
@@ -303,13 +303,11 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     /* package */ boolean isActive() {
-        if( !leasesMap.isEmpty() ||
+        return !leasesMap.isEmpty() ||
                 hasPreviouslyAssignedTasks() ||
                 !leasesToExpire.isEmpty() ||
                 !workersToUnAssign.isEmpty() ||
-                System.currentTimeMillis()<disabledUntil)
-            return true;
-        return false;
+                System.currentTimeMillis() < disabledUntil;
     }
 
     boolean isAssignableNow() {
@@ -353,7 +351,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     void prepareForScheduling() {
-        List<String> tasks = new ArrayList<>();
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") List<String> tasks = new ArrayList<>();
         workersToUnAssign.drainTo(tasks);
         for(String t: tasks) {
             taskTracker.removeRunningTask(t);
@@ -451,32 +449,32 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.CPU, request.getCPUs(), currUsedCpus,
                     currTotalCpus);
-            logger.info(hostname+":"+request.getId()+" Insufficient cpus: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient cpus: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedMemory+request.getMemory()) > currTotalMemory) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.Memory, request.getMemory(), currUsedMemory,
                     currTotalMemory);
-            logger.info(hostname+":"+request.getId()+" Insufficient memory: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient memory: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedNetworkMbps+request.getNetworkMbps()) > currTotalNetworkMbps) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.Network, request.getNetworkMbps(), currUsedNetworkMbps, currTotalNetworkMbps);
-            logger.info(hostname+":"+request.getId()+" Insufficient network: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient network: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedDisk+request.getDisk()) > currTotalDisk) {
             AssignmentFailure failure = new AssignmentFailure(VMResource.Disk, request.getDisk(), currUsedDisk, currTotalDisk);
-            logger.info(hostname+":"+request.getId()+" Insufficient disk: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient disk: " + failure.toString());
             failures.add(failure);
         }
         if(!currPortRanges.hasPorts(request.getPorts())) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.Ports, request.getPorts(), currPortRanges.currUsedPorts,
                     currPortRanges.totalPorts);
-            logger.info(hostname+":"+request.getId()+" Insufficient ports: " + failure.toString());
+            //logger.info(hostname+":"+request.getId()+" Insufficient ports: " + failure.toString());
             failures.add(failure);
         }
         return failures;
