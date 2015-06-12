@@ -39,12 +39,14 @@ public class ReservationEvaluator {
     private final Set<String> failedTaskGroups = new HashSet<>();
     private final BlockingQueue<Reservation> addQ = new LinkedBlockingQueue<>();
     private final BlockingQueue<String> remQ = new LinkedBlockingQueue<>();
+    @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final List<Reservation> addList = new LinkedList<>();
+    @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final List<String> remList = new LinkedList<>();
 
-    public ReservationEvaluator(TaskTracker taskTracker, Map<String, Reservation> reservations) {
+    public ReservationEvaluator(TaskTracker taskTracker, Map<String, Reservation> initialReservations) {
         this.taskTracker = taskTracker;
-        this.reservations = reservations==null? new HashMap<String, Reservation>() : new HashMap<>(reservations);
+        this.reservations = initialReservations==null? new HashMap<String, Reservation>() : new HashMap<>(initialReservations);
     }
 
     public void replaceReservation(Reservation r) {
@@ -88,7 +90,7 @@ public class ReservationEvaluator {
     }
 
     public AssignmentFailure hasReservations(TaskRequest task) {
-        if(reservations == null)
+        if(reservations.isEmpty())
             return null;
         if(failedTaskGroups.contains(task.taskGroupName()))
             return new AssignmentFailure(VMResource.Reservation, 1.0, 0.0, 0.0);
