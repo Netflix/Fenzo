@@ -225,25 +225,27 @@ public class ResAllocsTests {
         for(int t=0; t<cpus1*2; t++)
             tasks.add(TaskRequestProvider.getTaskRequest(grp2, 1, 100, 10, 1));
         tasks.add(TaskRequestProvider.getTaskRequest(grp1, 1, 100, 10, 1));
-        final Map<String, VMAssignmentResult> resultMap = scheduler.scheduleOnce(tasks, leases).getResultMap();
-        int successes1=0;
-        int successes2=0;
-        assignedHosts.clear();
-        for(Map.Entry<String, VMAssignmentResult> entry: resultMap.entrySet()) {
-            for(TaskAssignmentResult r: entry.getValue().getTasksAssigned()) {
-                if(r.isSuccessful()) {
-                    if(r.getRequest().taskGroupName().equals(grp2)) {
-                        successes2++;
-                        assignedHosts.add(entry.getKey());
+        for(int i=0; i<coolDownSecs+2 && !gotScaleUpRequest.get(); i++) {
+            final Map<String, VMAssignmentResult> resultMap = scheduler.scheduleOnce(tasks, leases).getResultMap();
+            int successes1=0;
+            int successes2=0;
+            assignedHosts.clear();
+            for(Map.Entry<String, VMAssignmentResult> entry: resultMap.entrySet()) {
+                for(TaskAssignmentResult r: entry.getValue().getTasksAssigned()) {
+                    if(r.isSuccessful()) {
+                        if(r.getRequest().taskGroupName().equals(grp2)) {
+                            successes2++;
+                            assignedHosts.add(entry.getKey());
+                        }
+                        else
+                            successes1++;
                     }
-                    else
-                        successes1++;
                 }
             }
+            Assert.assertEquals("Didn't expect grp1 task to be assigned", successes1, 0);
+            Assert.assertEquals(successes2, tasks.size()-1);
+            Assert.assertEquals(2, assignedHosts.size());
         }
-        Assert.assertEquals("Didn't expect grp1 task to be assigned", successes1, 0);
-        Assert.assertEquals(successes2, tasks.size()-1);
-        Assert.assertEquals(2, assignedHosts.size());
         Thread.sleep(coolDownSecs+1); // wait for scale up request to happen
         Assert.assertTrue("Didn't get scale up request", gotScaleUpRequest.get());
     }
