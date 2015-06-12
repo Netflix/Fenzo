@@ -301,7 +301,7 @@ class AssignableVMs {
                         break;
                     case VirtualMachine:
                     case Fitness:
-                    case Reservation:
+                    case ResAllocs:
                         break;
                     default:
                         logger.error("Unknown resource type: " + res);

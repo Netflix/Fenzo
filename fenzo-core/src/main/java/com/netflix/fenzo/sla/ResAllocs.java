@@ -16,7 +16,7 @@
 
 package com.netflix.fenzo.sla;
 
-public interface Reservation {
+public interface ResAllocs {
     String getTaskGroupName();
     double getCores();
     double getMemory();

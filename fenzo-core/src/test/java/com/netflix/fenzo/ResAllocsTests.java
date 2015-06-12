@@ -17,7 +17,7 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
-import com.netflix.fenzo.sla.Reservation;
+import com.netflix.fenzo.sla.ResAllocs;
 import org.apache.mesos.Protos;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ReservationsTests {
+public class ResAllocsTests {
 
     private static final String grp1="App1";
     private static final String grp2="App2";
@@ -44,7 +44,7 @@ public class ReservationsTests {
     int memory1=40000;
     final AutoScaleRule rule1 = AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, cpus1/2, memory1/2);
 
-    private TaskScheduler getSchedulerNoReservations() {
+    private TaskScheduler getSchedulerNoResAllocs() {
         return new TaskScheduler.Builder()
                 .withFitnessCalculator(BinPackingFitnessCalculators.cpuBinPacker)
                 .withLeaseOfferExpirySecs(3600)
@@ -57,11 +57,11 @@ public class ReservationsTests {
                 .build();
     }
     private TaskScheduler getScheduler() {
-        Map<String, Reservation> reservations = new HashMap<>();
-        reservations.put(grp1, ReservationProvider.create(grp1, 4, 4000, Double.MAX_VALUE, Double.MAX_VALUE));
-        reservations.put(grp2, ReservationProvider.create(grp2, 8, 8000, Double.MAX_VALUE, Double.MAX_VALUE));
+        Map<String, ResAllocs> resAllocs = new HashMap<>();
+        resAllocs.put(grp1, ResAllocsProvider.create(grp1, 4, 4000, Double.MAX_VALUE, Double.MAX_VALUE));
+        resAllocs.put(grp2, ResAllocsProvider.create(grp2, 8, 8000, Double.MAX_VALUE, Double.MAX_VALUE));
         return new TaskScheduler.Builder()
-                .withInitialReservations(reservations)
+                .withInitialResAllocs(resAllocs)
                 .withFitnessCalculator(BinPackingFitnessCalculators.cpuBinPacker)
                 .withLeaseOfferExpirySecs(3600)
                 .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
@@ -75,13 +75,13 @@ public class ReservationsTests {
     private TaskScheduler getAutoscalingScheduler(AutoScaleRule... rules) {
         TaskScheduler.Builder builder = new TaskScheduler.Builder()
                 .withAutoScaleByAttributeName(hostAttrName);
-        Map<String, Reservation> reservations = new HashMap<>();
-        reservations.put(grp1, ReservationProvider.create(grp1, cpus1, memory1, Double.MAX_VALUE, Double.MAX_VALUE));
-        reservations.put(grp2, ReservationProvider.create(grp2, cpus1*2, memory1*2, Double.MAX_VALUE, Double.MAX_VALUE));
+        Map<String, ResAllocs> resAllocs = new HashMap<>();
+        resAllocs.put(grp1, ResAllocsProvider.create(grp1, cpus1, memory1, Double.MAX_VALUE, Double.MAX_VALUE));
+        resAllocs.put(grp2, ResAllocsProvider.create(grp2, cpus1 * 2, memory1 * 2, Double.MAX_VALUE, Double.MAX_VALUE));
         for(AutoScaleRule rule: rules)
             builder.withAutoScaleRule(rule);
         return builder
-                .withInitialReservations(reservations)
+                .withInitialResAllocs(resAllocs)
                 .withFitnessCalculator(BinPackingFitnessCalculators.cpuBinPacker)
                 .withLeaseOfferExpirySecs(3600)
                 .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
@@ -94,8 +94,8 @@ public class ReservationsTests {
     }
 
     @Test
-    public void testNoReservationsMeansUnlimited() {
-        final TaskScheduler scheduler = getSchedulerNoReservations();
+    public void testNoResAllocsMeansUnlimited() {
+        final TaskScheduler scheduler = getSchedulerNoResAllocs();
         final List<VirtualMachineLease> leases = LeaseProvider.getLeases(10, 4.0, 4000.0, 1024.0, 1, 100);
         final List<TaskRequest> tasks = new ArrayList<>();
         for(int i=0; i<leases.size()*4; i++)
@@ -118,7 +118,7 @@ public class ReservationsTests {
         final TaskScheduler scheduler = getScheduler();
         final List<VirtualMachineLease> leases = LeaseProvider.getLeases(2, 4.0, 4000.0, 1024.0, 1, 100);
         final List<TaskRequest> tasks = new ArrayList<>();
-        final int numCores = (int)scheduler.getReservations().get(grp1).getCores();
+        final int numCores = (int)scheduler.getResAllocs().get(grp1).getCores();
         for(int i=0; i<numCores+1; i++)
             tasks.add(TaskRequestProvider.getTaskRequest(grp1, 1.0, 1000.0, 100.0, 1));
         final SchedulingResult schedulingResult = scheduler.scheduleOnce(tasks, leases);
@@ -133,7 +133,7 @@ public class ReservationsTests {
         Assert.assertEquals("#success assignments: ", numCores, successes);
         Assert.assertEquals("#failures: ", 1, schedulingResult.getFailures().size());
         final VMResource resource = schedulingResult.getFailures().values().iterator().next().get(0).getFailures().get(0).getResource();
-        Assert.assertTrue("Unexpected failure type: " + resource, resource == VMResource.Reservation);
+        Assert.assertTrue("Unexpected failure type: " + resource, resource == VMResource.ResAllocs);
     }
 
     @Test
@@ -141,7 +141,7 @@ public class ReservationsTests {
         final TaskScheduler scheduler = getScheduler();
         final List<VirtualMachineLease> leases = LeaseProvider.getLeases(4, 4.0, 4000.0, 1024.0, 1, 100);
         final List<TaskRequest> tasks = new ArrayList<>();
-        final int numCores = (int)scheduler.getReservations().get(grp1).getCores();
+        final int numCores = (int)scheduler.getResAllocs().get(grp1).getCores();
         for(int i=0; i<numCores+1; i++) {
             tasks.add(TaskRequestProvider.getTaskRequest(grp1, 1.0, 1000.0, 100.0, 1));
             tasks.add(TaskRequestProvider.getTaskRequest(grp2, 1.0, 1000.0, 100.0, 1));
@@ -167,10 +167,10 @@ public class ReservationsTests {
         Assert.assertEquals(grp2Success, numCores+1);
         Assert.assertEquals("Incorrect #failures: ", 1, schedulingResult.getFailures().size());
         final VMResource resource = schedulingResult.getFailures().values().iterator().next().get(0).getFailures().get(0).getResource();
-        Assert.assertTrue("Unexpected failure type: " + resource, resource == VMResource.Reservation);
+        Assert.assertTrue("Unexpected failure type: " + resource, resource == VMResource.ResAllocs);
     }
 
-    // Test that scale up isn't called when tasks from a group, grp1, are limited by its reservations. Then, ensure that
+    // Test that scale up isn't called when tasks from a group, grp1, are limited by its resAllocs. Then, ensure that
     // tasks of a different group, grp2, do actually invoke scale up while grp1 tasks don't.
     @Test
     public void testScaleUpForRsv() throws Exception {
@@ -217,7 +217,6 @@ public class ReservationsTests {
                         }
                     }
                 }
-                //Assert.assertEquals((long)scheduler.getReservations().getReservation(grp1).getCores(), successes);
             }
             Thread.sleep(1000);
         }
@@ -250,9 +249,9 @@ public class ReservationsTests {
     }
 
     @Test
-    public void testReservationModification() throws Exception {
+    public void testResAllocsModification() throws Exception {
         final TaskScheduler scheduler = getScheduler();
-        final int numCores = (int)scheduler.getReservations().get(grp1).getCores();
+        final int numCores = (int)scheduler.getResAllocs().get(grp1).getCores();
         final List<VirtualMachineLease> leases = LeaseProvider.getLeases(2, (double)numCores, numCores*1000.0, 1024.0, 1, 100);
         final List<TaskRequest> tasks = new ArrayList<>();
         for(int i=0; i<numCores; i++)
@@ -270,16 +269,16 @@ public class ReservationsTests {
         }
         Assert.assertEquals("#success assignments: ", numCores, successes);
         Assert.assertEquals("Not expecting assignment failures: ", 0, schedulingResult.getFailures().size());
-        // now confirm that next task fails with reservation type failure
+        // now confirm that next task fails with resAllocs type failure
         tasks.clear();
         tasks.add(TaskRequestProvider.getTaskRequest(grp1, 1.0, 1000.0, 100.0, 1));
         leases.clear();
         schedulingResult = scheduler.scheduleOnce(tasks, leases);
         Assert.assertEquals("#failures", 1, schedulingResult.getFailures().size());
         final VMResource resource = schedulingResult.getFailures().values().iterator().next().get(0).getFailures().get(0).getResource();
-        Assert.assertTrue("Unexpected failure type: " + resource, resource == VMResource.Reservation);
-        // now increase reservation and confirm that the new task gets assigned
-        scheduler.addOrReplaceReservation(ReservationProvider.create(grp1, numCores+1, (numCores+1)*1000.0, Double.MAX_VALUE, Double.MAX_VALUE));
+        Assert.assertTrue("Unexpected failure type: " + resource, resource == VMResource.ResAllocs);
+        // now increase resAllocs and confirm that the new task gets assigned
+        scheduler.addOrReplaceResAllocs(ResAllocsProvider.create(grp1, numCores + 1, (numCores + 1) * 1000.0, Double.MAX_VALUE, Double.MAX_VALUE));
         schedulingResult = scheduler.scheduleOnce(tasks, leases);
         resultMap = schedulingResult.getResultMap();
         successes=0;
@@ -294,31 +293,31 @@ public class ReservationsTests {
     }
 
     @Test
-    public void testAbsentReservation() throws Exception {
+    public void testAbsentResAllocs() throws Exception {
         final TaskScheduler scheduler = getScheduler();
-        final int numCores = (int)scheduler.getReservations().get(grp1).getCores();
+        final int numCores = (int)scheduler.getResAllocs().get(grp1).getCores();
         final List<VirtualMachineLease> leases = LeaseProvider.getLeases(2, (double)numCores, numCores*1000.0, 1024.0, 1, 100);
         final List<TaskRequest> tasks = new ArrayList<>();
         tasks.add(TaskRequestProvider.getTaskRequest("AbsentGrp", 1.0, 1000.0, 100.0, 1));
         SchedulingResult schedulingResult = scheduler.scheduleOnce(tasks, leases);
         Assert.assertEquals("#failures: ", 1, schedulingResult.getFailures().size());
         final VMResource resource = schedulingResult.getFailures().values().iterator().next().get(0).getFailures().get(0).getResource();
-        Assert.assertTrue("Failure type: " + resource, resource == VMResource.Reservation);
+        Assert.assertTrue("Failure type: " + resource, resource == VMResource.ResAllocs);
     }
 
     @Test
-    public void testAddingNewReservation() throws Exception {
+    public void testAddingNewResAllocs() throws Exception {
         final String nwGrpName="AbsentGrp";
         final TaskScheduler scheduler = getScheduler();
-        final int numCores = (int)scheduler.getReservations().get(grp1).getCores();
+        final int numCores = (int)scheduler.getResAllocs().get(grp1).getCores();
         final List<VirtualMachineLease> leases = LeaseProvider.getLeases(2, (double)numCores, numCores*1000.0, 1024.0, 1, 100);
         final List<TaskRequest> tasks = new ArrayList<>();
         tasks.add(TaskRequestProvider.getTaskRequest(nwGrpName, 1.0, 1000.0, 100.0, 1));
         SchedulingResult schedulingResult = scheduler.scheduleOnce(tasks, leases);
         Assert.assertEquals("#failures: ", 1, schedulingResult.getFailures().size());
         final VMResource resource = schedulingResult.getFailures().values().iterator().next().get(0).getFailures().get(0).getResource();
-        Assert.assertTrue("Failure type: " + resource, resource == VMResource.Reservation);
-        scheduler.addOrReplaceReservation(ReservationProvider.create(nwGrpName, 4, 4000, Double.MAX_VALUE, Double.MAX_VALUE));
+        Assert.assertTrue("Failure type: " + resource, resource == VMResource.ResAllocs);
+        scheduler.addOrReplaceResAllocs(ResAllocsProvider.create(nwGrpName, 4, 4000, Double.MAX_VALUE, Double.MAX_VALUE));
         leases.clear();
         schedulingResult = scheduler.scheduleOnce(tasks, leases);
         int successes=0;

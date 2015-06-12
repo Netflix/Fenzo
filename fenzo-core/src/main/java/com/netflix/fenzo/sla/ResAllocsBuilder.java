@@ -16,43 +16,43 @@
 
 package com.netflix.fenzo.sla;
 
-public class ReservationBuilder {
+public class ResAllocsBuilder {
     private double cores=Double.MAX_VALUE;
     private double memory=Double.MAX_VALUE;
     private double networkMbps=Double.MAX_VALUE;
     private double disk=Double.MAX_VALUE;
     private final String taskGroupName;
 
-    public ReservationBuilder(String taskGroupName) {
+    public ResAllocsBuilder(String taskGroupName) {
         this.taskGroupName = taskGroupName;
     }
 
-    public ReservationBuilder withCores(double cores) {
+    public ResAllocsBuilder withCores(double cores) {
         this.cores = cores;
         return this;
     }
 
-    public ReservationBuilder withMemory(double memory) {
+    public ResAllocsBuilder withMemory(double memory) {
         this.memory = memory;
         return this;
     }
 
-    public ReservationBuilder withNetworkMbps(double networkMbps) {
+    public ResAllocsBuilder withNetworkMbps(double networkMbps) {
         this.networkMbps = networkMbps;
         return this;
     }
 
-    public ReservationBuilder withDisk(double disk) {
+    public ResAllocsBuilder withDisk(double disk) {
         this.disk = disk;
         return this;
     }
 
-    public Reservation build() {
+    public ResAllocs build() {
         final double c = cores;
         final double m = memory;
         final double n = networkMbps;
         final double d = disk;
-        return new Reservation() {
+        return new ResAllocs() {
             @Override
             public String getTaskGroupName() {
                 return taskGroupName;

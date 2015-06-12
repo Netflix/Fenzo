@@ -17,7 +17,7 @@
 package com.netflix.fenzo;
 
 public enum VMResource {
-    Reservation,
+    ResAllocs,
     VirtualMachine,
     CPU,
     Memory,

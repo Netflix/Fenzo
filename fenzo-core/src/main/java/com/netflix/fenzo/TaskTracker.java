@@ -16,19 +16,17 @@
 
 package com.netflix.fenzo;
 
-import com.netflix.fenzo.sla.Reservation;
+import com.netflix.fenzo.sla.ResAllocs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 public class TaskTracker {
 
-    public static class TaskGroupUsage implements Reservation {
+    public static class TaskGroupUsage implements ResAllocs {
         private final String taskGroupName;
         private double cores=0.0;
         private double memory=0.0;

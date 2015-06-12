@@ -16,14 +16,12 @@
 
 package com.netflix.fenzo;
 
-import com.netflix.fenzo.sla.Reservation;
+import com.netflix.fenzo.sla.ResAllocs;
 
-import java.util.Map;
+public class ResAllocsProvider {
 
-public class ReservationProvider {
-
-    static Reservation create(final String name, final double cores, final double memory, final double network, final double disk) {
-        return new Reservation() {
+    static ResAllocs create(final String name, final double cores, final double memory, final double network, final double disk) {
+        return new ResAllocs() {
             @Override
             public String getTaskGroupName() {
                 return name;
