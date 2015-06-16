@@ -1,48 +1,44 @@
-/*
- * Copyright 2015 Netflix, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.netflix.fenzo.triggers;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import rx.functions.Action1;
 
 import java.util.Date;
-import java.util.UUID;
 
 /**
  * Base class for all types of triggers
  */
+@JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include=JsonTypeInfo.As.PROPERTY, property="@class")
 public class Trigger<T> {
 
-    private final String id;
+    private String id;
     private final Date createdDate;
-    private final T data;
-    private final Action1<? extends T> action;
+    private T data;
+    private final Class<T> dataType;
+    private final Class<? extends Action1<? extends T>> action;
     private final String name;
     private boolean disabled;
 
-    public Trigger(String name, T data, Action1<T> action) {
-        this.id = UUID.randomUUID().toString();
+    @JsonCreator
+    public Trigger(@JsonProperty("name") String name,
+                   @JsonProperty("data") T data,
+                   @JsonProperty("dataType") Class<T> dataType,
+                   @JsonProperty("action") Class<? extends Action1<T>> action) {
         this.createdDate = new Date();
         this.name = name;
         this.data = data;
+        this.dataType = dataType;
         this.action = action;
     }
 
     public String getId() {
         return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public Date getCreatedDate() {
@@ -53,7 +49,15 @@ public class Trigger<T> {
         return data;
     }
 
-    public Action1<? extends T> getAction() {
+    public void setData(T data) {
+        this.data = data;
+    }
+
+    public Class<T> getDataType() {
+        return dataType;
+    }
+
+    public Class<? extends Action1<? extends T>> getAction() {
         return action;
     }
 
