@@ -189,9 +189,9 @@ public class ResAllocsTests {
         for(int t=0; t<cpus1*2; t++)
             tasks.add(TaskRequestProvider.getTaskRequest(grp1, 1, 100, 10, 1));
         final AtomicBoolean gotScaleUpRequest = new AtomicBoolean();
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if(action instanceof ScaleUpAction) {
                     int needed = ((ScaleUpAction)action).getScaleUpCount();
                     gotScaleUpRequest.set(true);

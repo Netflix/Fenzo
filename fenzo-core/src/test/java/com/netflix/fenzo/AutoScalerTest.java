@@ -94,9 +94,9 @@ public class AutoScalerTest {
         final List<VirtualMachineLease> leases = new ArrayList<>();
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicInteger scaleUpRequest = new AtomicInteger(0);
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if(action instanceof ScaleUpAction) {
                     int needed = ((ScaleUpAction)action).getScaleUpCount();
                     scaleUpRequest.set(needed);
@@ -133,9 +133,9 @@ public class AutoScalerTest {
         final List<TaskRequest> requests = new ArrayList<>();
         for(int i=0; i<maxIdle*cpus1; i++)
             requests.add(TaskRequestProvider.getTaskRequest(1.0, 100, 1));
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if (action instanceof ScaleUpAction) {
                     if (!addVMs.compareAndSet(false, true)) {
                         // second time around here
@@ -178,9 +178,9 @@ public class AutoScalerTest {
         final CountDownLatch latch = new CountDownLatch(1);
         for(int i=0; i<maxIdle*cpus1; i++)
             requests.add(TaskRequestProvider.getTaskRequest(1.0, 100, 1));
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if (action instanceof ScaleUpAction) {
                     if (action.getRuleName().equals(rule1.getRuleName()))
                         latch.countDown();
@@ -206,9 +206,9 @@ public class AutoScalerTest {
         final List<TaskRequest> requests = new ArrayList<>();
         final List<VirtualMachineLease> leases = new ArrayList<>();
         final CountDownLatch latch = new CountDownLatch(1);
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if (action instanceof ScaleUpAction) {
                     if (action.getRuleName().equals(rule2.getRuleName()))
                         latch.countDown();
@@ -248,9 +248,9 @@ public class AutoScalerTest {
             requests.add(TaskRequestProvider.getTaskRequest(1, 1000, 1));
         final List<VirtualMachineLease> leases = new ArrayList<>();
         final CountDownLatch latch = new CountDownLatch(1);
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if (action instanceof ScaleDownAction) {
                     scaleDownCount.set(((ScaleDownAction) action).getHosts().size());
                     latch.countDown();
@@ -295,9 +295,9 @@ public class AutoScalerTest {
         final List<VirtualMachineLease> leases = new ArrayList<>();
         final CountDownLatch latch = new CountDownLatch(1);
         final String wrongScaleDownRulename = rule1.getRuleName();
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if (action instanceof ScaleDownAction) {
                     if (action.getRuleName().equals(wrongScaleDownRulename))
                         latch.countDown();
@@ -371,9 +371,9 @@ public class AutoScalerTest {
                 })
                 .withAutoScaleRule(rule)
                 .build();
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if (action.getType() == AutoScaleAction.Type.Down) {
                     final Collection<String> hosts = ((ScaleDownAction) action).getHosts();
                     for (String h : hosts) {
@@ -456,9 +456,9 @@ public class AutoScalerTest {
         for(int l=0; l<maxIdle+excess; l++) {
             leases.add(LeaseProvider.getLeaseOffer("host"+l, cpus1, memory1, ports, attributes1));
         }
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if (action instanceof ScaleDownAction) {
                     scaleDownHostsRef.set(((ScaleDownAction) action).getHosts());
                     latch.countDown();
@@ -517,9 +517,9 @@ public class AutoScalerTest {
         leases.addAll(LeaseProvider.getLeases(2, 1, 1000, 1, 10));
         final AtomicInteger scaleUpRequested = new AtomicInteger();
         final AtomicReference<CountDownLatch> latchRef = new AtomicReference<>(new CountDownLatch(1));
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if (action instanceof ScaleUpAction) {
                     scaleUpRequested.set(((ScaleUpAction) action).getScaleUpCount());
                     latchRef.get().countDown();
@@ -582,9 +582,9 @@ public class AutoScalerTest {
         }
         final CountDownLatch latchSmallHosts = new CountDownLatch(1);
         final AtomicReference<Integer> hostsToAdd = new AtomicReference<>(0);
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 switch (action.getRuleName()) {
                     case hostAttrVal1:
                         System.out.println("Got scale up for small hosts " + System.currentTimeMillis());
@@ -635,9 +635,9 @@ public class AutoScalerTest {
             leases.add(LeaseProvider.getLeaseOffer("smallhost"+100+i, cpus1, memory1, ports, attributes1));
         final CountDownLatch latchBigHosts = new CountDownLatch(1);
         scheduler.addOrReplaceAutoScaleRule(AutoScaleRuleProvider.createRule(hostAttrVal2, minIdle, maxIdle, coolDownSecs, 1, 1000));
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 switch (action.getRuleName()) {
                     case hostAttrVal1:
                         Assert.fail("Wasn't expecting scale action on " + hostAttrVal1);
@@ -682,9 +682,9 @@ public class AutoScalerTest {
         }
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicBoolean keepGoing = new AtomicBoolean(true);
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if(action.getType() == AutoScaleAction.Type.Up) {
                     latch.countDown();
                     keepGoing.set(false);
@@ -715,9 +715,9 @@ public class AutoScalerTest {
         scheduler.removeAutoScaleRule(hostAttrVal1);
         scheduler.addOrReplaceAutoScaleRule(AutoScaleRuleProvider.createRule(hostAttrVal2, minIdle, maxIdle, coolDownSecs, 1, 1000));
         final AtomicBoolean gotHost2scaleup = new AtomicBoolean(false);
-        scheduler.setAutoscalerCallback(new AutoscalerCallback() {
+        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
-            public void process(AutoScaleAction action) {
+            public void call(AutoScaleAction action) {
                 if(action.getType() == AutoScaleAction.Type.Up) {
                     switch (action.getRuleName()) {
                         case hostAttrVal1:
