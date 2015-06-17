@@ -22,12 +22,12 @@ import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskScheduler;
 import com.netflix.fenzo.VMAssignmentResult;
 import com.netflix.fenzo.VirtualMachineLease;
+import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Func1;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
-import rx.functions.Action1;
-import rx.functions.Func1;
 
 import java.util.ArrayList;
 import java.util.HashMap;

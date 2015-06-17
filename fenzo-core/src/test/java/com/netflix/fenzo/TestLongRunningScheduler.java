@@ -17,9 +17,9 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
-import rx.functions.Action1;
-import rx.functions.Action2;
-import rx.functions.Func1;
+import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Action2;
+import com.netflix.fenzo.functions.Func1;
 
 import java.io.FileNotFoundException;
 import java.io.PrintStream;

@@ -21,7 +21,7 @@ import com.netflix.fenzo.sla.ResAllocs;
 import org.apache.mesos.Protos;
 import org.junit.Assert;
 import org.junit.Test;
-import rx.functions.Action1;
+import com.netflix.fenzo.functions.Action1;
 
 import java.util.ArrayList;
 import java.util.HashMap;

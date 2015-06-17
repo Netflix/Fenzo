@@ -21,7 +21,7 @@ import org.apache.mesos.Protos;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import rx.functions.Action1;
+import com.netflix.fenzo.functions.Action1;
 
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -21,11 +21,8 @@ import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskTracker;
 import com.netflix.fenzo.TaskTrackerState;
 import com.netflix.fenzo.VirtualMachineCurrentState;
-import com.netflix.fenzo.VirtualMachineLease;
-import org.apache.mesos.Protos;
-import rx.functions.Func1;
+import com.netflix.fenzo.functions.Func1;
 
-import java.util.Map;
 import java.util.Set;
 
 /**

@@ -16,7 +16,7 @@
 
 package com.netflix.fenzo;
 
-import rx.functions.Action1;
+import com.netflix.fenzo.functions.Action1;
 
 import java.util.ArrayList;
 import java.util.Iterator;

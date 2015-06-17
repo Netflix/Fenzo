@@ -18,7 +18,7 @@ package com.netflix.fenzo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.functions.Action1;
+import com.netflix.fenzo.functions.Action1;
 
 import java.util.ArrayList;
 import java.util.Collections;
