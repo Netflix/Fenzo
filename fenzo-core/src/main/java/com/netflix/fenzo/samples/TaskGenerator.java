@@ -19,8 +19,8 @@ package com.netflix.fenzo.samples;
 import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
-import rx.functions.Action1;
-import rx.functions.Func1;
+import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Func1;
 
 import java.util.List;
 import java.util.concurrent.BlockingQueue;

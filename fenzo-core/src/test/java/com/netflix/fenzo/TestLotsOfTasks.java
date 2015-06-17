@@ -16,24 +16,15 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Func1;
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
-import junit.framework.Assert;
-import org.junit.Test;
-import rx.Observable;
-import rx.functions.Action1;
-import rx.functions.Func1;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class TestLotsOfTasks {
@@ -84,58 +75,6 @@ public class TestLotsOfTasks {
 
     private List<VirtualMachineLease> getLeases() {
         return LeaseProvider.getLeases(numHosts, numCores, memory, 1, 10);
-    }
-
-    public void testParallelBatch() throws Exception {
-        final AtomicLong counter = new AtomicLong();
-        final Integer[] numbers = new Integer[5000];
-        for(int i=0; i<numbers.length; i++)
-            numbers[i] = i+1;
-        final int NITERS=250;
-        final CountDownLatch latch = new CountDownLatch(NITERS);
-        for(int iters=0; iters<NITERS; iters++) {
-            final CountDownLatch innerLatch = new CountDownLatch(1);
-            final PublishSubject s = PublishSubject.create();
-            Observable.from(numbers)
-                    .takeUntil(s)
-                    .window(50)
-                    .flatMap(new Func1<Observable<Integer>, Observable<Integer>>() {
-                        @Override
-                        public Observable<Integer> call(Observable<Integer> integerObservable) {
-                            return integerObservable
-                                    .observeOn(Schedulers.computation())
-                                    .map(new Func1<Integer, Integer>() {
-                                        @Override
-                                        public Integer call(Integer integer) {
-                                            if (integer >= 5) {
-                                                synchronized (s) {
-                                                    s.onCompleted();
-                                                }
-                                            }
-                                            // do some work
-                                            Math.pow(Math.random(), Math.random());
-                                            return integer * 2;
-                                        }
-                                    });
-                        }
-                    })
-                    .toList()
-                    .doOnNext(new Action1<List<Integer>>() {
-                        @Override
-                        public void call(List<Integer> integers) {
-                            counter.incrementAndGet();
-                            latch.countDown();
-                            innerLatch.countDown();
-                        }
-                    })
-                    .subscribe();
-            if(!innerLatch.await(10, TimeUnit.SECONDS))
-                Assert.fail("Failed inner latch wait, iteration " + iters);
-        }
-        if(!latch.await(15, TimeUnit.SECONDS))
-            Assert.fail("Incomplete! Went through " + latch.getCount() + " iterations");
-        else
-            Assert.assertEquals(NITERS, counter.get());
     }
 
     private static final double GOOD_ENOUGH_FITNESS=0.0;

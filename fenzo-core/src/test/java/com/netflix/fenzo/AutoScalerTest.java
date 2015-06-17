@@ -23,8 +23,8 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import rx.functions.Action1;
-import rx.functions.Func1;
+import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Func1;
 
 import java.util.ArrayList;
 import java.util.Collection;

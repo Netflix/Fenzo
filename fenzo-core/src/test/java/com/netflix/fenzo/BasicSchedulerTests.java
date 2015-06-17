@@ -20,9 +20,7 @@ import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import rx.Observable;
-import rx.functions.Action1;
-import rx.functions.Func1;
+import com.netflix.fenzo.functions.Action1;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -33,8 +31,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.Assert.assertTrue;
 
 public class BasicSchedulerTests {
     private TaskScheduler taskScheduler;

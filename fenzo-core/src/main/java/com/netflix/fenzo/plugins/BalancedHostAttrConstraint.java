@@ -22,7 +22,7 @@ import com.netflix.fenzo.TaskTracker;
 import com.netflix.fenzo.TaskTrackerState;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
 import com.netflix.fenzo.VirtualMachineCurrentState;
-import rx.functions.Func1;
+import com.netflix.fenzo.functions.Func1;
 
 import java.util.HashMap;
 import java.util.Map;

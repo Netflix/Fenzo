@@ -20,12 +20,9 @@ import com.netflix.fenzo.sla.ResAllocs;
 import com.netflix.fenzo.sla.ResAllocsEvaluater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.Observable;
-import rx.functions.Action1;
-import rx.functions.Action2;
-import rx.functions.Func1;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
+import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Action2;
+import com.netflix.fenzo.functions.Func1;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -82,8 +79,6 @@ public class TaskScheduler {
     public final static class Builder {
 
         private Action1<VirtualMachineLease> leaseRejectAction=null;
-        private final PublishSubject<TaskAssignmentResult> assignmentResultSubject = PublishSubject.create();
-        private final PublishSubject<AutoScalerInput> idleResourcesSubject = PublishSubject.create();
         private long leaseOfferExpirySecs=120;
         private VMTaskFitnessCalculator fitnessCalculator = new DefaultFitnessCalculator();
         private String autoScaleByAttributeName=null;
@@ -170,8 +165,6 @@ public class TaskScheduler {
     private long lastVMPurgeAt=System.currentTimeMillis();
     private final Builder builder;
     private final StateMonitor stateMonitor;
-    private final Observable<TaskAssignmentResult> assignmentResultObservable;
-    private final Observable<AutoScalerInput> autoScalerInputObservable;
     private final AutoScaler autoScaler;
     private final int EXEC_SVC_THREADS=Runtime.getRuntime().availableProcessors();
     private final ExecutorService executorService = Executors.newFixedThreadPool(EXEC_SVC_THREADS);
@@ -186,14 +179,6 @@ public class TaskScheduler {
         resAllocsEvaluator = new ResAllocsEvaluater(taskTracker, builder.resAllocs);
         assignableVMs = new AssignableVMs(taskTracker, builder.leaseRejectAction,
                 builder.leaseOfferExpirySecs, builder.autoScaleByAttributeName);
-        assignmentResultObservable = builder
-                .assignmentResultSubject
-                .onBackpressureDrop()
-                .observeOn(Schedulers.computation());
-        autoScalerInputObservable = builder
-                .idleResourcesSubject
-                .onBackpressureDrop()
-                .observeOn(Schedulers.computation());
         if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
 
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
@@ -210,15 +195,6 @@ public class TaskScheduler {
         if(autoScaler==null)
             throw new IllegalStateException("No autoScale by attribute name setup");
         autoScaler.setCallback(callback);
-    }
-
-    private void sendAssignmentFailures(TaskRequest request, List<TaskAssignmentResult> results) {
-        if(results.isEmpty()) // no VM available to run it on
-            builder.assignmentResultSubject.onNext(new TaskAssignmentResult(null, request, false,
-                    Collections.singletonList(new AssignmentFailure(VMResource.VirtualMachine, 1, 0, 0)), null, 0.0));
-        for(TaskAssignmentResult result: results)
-            if(result != null && !result.isSuccessful())
-                builder.assignmentResultSubject.onNext(result);
     }
 
     private TaskAssignmentResult getSuccessfulResult(List<TaskAssignmentResult> results) {
@@ -239,19 +215,6 @@ public class TaskScheduler {
 
     private boolean isGoodEnough(TaskAssignmentResult result) {
         return builder.isFitnessGoodEnoughFunction.call(result.getFitness());
-    }
-
-    public Observable<TaskAssignmentResult> getAssignmentResultsObservable() {
-        return assignmentResultObservable;
-    }
-
-    public Observable<List<VirtualMachineLease>> getIdleResourcesObservable() {
-        return autoScalerInputObservable.map(new Func1<AutoScalerInput, List<VirtualMachineLease>>() {
-            @Override
-            public List<VirtualMachineLease> call(AutoScalerInput autoScalerInput) {
-                return autoScalerInput.getIdleResourcesList();
-            }
-        });
     }
 
     public Map<String, ResAllocs> getResAllocs() {
@@ -347,7 +310,6 @@ public class TaskScheduler {
                     if(resAllocsFailure != null) {
                         final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(),
                                 task, false, Collections.singletonList(resAllocsFailure), null, 0.0));
-                        sendAssignmentFailures(task, failures);
                         schedulingResult.addFailures(task, failures);
                         failedTasksForAutoScaler.remove(task); // don't scale up for resAllocs failures
                         continue;
@@ -357,7 +319,6 @@ public class TaskScheduler {
                 if(maxResourceFailure != null) {
                     final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(), task, false,
                             Collections.singletonList(maxResourceFailure), null, 0.0));
-                    sendAssignmentFailures(task, failures);
                     schedulingResult.addFailures(task, failures);
                     continue;
                 }
@@ -395,7 +356,6 @@ public class TaskScheduler {
                 if(successfulResult == null) {
                     for(EvalResult er: results)
                         failures.addAll(er.assignmentResults);
-                    sendAssignmentFailures(task, failures);
                     schedulingResult.addFailures(task, failures);
                 }
                 else {
@@ -417,7 +377,6 @@ public class TaskScheduler {
             }
         }
         final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, failedTasksForAutoScaler);
-        builder.idleResourcesSubject.onNext(autoScalerInput);
         if(autoScaler!=null)
             autoScaler.scheduleAutoscale(autoScalerInput);
         schedulingResult.setLeasesAdded(newLeases.size());
