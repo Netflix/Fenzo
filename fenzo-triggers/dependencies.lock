@@ -2,5 +2,8 @@
   "org.slf4j:slf4j-api": { "locked": "1.7.10", "requested": "1.7.10" },
   "org.slf4j:slf4j-simple": { "locked": "1.7.10", "requested": "1.7.10" },
   "io.reactivex:rxjava": { "locked": "1.0.4", "requested": "1.0.4" },
-  "org.quartz-scheduler:quartz": { "locked": "2.2.1", "requested": "2.2.1" }
+  "com.fasterxml.jackson.core:jackson-annotations": { "locked": "2.4.4", "requested": "2.4.4" },
+  "org.quartz-scheduler:quartz": { "locked": "2.2.1", "requested": "2.2.1" },
+  "org.codehaus.groovy:groovy-all": { "locked": "2.3.9", "requested": "2.3.9" },
+  "org.spockframework:spock-core": { "locked": "1.0-groovy-2.3", "requested": "1.0-groovy-2.3" }
 }
