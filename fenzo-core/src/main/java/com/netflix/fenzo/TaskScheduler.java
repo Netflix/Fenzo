@@ -191,7 +191,7 @@ public class TaskScheduler {
         }
     }
 
-    public void setAutoscalerCallback(AutoscalerCallback callback) {
+    public void setAutoscalerCallback(Action1<AutoScaleAction> callback) {
         if(autoScaler==null)
             throw new IllegalStateException("No autoScale by attribute name setup");
         autoScaler.setCallback(callback);

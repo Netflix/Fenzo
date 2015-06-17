@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.functions.Action1;
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +67,7 @@ class AutoScaler {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(AutoScaler.class);
-    private volatile AutoscalerCallback callback=null;
+    private volatile Action1<AutoScaleAction> callback=null;
     private final String mapHostnameAttributeName;
     private final String scaleDownBalancedByAttributeName;
     private ShortfallEvaluator shortfallEvaluator;
@@ -204,7 +205,7 @@ class AutoScaler {
             }
             logger.info("Scaling down " + rule.getRuleName() + " by "
                     + excess + " hosts (" + sBuilder.toString() + ")");
-            callback.process(
+            callback.call(
                     new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values())
             );
         } else if(hostAttributeGroup.shortFall>0 || (excess<=0 && shouldScaleUp(now, prevScalingActivity, rule))) {
@@ -222,7 +223,7 @@ class AutoScaler {
                 scalingActivity.type = AutoScaleAction.Type.Up;
                 logger.info("Scaling up " + rule.getRuleName() + " by "
                         + shortage + " hosts");
-                callback.process(
+                callback.call(
                         new ScaleUpAction(rule.getRuleName(), getEffectiveShortage(shortage, scalingActivity.shortfall))
                 );
             }
@@ -306,7 +307,7 @@ class AutoScaler {
         return attribute.getText().getValue();
     }
 
-    public void setCallback(AutoscalerCallback callback) {
+    public void setCallback(Action1<AutoScaleAction> callback) {
         this.callback = callback;
     }
 }
