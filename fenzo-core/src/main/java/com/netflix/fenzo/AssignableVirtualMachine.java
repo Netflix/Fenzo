@@ -17,14 +17,13 @@
 package com.netflix.fenzo;
 
 
+import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.plugins.ExclusiveHostConstraint;
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.netflix.fenzo.functions.Action1;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -506,7 +505,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             }
             @Override
             public Collection<TaskAssignmentResult> getTasksCurrentlyAssigned() {
-                return Collections.EMPTY_LIST;
+                return Collections.emptyList();
             }
             @Override
             public Collection<TaskRequest> getRunningTasks() {
