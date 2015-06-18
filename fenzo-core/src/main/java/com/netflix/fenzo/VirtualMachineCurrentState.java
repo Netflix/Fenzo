@@ -28,19 +28,19 @@ public interface VirtualMachineCurrentState {
     /**
      * Returns a VM lease object representing totals of resources from all available leases for current
      * scheduling run.
-     * @return
+     * @return Lease object representing currently available resources.
      */
     public VirtualMachineLease getCurrAvailableResources();
 
     /**
      * Get list of task assignment results so far in the current scheduling run.
-     * @return
+     * @return Collection of tasks assigned in current scheduling iteration, but not launched/executing yet.
      */
     public Collection<TaskAssignmentResult> getTasksCurrentlyAssigned();
 
     /**
      * Get list of tasks assigned already from before current scheduling run started.
-     * @return
+     * @return Collection of tasks running on this VM.
      */
     public Collection<TaskRequest> getRunningTasks();
 }

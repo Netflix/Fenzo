@@ -37,8 +37,8 @@ public interface AutoScaleRule {
      * Predicate to check if an idle host has too few resources to be considered idle. This is used to filter out hosts
      * with too few resources before considering them as excess resources. If not filtered out, they could prevent a
      * much needed scale up action.
-     * @param lease
-     * @return
+     * @param lease The lease object of the VM
+     * @return True if the idle machine is too small, false otherwise.
      */
     public boolean idleMachineTooSmall(VirtualMachineLease lease);
 }
