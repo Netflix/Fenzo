@@ -16,9 +16,9 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.functions.Action1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.netflix.fenzo.functions.Action1;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,6 +46,9 @@ class AssignableVMs {
             rejectedCount++;
             lastRejectAt = System.currentTimeMillis();
             return true;
+        }
+        boolean limitReached() {
+            return rejectedCount == limit;
         }
         private void reset() {
             if(System.currentTimeMillis() > (lastRejectAt + rejectDelay))
@@ -107,6 +110,8 @@ class AssignableVMs {
     }
 
     int addLeases(List<VirtualMachineLease> leases) {
+        for(AssignableVirtualMachine avm: virtualMachinesMap.values())
+        avm.resetResources();
         int rejected=0;
         for(VirtualMachineLease l: leases) {
             String host = l.hostname();
@@ -114,6 +119,8 @@ class AssignableVMs {
             if(!virtualMachinesMap.get(host).addLease(l))
                 rejected++;
         }
+        for(AssignableVirtualMachine avm: virtualMachinesMap.values())
+            avm.updateCurrTotalLease();
         return rejected;
     }
 
@@ -194,6 +201,7 @@ class AssignableVMs {
 
     List<AssignableVirtualMachine> prepareAndGetOrderedVMs() {
         expireAnyUnknownLeaseIds();
+        removeExpiredLeases();
         List<AssignableVirtualMachine> vms = new ArrayList<>();
         taskTracker.clearAssignedTasks();
         vmRejectLimiter.reset();
@@ -211,13 +219,21 @@ class AssignableVMs {
         return vms;
     }
 
-    int cleanup() {
+    private void removeExpiredLeases() {
+        for(AssignableVirtualMachine avm: virtualMachinesMap.values())
+            avm.removeExpiredLeases(!isInActiveVmGroup(avm));
+    }
+
+    int removeLimitedLeases(List<VirtualMachineLease> idleResourcesList) {
         int rejected=0;
-        List<AssignableVirtualMachine> randomized = new ArrayList<>(virtualMachinesMap.values());
+        List<VirtualMachineLease> randomized = new ArrayList<>(idleResourcesList);
         // randomize the list so we don't always reject leases of the same VM before hitting the reject limit
         Collections.shuffle(randomized);
-        for(AssignableVirtualMachine avm: randomized) {
-            rejected += avm.removeExpiredLeases(vmRejectLimiter, !isInActiveVmGroup(avm));
+        for(VirtualMachineLease lease: randomized) {
+            if(vmRejectLimiter.limitReached())
+                break;
+            AssignableVirtualMachine avm = virtualMachinesMap.get(lease.hostname());
+            rejected += avm.expireLimitedLeases(vmRejectLimiter);
         }
         return rejected;
     }

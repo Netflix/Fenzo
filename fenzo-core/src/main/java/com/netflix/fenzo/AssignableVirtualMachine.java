@@ -154,22 +154,25 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         this.assignmentResults = new HashMap<>();
     }
 
-    private void setAvailableResources() {
-        resetResources(!leasesMap.isEmpty()); // clear attributes only if there is at least one offer, else keep attributes from before
-        for(VirtualMachineLease l: leasesMap.values()) {
-            currTotalCpus += l.cpuCores();
-            currTotalMemory += l.memoryMB();
-            currTotalNetworkMbps += l.networkMbps();
-            currTotalDisk += l.diskMB();
-            if(l.portRanges()!=null)
-                currPortRanges.addRanges(l.portRanges());
-            if(l.getAttributeMap()!=null)
-                currAttributesMap.putAll(l.getAttributeMap());
+    private void addToAvailableResources(VirtualMachineLease l) {
+        currTotalCpus += l.cpuCores();
+        currTotalMemory += l.memoryMB();
+        currTotalNetworkMbps += l.networkMbps();
+        currTotalDisk += l.diskMB();
+        if (l.portRanges() != null)
+            currPortRanges.addRanges(l.portRanges());
+        if (l.getAttributeMap() != null) {
+            // always replace attributes map with the latest
+            currAttributesMap.clear();
+            currAttributesMap.putAll(l.getAttributeMap());
         }
+    }
+
+    void updateCurrTotalLease() {
         currTotalLease = createTotaledLease();
     }
 
-    private void resetResources(boolean clearAttributes) {
+    void resetResources() {
         currTotalCpus=0.0;
         currUsedCpus=0.0;
         currTotalMemory=0.0;
@@ -179,8 +182,9 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         currTotalDisk=0.0;
         currUsedDisk=0.0;
         currPortRanges.clear();
-        if(clearAttributes)
-            currAttributesMap.clear();
+        // don't clear attribute map
+        for(VirtualMachineLease l: leasesMap.values())
+            addToAvailableResources(l);
     }
 
     VirtualMachineLease getCurrTotalLease() {
@@ -236,9 +240,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         };
     }
 
-    int removeExpiredLeases(AssignableVMs.VMRejectLimiter vmRejectLimiter, boolean all) {
-        int rejected=0;
-        long now = System.currentTimeMillis();
+    void removeExpiredLeases(boolean all) {
         @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") Set<String> leasesToExpireIds = new HashSet<>();
         leasesToExpire.drainTo(leasesToExpireIds);
         Iterator<Map.Entry<String,VirtualMachineLease>> iterator = leasesMap.entrySet().iterator();
@@ -251,7 +253,16 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                     leaseRejectAction.call(l);
                 iterator.remove();
             }
-            else if(l.getOfferedTime() < (now - leaseOfferExpirySecs*1000) && vmRejectLimiter.reject()) {
+        }
+    }
+
+    int expireLimitedLeases(AssignableVMs.VMRejectLimiter vmRejectLimiter) {
+        int rejected=0;
+        Iterator<Map.Entry<String,VirtualMachineLease>> iterator = leasesMap.entrySet().iterator();
+        long now = System.currentTimeMillis();
+        while(iterator.hasNext()) {
+            VirtualMachineLease l = iterator.next().getValue();
+            if(l.getOfferedTime() < (now - leaseOfferExpirySecs*1000) && vmRejectLimiter.reject()) {
                 leaseIdToHostnameMap.remove(l.getId());
                 leaseRejectAction.call(l);
                 iterator.remove();
@@ -279,6 +290,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         if(leaseIdToHostnameMap.putIfAbsent(lease.getId(), hostname) != null)
             logger.warn("Unexpected to add a lease that already exists for host " + hostname + ", lease ID: " + lease.getId());
         leasesMap.put(lease.getId(), lease);
+        addToAvailableResources(lease);
         return true;
     }
 
@@ -358,10 +370,11 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             clearIfExclusive(t);
         }
         assignmentResults.clear();
-        setAvailableResources();
     }
 
     String getAttrValue(String attrName) {
+        if(getCurrTotalLease()==null)
+            return null;
         Protos.Attribute attribute = getCurrTotalLease().getAttributeMap().get(attrName);
         if(attribute==null)
             return null;

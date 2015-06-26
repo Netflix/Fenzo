@@ -364,7 +364,6 @@ public class TaskScheduler {
                 }
             }
         }
-        rejectedCount.addAndGet(assignableVMs.cleanup());
         List<VirtualMachineLease> idleResourcesList = new ArrayList<>();
         for(AssignableVirtualMachine avm: avms) {
             VMAssignmentResult assignmentResult = avm.resetAndGetSuccessfullyAssignedRequests();
@@ -376,6 +375,7 @@ public class TaskScheduler {
                 resultMap.put(avm.getHostname(), assignmentResult);
             }
         }
+        rejectedCount.addAndGet(assignableVMs.removeLimitedLeases(idleResourcesList));
         final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, failedTasksForAutoScaler);
         if(autoScaler!=null)
             autoScaler.scheduleAutoscale(autoScalerInput);

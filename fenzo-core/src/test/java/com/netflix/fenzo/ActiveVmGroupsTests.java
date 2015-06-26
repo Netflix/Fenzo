@@ -71,11 +71,11 @@ public class ActiveVmGroupsTests {
     public void testInactiveVmGroup() {
         List<VirtualMachineLease.Range> ports = new ArrayList<>();
         ports.add(new VirtualMachineLease.Range(1, 10));
-        List<VirtualMachineLease> leases = Arrays.asList(LeaseProvider.getLeaseOffer("host1", 4, 4000, ports, attributes2));
-        List<TaskRequest> tasks = Arrays.asList(TaskRequestProvider.getTaskRequest(1, 1000, 1));
+        List<VirtualMachineLease> leases = Collections.singletonList(LeaseProvider.getLeaseOffer("host1", 4, 4000, ports, attributes2));
+        List<TaskRequest> tasks = Collections.singletonList(TaskRequestProvider.getTaskRequest(1, 1000, 1));
         Map<String, VMAssignmentResult> resultMap = taskScheduler.scheduleOnce(tasks, leases).getResultMap();
         Assert.assertEquals(0, resultMap.size());
-        leases = Arrays.asList(LeaseProvider.getLeaseOffer("host2", 4, 4000, ports, attributes1));
+        leases = Collections.singletonList(LeaseProvider.getLeaseOffer("host2", 4, 4000, ports, attributes1));
         resultMap = taskScheduler.scheduleOnce(tasks, leases).getResultMap();
         Assert.assertEquals(1, resultMap.size());
         Assert.assertEquals(tasks.get(0).getId(), resultMap.values().iterator().next().getTasksAssigned().iterator().next().getTaskId());

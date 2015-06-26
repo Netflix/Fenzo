@@ -16,12 +16,14 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
 import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import com.netflix.fenzo.functions.Action1;
 
+import java.rmi.dgc.Lease;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -321,7 +323,7 @@ public class BasicSchedulerTests {
         // wait for lease to expire
         try{Thread.sleep(leaseExpirySecs*1000+200);}catch (InterruptedException ie){}
         taskRequests.clear();
-        taskRequests.add(TaskRequestProvider.getTaskRequest(4, 10, 1)); // make sure task doesn't get assigned
+        taskRequests.add(TaskRequestProvider.getTaskRequest(5, 10, 1)); // make sure task doesn't get assigned
         resultMap = myTaskScheduler.scheduleOnce(taskRequests, leases).getResultMap();
         Assert.assertEquals(true, leaseRejected.get());
     }
@@ -405,6 +407,40 @@ public class BasicSchedulerTests {
         Assert.assertEquals(1, schedulingResult.getResultMap().size());
         Assert.assertEquals(2, assignedTasks.get().size());
 
+    }
+
+    /**
+     * Test that when all leases are expired, a task isn't scheduled on an offer that is released during the iteration.
+     * @throws Exception
+     */
+    @Test
+    public void testVmCleanupAtBeginning() throws Exception {
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        leases.add(LeaseProvider.getLeaseOffer("host1", 4, 4000, 1, 10));
+        TaskScheduler scheduler = new TaskScheduler.Builder()
+                .withLeaseOfferExpirySecs(10000)
+                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
+                    @Override
+                    public void call(VirtualMachineLease virtualMachineLease) {
+
+                    }
+                })
+                .withFitnessCalculator(BinPackingFitnessCalculators.cpuMemBinPacker)
+                .build();
+        List<TaskRequest> requests = new ArrayList<>();
+        Assert.assertEquals(1, leases.size());
+        scheduler.scheduleOnce(requests, leases).getResultMap();
+        leases.clear();
+        scheduler.expireAllLeases();
+        requests.add(TaskRequestProvider.getTaskRequest(1, 100, 1));
+        Map<String, VMAssignmentResult> resultMap = scheduler.scheduleOnce(requests, leases).getResultMap();
+        Assert.assertEquals(0, resultMap.size());
+        leases.add(LeaseProvider.getLeaseOffer("host1", 4, 4000, 1, 10));
+        resultMap = scheduler.scheduleOnce(requests, leases).getResultMap();
+        Assert.assertEquals(1, resultMap.size());
+        final VMAssignmentResult result = resultMap.values().iterator().next();
+        Assert.assertEquals(1, result.getLeasesUsed().size());
+        Assert.assertEquals(1, result.getTasksAssigned().size());
     }
 
 }
