@@ -272,7 +272,7 @@ public class AutoScalerTest {
         boolean first=true;
         do {
             Thread.sleep(1000);
-            scheduler.scheduleOnce(requests, leases);
+            final SchedulingResult schedulingResult = scheduler.scheduleOnce(requests, leases);
             if(first) {
                 first=false;
                 leases.clear();
