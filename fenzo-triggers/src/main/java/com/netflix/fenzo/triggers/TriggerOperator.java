@@ -239,7 +239,7 @@ public class TriggerOperator {
      * @param scheduledTrigger
      * @throws SchedulerException
      */
-    protected void scheduleTrigger(ScheduledTrigger scheduledTrigger) throws SchedulerException {
+    public void scheduleTrigger(ScheduledTrigger scheduledTrigger) throws SchedulerException {
         if (!initialized.get()) throw new SchedulerException("Trigger service is not initialized. initialize() must be called before calling scheduleTrigger() method");
         Map jobDataMap = new HashMap();
         jobDataMap.put(TRIGGER_OPERATOR_KEY, this);
@@ -272,6 +272,20 @@ public class TriggerOperator {
             } catch (Exception e) {
                 throw new JobExecutionException(e);
             }
+        }
+    }
+
+    /**
+     * Checks if a {@code ScheduledTrigger} is scheduled in the scheduler or not
+     * @param scheduledTrigger
+     * @return
+     * @throws SchedulerException
+     */
+    public boolean isScheduled(ScheduledTrigger scheduledTrigger) throws SchedulerException {
+        try {
+            return scheduler.isScheduled(scheduledTrigger.getId(), Scheduler.DEFAULT_GROUP);
+        } catch (org.quartz.SchedulerException e) {
+            throw new SchedulerException("Exception occurred while checking isScheduled() for: " + scheduledTrigger, e);
         }
     }
 

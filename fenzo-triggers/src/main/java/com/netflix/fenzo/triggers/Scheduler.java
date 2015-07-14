@@ -72,4 +72,8 @@ class Scheduler {
         quartzScheduler.unscheduleJob(TriggerKey.triggerKey(jobId, jobGroup));
     }
 
+    boolean isScheduled(String jobId, String jobGroup) throws SchedulerException {
+        return quartzScheduler.checkExists(new JobKey(jobId, jobGroup));
+    }
+
 }
