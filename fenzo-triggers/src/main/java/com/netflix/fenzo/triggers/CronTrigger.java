@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.quartz.ScheduleBuilder;
 import rx.functions.Action1;
 
+import java.util.Date;
+
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 
 /**
@@ -38,7 +40,7 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
                        @JsonProperty("data") T data,
                        @JsonProperty("dataType") Class<T> dataType,
                        @JsonProperty("action") Class<? extends Action1<T>> action) {
-        super(name, data, dataType, action);
+        super(name, data, dataType, action, new Date(), null);
         this.cronExpression = cronExpression;
     }
 

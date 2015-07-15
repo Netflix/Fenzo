@@ -55,7 +55,8 @@ public class TriggerOperator {
 
     /**
      * Constructor
-     * @param triggerDao - dao implementation for {@code Trigger}
+     *
+     * @param triggerDao     - dao implementation for {@code Trigger}
      * @param threadPoolSize - the thread pool size for the scheduler
      */
     public TriggerOperator(TriggerDao triggerDao, int threadPoolSize) {
@@ -66,6 +67,7 @@ public class TriggerOperator {
 
     /**
      * Users of this class must call {@code initialize()} before using this class
+     *
      * @throws SchedulerException
      */
     @PostConstruct
@@ -76,7 +78,7 @@ public class TriggerOperator {
             } catch (org.quartz.SchedulerException se) {
                 throw new SchedulerException("Exception occurred while initializing TriggerOperator", se);
             }
-            for (Iterator<Trigger> iterator = getTriggers().iterator(); iterator.hasNext();) {
+            for (Iterator<Trigger> iterator = getTriggers().iterator(); iterator.hasNext(); ) {
                 Trigger trigger = iterator.next();
                 if (!trigger.isDisabled() && trigger instanceof ScheduledTrigger) {
                     scheduleTrigger((ScheduledTrigger) trigger);
@@ -99,6 +101,7 @@ public class TriggerOperator {
     /**
      * Returns a default instance of {@code TriggerOperator} with sensible default values.
      * Uses an in-memory implementation of Dao.
+     *
      * @return
      */
     public static TriggerOperator getInstance() {
@@ -106,7 +109,6 @@ public class TriggerOperator {
     }
 
     /**
-     *
      * @param threadPoolSize
      * @return
      */
@@ -115,7 +117,6 @@ public class TriggerOperator {
     }
 
     /**
-     *
      * @param triggerDao
      * @param threadPoolSize
      * @return
@@ -126,6 +127,7 @@ public class TriggerOperator {
 
     /**
      * Returns the {@code Trigger} based on the unique trigger id
+     *
      * @param triggerId
      * @return
      */
@@ -135,6 +137,7 @@ public class TriggerOperator {
 
     /**
      * Registers a {@code Trigger} with trigger service
+     *
      * @param triggerGroup
      * @param trigger
      * @throws SchedulerException
@@ -149,6 +152,7 @@ public class TriggerOperator {
 
     /**
      * Disables the {@code Trigger}. If the {@code Trigger} is disabled it will NOT execute
+     *
      * @param triggerId
      * @throws TriggerNotFoundException
      * @throws SchedulerException
@@ -164,6 +168,7 @@ public class TriggerOperator {
 
     /**
      * Disables the {@code Trigger}. If the {@code Trigger} is disabled it will NOT execute
+     *
      * @param trigger
      * @throws TriggerNotFoundException
      * @throws SchedulerException
@@ -178,6 +183,7 @@ public class TriggerOperator {
 
     /**
      * Enables the {@code Trigger}
+     *
      * @param triggerId
      * @throws TriggerNotFoundException
      * @throws SchedulerException
@@ -193,6 +199,7 @@ public class TriggerOperator {
 
     /**
      * Enables the {@code Trigger}
+     *
      * @param trigger
      * @throws SchedulerException
      */
@@ -207,6 +214,7 @@ public class TriggerOperator {
     /**
      * Deletes/Removes the {@code Trigger}. If it is a {@code ScheduledTrigger} then it is also un-scheduled from
      * scheduler
+     *
      * @param triggerId
      * @throws TriggerNotFoundException
      * @throws SchedulerException
@@ -223,6 +231,7 @@ public class TriggerOperator {
     /**
      * Deletes/Removes the {@code Trigger}. If it is a {@code ScheduledTrigger} then it is also un-scheduled from
      * scheduler
+     *
      * @param trigger
      * @throws TriggerNotFoundException
      * @throws SchedulerException
@@ -236,21 +245,24 @@ public class TriggerOperator {
 
     /**
      * Schedules the {@code Trigger} using the scheduler
+     *
      * @param scheduledTrigger
      * @throws SchedulerException
      */
     public void scheduleTrigger(ScheduledTrigger scheduledTrigger) throws SchedulerException {
-        if (!initialized.get()) throw new SchedulerException("Trigger service is not initialized. initialize() must be called before calling scheduleTrigger() method");
+        if (!initialized.get())
+            throw new SchedulerException("Trigger service is not initialized. initialize() must be called before calling scheduleTrigger() method");
         Map jobDataMap = new HashMap();
         jobDataMap.put(TRIGGER_OPERATOR_KEY, this);
         jobDataMap.put(TRIGGER_KEY, scheduledTrigger);
         try {
             org.quartz.Trigger quartzTrigger = newTrigger()
-                .withIdentity(triggerKey(scheduledTrigger.getId(), Scheduler.DEFAULT_GROUP))
-                .withSchedule(scheduledTrigger.getScheduleBuilder())
-                .usingJobData(new JobDataMap(jobDataMap))
-                .startNow()
-                .build();
+                    .withIdentity(triggerKey(scheduledTrigger.getId(), Scheduler.DEFAULT_GROUP))
+                    .withSchedule(scheduledTrigger.getScheduleBuilder())
+                    .usingJobData(new JobDataMap(jobDataMap))
+                    .startAt(scheduledTrigger.getStartAt())
+                    .endAt(scheduledTrigger.getEndAt())
+                    .build();
             scheduler.scheduleQuartzJob(scheduledTrigger.getId(), Scheduler.DEFAULT_GROUP, ScheduledTriggerJob.class, quartzTrigger);
             scheduledTrigger.setQuartzTrigger(quartzTrigger);
             logger.info("Successfully scheduled {}", scheduledTrigger);
@@ -277,6 +289,7 @@ public class TriggerOperator {
 
     /**
      * Checks if a {@code ScheduledTrigger} is scheduled in the scheduler or not
+     *
      * @param scheduledTrigger
      * @return
      * @throws SchedulerException
@@ -291,11 +304,13 @@ public class TriggerOperator {
 
     /**
      * Un-schedules the {@code Trigger}
+     *
      * @param scheduledTrigger
      * @throws SchedulerException
      */
     public void unscheduleTrigger(ScheduledTrigger scheduledTrigger) throws SchedulerException {
-        if (!initialized.get()) throw new SchedulerException("Trigger service is not initialized. initialize() must be called before calling unscheduleTrigger() method");
+        if (!initialized.get())
+            throw new SchedulerException("Trigger service is not initialized. initialize() must be called before calling unscheduleTrigger() method");
         try {
             scheduler.unscheduleQuartzJob(scheduledTrigger.getId(), Scheduler.DEFAULT_GROUP);
             scheduledTrigger.setQuartzTrigger(null);
@@ -307,6 +322,7 @@ public class TriggerOperator {
 
     /**
      * Returns a list of {@code Trigger}s registered with the trigger service for the given triggerGroup
+     *
      * @param triggerGroup
      * @return
      */
@@ -316,6 +332,7 @@ public class TriggerOperator {
 
     /**
      * Returns a list of all the {@code Trigger}s registered with the trigger service
+     *
      * @return
      */
     public List<Trigger> getTriggers() {
@@ -324,6 +341,7 @@ public class TriggerOperator {
 
     /**
      * Executes the {@code Trigger}
+     *
      * @param triggerId
      * @throws Exception
      */
@@ -338,6 +356,7 @@ public class TriggerOperator {
 
     /**
      * Executes the {@code Trigger}
+     *
      * @param trigger
      * @throws Exception
      */
