@@ -46,8 +46,7 @@ public class InMemoryTriggerDao extends AbstractInMemoryDao<Trigger> implements 
     }
 
     @Override
-    public void deleteTrigger(Trigger trigger) {
-        String triggerGroup = extractGroupFromId(trigger.getId());
+    public void deleteTrigger(String triggerGroup, Trigger trigger) {
         delete(triggerGroup, trigger.getId());
     }
 

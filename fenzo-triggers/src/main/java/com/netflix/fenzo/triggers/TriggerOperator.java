@@ -211,10 +211,10 @@ public class TriggerOperator {
      * @throws TriggerNotFoundException
      * @throws SchedulerException
      */
-    public void deleteTrigger(String triggerId) throws TriggerNotFoundException, SchedulerException {
+    public void deleteTrigger(String triggerGroup, String triggerId) throws TriggerNotFoundException, SchedulerException {
         Trigger trigger = getTrigger(triggerId);
         if (trigger != null) {
-            deleteTrigger(trigger);
+            deleteTrigger(triggerGroup, trigger);
         } else {
             throw new TriggerNotFoundException("No trigger found for trigger id: " + triggerId);
         }
@@ -227,8 +227,8 @@ public class TriggerOperator {
      * @throws TriggerNotFoundException
      * @throws SchedulerException
      */
-    public void deleteTrigger(Trigger trigger) throws SchedulerException {
-        triggerDao.deleteTrigger(trigger);
+    public void deleteTrigger(String triggerGroup, Trigger trigger) throws SchedulerException {
+        triggerDao.deleteTrigger(triggerGroup, trigger);
         if (trigger instanceof ScheduledTrigger) {
             unscheduleTrigger((ScheduledTrigger) trigger);
         }
