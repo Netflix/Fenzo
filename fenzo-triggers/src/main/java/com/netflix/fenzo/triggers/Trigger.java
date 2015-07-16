@@ -49,46 +49,104 @@ public class Trigger<T> {
         this.action = action;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getId() {
         return id;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter id description missing
+     *
+     * @param id
+     */
     public void setId(String id) {
         this.id = id;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Date getCreatedDate() {
         return createdDate;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public T getData() {
         return data;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter data description missing
+     *
+     * @param data
+     */
     public void setData(T data) {
         this.data = data;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Class<T> getDataType() {
         return dataType;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Class<? extends Action1<? extends T>> getAction() {
         return action;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public boolean isDisabled() {
         return disabled;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter disabled description missing
+     *
+     * @param disabled
+     */
     public void setDisabled(boolean disabled) {
         this.disabled = disabled;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String toString() {
         return "Trigger (" + id + ":" + name + ")";
     }

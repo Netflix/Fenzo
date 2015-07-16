@@ -18,6 +18,9 @@ package com.netflix.fenzo;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * @warn class description missing
+ */
 class StateMonitor {
     private final AtomicBoolean lock;
 
@@ -25,6 +28,11 @@ class StateMonitor {
         lock = new AtomicBoolean(false);
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     AutoCloseable enter() {
         if(!lock.compareAndSet(false, true))
             throw new IllegalStateException();

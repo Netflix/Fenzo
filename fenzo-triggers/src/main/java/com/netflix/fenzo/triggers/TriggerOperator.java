@@ -39,7 +39,7 @@ import static org.quartz.TriggerBuilder.newTrigger;
 import static org.quartz.TriggerKey.triggerKey;
 
 /**
- *
+ * @warn class description missing
  */
 public class TriggerOperator {
 
@@ -55,8 +55,9 @@ public class TriggerOperator {
 
     /**
      * Constructor
-     * @param triggerDao - dao implementation for {@code Trigger}
-     * @param threadPoolSize - the thread pool size for the scheduler
+     *
+     * @param triggerDao dao implementation for {@code Trigger}
+     * @param threadPoolSize the thread pool size for the scheduler
      */
     public TriggerOperator(TriggerDao triggerDao, int threadPoolSize) {
         this.triggerDao = triggerDao;
@@ -65,7 +66,9 @@ public class TriggerOperator {
     }
 
     /**
-     * Users of this class must call {@code initialize()} before using this class
+     * Users of this class must call {@code initialize()} before they use this class.
+     * @warn exception SchedulerException description missing
+     *
      * @throws SchedulerException
      */
     @PostConstruct
@@ -85,6 +88,10 @@ public class TriggerOperator {
         }
     }
 
+    /**
+     * @warn method description missing
+     * @warn exception SchedulerException description missing
+     */
     @PreDestroy
     public void destroy() throws SchedulerException {
         if (initialized.get() && this.scheduler != null) {
@@ -99,6 +106,7 @@ public class TriggerOperator {
     /**
      * Returns a default instance of {@code TriggerOperator} with sensible default values.
      * Uses an in-memory implementation of Dao.
+     *
      * @return
      */
     public static TriggerOperator getInstance() {
@@ -106,6 +114,8 @@ public class TriggerOperator {
     }
 
     /**
+     * @warn method description missing
+     * @warn parameter threadPoolSize description missing
      *
      * @param threadPoolSize
      * @return
@@ -115,6 +125,8 @@ public class TriggerOperator {
     }
 
     /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
      *
      * @param triggerDao
      * @param threadPoolSize
@@ -125,19 +137,24 @@ public class TriggerOperator {
     }
 
     /**
-     * Returns the {@code Trigger} based on the unique trigger id
-     * @param triggerId
-     * @return
+     * Returns the {@code Trigger} based on the unique trigger id.
+     *
+     * @param triggerId the string that uniquely identifies the {@code Trigger}
+     * @return the {@code Trigger} that matches {@code triggerId}
      */
     public Trigger getTrigger(String triggerId) {
         return triggerDao.getTrigger(triggerId);
     }
 
     /**
-     * Registers a {@code Trigger} with trigger service
+     * Registers a {@code Trigger} with trigger service.
+     * @warn parameter descriptions missing
+     * @warn exception SchedulerException description missing
+     *
      * @param triggerGroup
      * @param trigger
      * @throws SchedulerException
+     * @return
      */
     public String registerTrigger(String triggerGroup, Trigger trigger) throws SchedulerException {
         String triggerId = triggerDao.createTrigger(triggerGroup, trigger);
@@ -148,9 +165,11 @@ public class TriggerOperator {
     }
 
     /**
-     * Disables the {@code Trigger}. If the {@code Trigger} is disabled it will NOT execute
-     * @param triggerId
-     * @throws TriggerNotFoundException
+     * Disables the {@code Trigger}. If the {@code Trigger} is disabled it will <em>not</em> execute.
+     * @warn exception SchedulerException description missing
+     *
+     * @param triggerId the string that uniquely identifies the {@code Trigger} to be disabled
+     * @throws TriggerNotFoundException if there is no {@code Trigger} that matches {@code triggerId}
      * @throws SchedulerException
      */
     public void disableTrigger(String triggerId) throws TriggerNotFoundException, SchedulerException {
@@ -163,9 +182,10 @@ public class TriggerOperator {
     }
 
     /**
-     * Disables the {@code Trigger}. If the {@code Trigger} is disabled it will NOT execute
-     * @param trigger
-     * @throws TriggerNotFoundException
+     * Disables the {@code Trigger}. If the {@code Trigger} is disabled it will <em>not</em> execute.
+     * @warn exception SchedulerException description missing
+     *
+     * @param trigger the {@code Trigger} to be disabled
      * @throws SchedulerException
      */
     public void disableTrigger(Trigger trigger) throws SchedulerException {
@@ -177,9 +197,11 @@ public class TriggerOperator {
     }
 
     /**
-     * Enables the {@code Trigger}
-     * @param triggerId
-     * @throws TriggerNotFoundException
+     * Enables the {@code Trigger}.
+     * @warn exception SchedulerException description missing
+     *
+     * @param triggerId the string that uniquely identifies the {@code Trigger} to be enabled
+     * @throws TriggerNotFoundException if there is no {@code Trigger} that matches {@code triggerId}
      * @throws SchedulerException
      */
     public void enableTrigger(String triggerId) throws TriggerNotFoundException, SchedulerException {
@@ -193,7 +215,9 @@ public class TriggerOperator {
 
     /**
      * Enables the {@code Trigger}
-     * @param trigger
+     * @warn exception SchedulerException description missing
+     *
+     * @param trigger the {@code Trigger} to be enabled
      * @throws SchedulerException
      */
     public void enableTrigger(Trigger trigger) throws SchedulerException {
@@ -206,9 +230,11 @@ public class TriggerOperator {
 
     /**
      * Deletes/Removes the {@code Trigger}. If it is a {@code ScheduledTrigger} then it is also un-scheduled from
-     * scheduler
-     * @param triggerId
-     * @throws TriggerNotFoundException
+     * scheduler.
+     * @warn exception SchedulerException description missing
+     *
+     * @param triggerId the string that uniquely identifies the {@code Trigger} to be removed
+     * @throws TriggerNotFoundException if there is no {@code Trigger} that matches {@code triggerId}
      * @throws SchedulerException
      */
     public void deleteTrigger(String triggerGroup, String triggerId) throws TriggerNotFoundException, SchedulerException {
@@ -222,9 +248,10 @@ public class TriggerOperator {
 
     /**
      * Deletes/Removes the {@code Trigger}. If it is a {@code ScheduledTrigger} then it is also un-scheduled from
-     * scheduler
-     * @param trigger
-     * @throws TriggerNotFoundException
+     * scheduler.
+     * @warn exception SchedulerException description missing
+     *
+     * @param trigger the {@code Trigger} to be removed
      * @throws SchedulerException
      */
     public void deleteTrigger(String triggerGroup, Trigger trigger) throws SchedulerException {
@@ -235,7 +262,10 @@ public class TriggerOperator {
     }
 
     /**
-     * Schedules the {@code Trigger} using the scheduler
+     * Schedules the {@code Trigger} using the scheduler.
+     * @warn exception SchedulerException description missing
+     * @warn parameter scheduledTrigger description missing
+     *
      * @param scheduledTrigger
      * @throws SchedulerException
      */
@@ -260,7 +290,7 @@ public class TriggerOperator {
     }
 
     /**
-     * A quartz job that is executed every time a {@code Trigger} is invoked
+     * A quartz job that is executed every time a {@code Trigger} is invoked.
      */
     public static class ScheduledTriggerJob implements org.quartz.Job {
         @Override
@@ -276,7 +306,10 @@ public class TriggerOperator {
     }
 
     /**
-     * Checks if a {@code ScheduledTrigger} is scheduled in the scheduler or not
+     * Checks if a {@code ScheduledTrigger} is scheduled in the scheduler or not.
+     * @warn exception SchedulerException description missing
+     * @warn parameter scheduledTrigger description missing
+     *
      * @param scheduledTrigger
      * @return
      * @throws SchedulerException
@@ -290,7 +323,10 @@ public class TriggerOperator {
     }
 
     /**
-     * Un-schedules the {@code Trigger}
+     * Un-schedules the {@code Trigger}.
+     * @warn exception SchedulerException description missing
+     * @warn parameter scheduledTrigger description missing
+     *
      * @param scheduledTrigger
      * @throws SchedulerException
      */
@@ -306,7 +342,9 @@ public class TriggerOperator {
     }
 
     /**
-     * Returns a list of {@code Trigger}s registered with the trigger service for the given triggerGroup
+     * Returns a list of {@code Trigger}s registered with the trigger service for the given triggerGroup.
+     * @warn parameter triggerGroup description missing
+     *
      * @param triggerGroup
      * @return
      */
@@ -315,17 +353,20 @@ public class TriggerOperator {
     }
 
     /**
-     * Returns a list of all the {@code Trigger}s registered with the trigger service
-     * @return
+     * Returns a list of all the {@code Trigger}s registered with the trigger service.
+     *
+     * @return a list of the {@code Trigger}s that are registered with the trigger service
      */
     public List<Trigger> getTriggers() {
         return triggerDao.getTriggers();
     }
 
     /**
-     * Executes the {@code Trigger}
-     * @param triggerId
-     * @throws Exception
+     * Executes the {@code Trigger}.
+     *
+     * @param triggerId the string that uniquely identifies the {@code Trigger} to be executed
+     * @throws TriggerNotFoundException if there is no {@code Trigger} that matches {@code triggerId}
+     * @throws Exception if an exception occurred during the execution of the {@code Trigger}
      */
     public void execute(String triggerId) throws Exception {
         Trigger trigger = getTrigger(triggerId);
@@ -337,9 +378,10 @@ public class TriggerOperator {
     }
 
     /**
-     * Executes the {@code Trigger}
-     * @param trigger
-     * @throws Exception
+     * Executes the {@code Trigger}.
+     *
+     * @param trigger the {@code Trigger} to be executed
+     * @throws Exception if an exception occurred during the execution of the {@code Trigger}
      */
     public void execute(Trigger trigger) throws Exception {
         if (trigger.isDisabled()) return;

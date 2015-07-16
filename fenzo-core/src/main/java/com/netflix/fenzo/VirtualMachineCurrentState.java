@@ -19,28 +19,39 @@ package com.netflix.fenzo;
 import java.util.Collection;
 
 /**
- * Represents the current state of the virtual machine being considered for task assignment.
- * This is made available to the fitness calculator plugin, who may use the information from this state
- * object to influence task placement optimizations
+ * @warn rewrite description in active voice
+ * Represents the current state of the virtual machine being considered for task assignment. This is made
+ * available to the fitness calculator plugin, who may use the information from this state object to influence
+ * task placement optimizations.
  */
 public interface VirtualMachineCurrentState {
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getHostname();
+
     /**
      * Returns a VM lease object representing totals of resources from all available leases for current
      * scheduling run.
-     * @return Lease object representing currently available resources.
+     *
+     * @return a lease object representing currently available resources
      */
     public VirtualMachineLease getCurrAvailableResources();
 
     /**
      * Get list of task assignment results so far in the current scheduling run.
-     * @return Collection of tasks assigned in current scheduling iteration, but not launched/executing yet.
+     *
+     * @return Collection of tasks assigned in current scheduling iteration, but not launched/executing yet
      */
     public Collection<TaskAssignmentResult> getTasksCurrentlyAssigned();
 
     /**
      * Get list of tasks assigned already from before current scheduling run started.
-     * @return Collection of tasks running on this VM.
+     *
+     * @return Collection of tasks running on this VM
      */
     public Collection<TaskRequest> getRunningTasks();
 }

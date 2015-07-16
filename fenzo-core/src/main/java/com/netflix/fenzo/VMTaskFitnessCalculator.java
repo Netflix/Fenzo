@@ -16,15 +16,26 @@
 
 package com.netflix.fenzo;
 
+/**
+ * @warn interface description missing
+ */
 public interface VMTaskFitnessCalculator {
-    public String getName();
     /**
-     * This is called by TaskScheduler during a scheduler run after a task's resource requirements are met by
-     * a VirtualMachineCurrentState.
-     * @param taskRequest  The task whose resource requirements can be met by the Virtual Machine.
-     * @param targetVM     The prospective target Virtual Machine for given {@code taskRequest}.
-     * @param taskTrackerState State of the task tracker that contains all tasks currently running and assigned
-     * @return A value between 0.0 and 1.0, with higher values representing better fit of the task on the virtual machine.
+     * @warn method description missing
+     *
+     * @return
+     */
+    public String getName();
+
+    /**
+     * This is called by {@code TaskScheduler} during a scheduler run after a task's resource requirements are
+     * met by a {@code VirtualMachineCurrentState}.
+     *
+     * @param taskRequest      the task whose resource requirements can be met by the Virtual Machine
+     * @param targetVM         the prospective target Virtual Machine for given {@code taskRequest}
+     * @param taskTrackerState state of the task tracker that contains all tasks currently running and assigned
+     * @return a value between 0.0 and 1.0, with higher values representing better fit of the task on the virtual
+     *         machine
      */
     public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM,
                                    TaskTrackerState taskTrackerState);

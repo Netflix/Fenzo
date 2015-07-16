@@ -26,18 +26,17 @@ import com.netflix.fenzo.functions.Func1;
 import java.util.Set;
 
 /**
+ * @warn rewrite in active voice
  * A unique constraint evaluator to constrain tasks by a given host attribute.
- * <P>
- *     This can be used to constrain a given set of tasks (co-tasks) are assigned hosts with unique
- * value for the given host attribute. For example, given a host attribute <code>ZoneAttribute</code>,
- * the co-tasks would be placed one one task per zone. This implies that any co-tasks submitted in greater
- * number than the number of zones will not get assigned any hosts. Instead, if a load balancing strategy
- * is to be obtained, the <code>asSoftConstraint()</code> provides the conversion.
- * </P>
- * <P>
- *     When constructed without a host attribute name, this constraint evaluator uses host names as the attribute
- *     for the unique constraint.
- * </P>
+ *
+ * This can be used to constrain a given set of tasks (co-tasks) are assigned hosts with unique value for the
+ * given host attribute. For example, given a host attribute {@code ZoneAttribute}, the co-tasks would be placed
+ * one one task per zone. This implies that any co-tasks submitted in greater number than the number of zones
+ * will not get assigned any hosts. Instead, if a load balancing strategy is to be obtained, the
+ * {@code asSoftConstraint()} provides the conversion.
+ *
+ * When constructed without a host attribute name, this constraint evaluator uses host names as the attribute
+ * for the unique constraint.
  */
 public class UniqueHostAttrConstraint implements ConstraintEvaluator {
     private final Func1<String, Set<String>> coTasksGetter;
@@ -54,12 +53,25 @@ public class UniqueHostAttrConstraint implements ConstraintEvaluator {
         this.name = UniqueHostAttrConstraint.class.getName()+"-"+hostAttributeName;
     }
 
-
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     @Override
     public String getName() {
         return name;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param taskRequest
+     * @param targetVM
+     * @param taskTrackerState
+     * @return
+     */
     @Override
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
         Set<String> coTasks = coTasksGetter.call(taskRequest.getId());

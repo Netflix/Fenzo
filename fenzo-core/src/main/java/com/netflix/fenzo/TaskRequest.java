@@ -18,14 +18,70 @@ package com.netflix.fenzo;
 
 import java.util.List;
 
+/**
+ * @warn interface description missing
+ */
 public interface TaskRequest {
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getId();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String taskGroupName();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public double getCPUs();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public double getMemory();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public double getNetworkMbps();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public double getDisk();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public int getPorts();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public List<? extends ConstraintEvaluator> getHardConstraints();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public List<? extends VMTaskFitnessCalculator> getSoftConstraints();
 }

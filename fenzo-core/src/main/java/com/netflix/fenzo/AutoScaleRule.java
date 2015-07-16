@@ -23,22 +23,39 @@ package com.netflix.fenzo;
 public interface AutoScaleRule {
     /**
      * Value of the host attribute to match to apply this rule.
-     * @return Value of matching host attribute.
+     *
+     * @return value of matching host attribute
      */
     public String getRuleName();
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public int getMinIdleHostsToKeep();
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public int getMaxIdleHostsToKeep();
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public long getCoolDownSecs();
 
     /**
-     * Predicate to check if an idle host has too few resources to be considered idle. This is used to filter out hosts
-     * with too few resources before considering them as excess resources. If not filtered out, they could prevent a
-     * much needed scale up action.
-     * @param lease The lease object of the VM
-     * @return True if the idle machine is too small, false otherwise.
+     * Predicate to check if an idle host has too few resources to be considered idle. This is used to filter out
+     * hosts with too few resources before considering them as excess resources. If not filtered out, they could
+     * prevent a much needed scale up action.
+     *
+     * @param lease the lease object of the VM
+     * @return {@code true} if the idle machine is too small, {@code false} otherwise
      */
     public boolean idleMachineTooSmall(VirtualMachineLease lease);
 }

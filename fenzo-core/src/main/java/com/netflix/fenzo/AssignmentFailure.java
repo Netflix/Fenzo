@@ -26,6 +26,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * @warn class description missing
+ */
 public class AssignmentFailure {
     @JsonIgnore
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -48,18 +51,48 @@ public class AssignmentFailure {
         this.available = available;
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public VMResource getResource() {
         return resource;
     }
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public double getAsking() {
         return asking;
     }
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public double getUsed() {
         return used;
     }
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public double getAvailable() {
         return available;
     }
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String toString() {
         try {
             return objectMapper.writeValueAsString(this);

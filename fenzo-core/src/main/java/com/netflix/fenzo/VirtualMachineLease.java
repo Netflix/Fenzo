@@ -21,6 +21,9 @@ import org.apache.mesos.Protos;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @warn interface description missing
+ */
 public interface VirtualMachineLease {
 
     public static class Range {
@@ -38,15 +41,80 @@ public interface VirtualMachineLease {
         }
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getId();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public long getOfferedTime();
-	public String hostname();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
+    public String hostname();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getVMID();
-	public double cpuCores();
-	public double memoryMB();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
+    public double cpuCores();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
+    public double memoryMB();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public double networkMbps();
-	public double diskMB();
-	public List<Range> portRanges();
-	public Protos.Offer getOffer();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
+    public double diskMB();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
+    public List<Range> portRanges();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
+    public Protos.Offer getOffer();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Map<String, Protos.Attribute> getAttributeMap();
 }

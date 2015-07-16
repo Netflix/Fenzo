@@ -38,6 +38,11 @@ class Scheduler {
         private static final Scheduler INSTANCE = new Scheduler();
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     static Scheduler getInstance() {
         return SchedulerHolder.INSTANCE;
     }
@@ -45,6 +50,14 @@ class Scheduler {
     private Scheduler() {
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter threadPoolSize description missing
+     * @warn exception SchedulerException description missing
+     *
+     * @param threadPoolSize
+     * @throws SchedulerException
+     */
     synchronized void startScheduler(int threadPoolSize) throws SchedulerException {
         if (quartzScheduler == null) {
             Properties props = new Properties();
@@ -55,23 +68,67 @@ class Scheduler {
         }
     }
 
+    /**
+     * @warn method description missing
+     * @warn exception SchedulerException description missing
+     *
+     * @throws SchedulerException
+     */
     void stopScheduler() throws SchedulerException {
         quartzScheduler.shutdown();
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter waitForJobsToComplete description missing
+     * @warn exception SchedulerException description missing
+     *
+     * @param waitForJobsToComplete
+     * @throws SchedulerException
+     */
     void stopScheduler(boolean waitForJobsToComplete) throws SchedulerException {
         quartzScheduler.shutdown(waitForJobsToComplete);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     * @warn exception SchedulerException description missing
+     *
+     * @param jobId
+     * @param jobGroup
+     * @param jobClass
+     * @param trigger
+     * @throws SchedulerException
+     */
     void scheduleQuartzJob(String jobId, String jobGroup, Class<? extends Job> jobClass, Trigger trigger) throws SchedulerException {
         JobDetail job = newJob(jobClass).withIdentity(jobId, jobGroup).build();
         quartzScheduler.scheduleJob(job, trigger);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     * @warn exception SchedulerException description missing
+     *
+     * @param jobId
+     * @param jobGroup
+     * @throws SchedulerException
+     */
     void unscheduleQuartzJob(String jobId, String jobGroup) throws SchedulerException {
         quartzScheduler.unscheduleJob(TriggerKey.triggerKey(jobId, jobGroup));
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     * @warn exception SchedulerException description missing
+     *
+     * @param jobId
+     * @param jobGroup
+     * @throws SchedulerException
+     * @return
+     */
     boolean isScheduled(String jobId, String jobGroup) throws SchedulerException {
         return quartzScheduler.checkExists(new JobKey(jobId, jobGroup));
     }

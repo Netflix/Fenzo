@@ -21,13 +21,58 @@ import com.netflix.fenzo.triggers.Trigger;
 import java.util.List;
 
 /**
- *
+ * @warn interface description missing
  */
 public interface TriggerDao {
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param triggerGroup
+     * @param trigger
+     * @return
+     */
     public String createTrigger(String triggerGroup, Trigger trigger);
+
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param triggerGroup
+     * @param trigger
+     */
     public void deleteTrigger(String triggerGroup, Trigger trigger);
+
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param trigger
+     */
     public void updateTrigger(Trigger trigger);
+
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param triggerId
+     * @return
+     */
     public Trigger getTrigger(String triggerId);
+
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param triggerGroup
+     * @return
+     */
     public List<Trigger> getTriggers(String triggerGroup);
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public List<Trigger> getTriggers();
 }

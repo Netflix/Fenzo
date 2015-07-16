@@ -35,7 +35,18 @@ public abstract class ScheduledTrigger<T> extends Trigger<T> {
         super(name, data, dataType, action);
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public abstract ScheduleBuilder getScheduleBuilder();
 
+    /**
+     * @warn method description missing
+     * @warn param quartzTrigger description missing
+     *
+     * @param quartzTrigger
+     */
     public abstract void setQuartzTrigger(org.quartz.Trigger quartzTrigger);
 }

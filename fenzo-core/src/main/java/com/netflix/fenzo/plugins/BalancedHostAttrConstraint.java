@@ -28,6 +28,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * @warn class description missing
+ */
 public class BalancedHostAttrConstraint implements ConstraintEvaluator {
     private final String name;
     private final Func1<String, Set<String>> coTasksGetter;
@@ -41,11 +44,25 @@ public class BalancedHostAttrConstraint implements ConstraintEvaluator {
         this.expectedValues = expectedValues;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     @Override
     public String getName() {
         return name;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param taskRequest
+     * @param targetVM
+     * @param taskTrackerState
+     * @return
+     */
     @Override
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
         Set<String> coTasks = coTasksGetter.call(taskRequest.getId());
@@ -94,6 +111,11 @@ public class BalancedHostAttrConstraint implements ConstraintEvaluator {
         return usedAttribsMap;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public VMTaskFitnessCalculator asSoftConstraint() {
         return new VMTaskFitnessCalculator() {
             @Override

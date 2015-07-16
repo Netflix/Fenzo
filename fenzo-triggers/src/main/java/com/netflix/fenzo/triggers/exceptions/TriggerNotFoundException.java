@@ -17,7 +17,7 @@
 package com.netflix.fenzo.triggers.exceptions;
 
 /**
- *
+ * @warn class description missing
  */
 public class TriggerNotFoundException extends Exception {
 

@@ -16,6 +16,9 @@
 
 package com.netflix.fenzo;
 
+/**
+ * @warn class description missing
+ */
 public class ScaleUpAction implements AutoScaleAction {
     private final String ruleName;
     private final int scaleUpCount;
@@ -25,16 +28,31 @@ public class ScaleUpAction implements AutoScaleAction {
         this.scaleUpCount = scaleUpCount;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     @Override
     public Type getType() {
         return Type.Up;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     @Override
     public String getRuleName() {
         return ruleName;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public int getScaleUpCount() {
         return scaleUpCount;
     }

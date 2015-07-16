@@ -19,6 +19,9 @@ package com.netflix.fenzo;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * @warn class description missing
+ */
 public class VMAssignmentResult {
     private final String hostname;
     private final List<VirtualMachineLease> leasesUsed;
@@ -29,12 +32,30 @@ public class VMAssignmentResult {
         this.leasesUsed = leasesUsed;
         this.tasksAssigned = tasksAssigned;
     }
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getHostname() {
         return hostname;
     }
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public List<VirtualMachineLease> getLeasesUsed() {
         return leasesUsed;
     }
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Set<TaskAssignmentResult> getTasksAssigned() {
         return tasksAssigned;
     }
