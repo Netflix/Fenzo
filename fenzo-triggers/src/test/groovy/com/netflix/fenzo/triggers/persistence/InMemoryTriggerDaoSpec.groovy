@@ -85,7 +85,7 @@ class InMemoryTriggerDaoSpec extends Specification {
         savedTrigger.name == 'trigger1'
 
         when:
-        triggerDao.deleteTrigger(savedTrigger)
+        triggerDao.deleteTrigger(group, savedTrigger)
         Trigger deletedTrigger = triggerDao.getTrigger(triggerId)
 
         then:

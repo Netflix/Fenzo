@@ -24,8 +24,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * @warn class description missing
+ */
 public class TaskTracker {
 
+    /**
+     * @warn class description missing
+     */
     public static class TaskGroupUsage implements ResAllocs {
         private final String taskGroupName;
         private double cores=0.0;
@@ -37,31 +43,62 @@ public class TaskTracker {
             this.taskGroupName = taskGroupName;
         }
 
+        /**
+         * @warn method description missing
+         *
+         * @return
+         */
         @Override
         public String getTaskGroupName() {
             return taskGroupName;
         }
 
+        /**
+         * @warn method description missing
+         *
+         * @return
+         */
         @Override
         public double getCores() {
             return cores;
         }
 
+        /**
+         * @warn method description missing
+         *
+         * @return
+         */
         @Override
         public double getMemory() {
             return memory;
         }
 
+        /**
+         * @warn method description missing
+         *
+         * @return
+         */
         @Override
         public double getNetworkMbps() {
             return networkMbps;
         }
 
+        /**
+         * @warn method description missing
+         *
+         * @return
+         */
         @Override
         public double getDisk() {
             return disk;
         }
 
+        /**
+         * @warn method description missing
+         * @warn parameter description missing
+         *
+         * @param task
+         */
         void addUsage(TaskRequest task) {
             cores += task.getCPUs();
             memory += task.getMemory();
@@ -69,6 +106,12 @@ public class TaskTracker {
             disk += task.getDisk();
         }
 
+        /**
+         * @warn method description missing
+         * @warn parameter description missing
+         *
+         * @param task
+         */
         void subtractUsage(TaskRequest task) {
             cores -= task.getCPUs();
             if(cores < 0.0) {
@@ -93,6 +136,9 @@ public class TaskTracker {
         }
     }
 
+    /**
+     * @warn class description missing
+     */
     public static class ActiveTask {
         private TaskRequest taskRequest;
         private AssignableVirtualMachine avm;
@@ -100,9 +146,21 @@ public class TaskTracker {
             this.taskRequest = taskRequest;
             this.avm = avm;
         }
+
+        /**
+         * @warn method description missing
+         *
+         * @return
+         */
         public TaskRequest getTaskRequest() {
             return taskRequest;
         }
+
+        /**
+         * @warn method description missing
+         *
+         * @return
+         */
         public VirtualMachineLease getTotalLease() {
             return avm.getCurrTotalLease();
         }
@@ -117,6 +175,14 @@ public class TaskTracker {
     TaskTracker() {
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param request
+     * @param avm
+     * @return
+     */
     boolean addRunningTask(TaskRequest request, AssignableVirtualMachine avm) {
         final boolean added = runningTasks.put(request.getId(), new ActiveTask(request, avm)) == null;
         if(added)
@@ -124,6 +190,13 @@ public class TaskTracker {
         return added;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param taskId
+     * @return
+     */
     boolean removeRunningTask(String taskId) {
         final ActiveTask removed = runningTasks.remove(taskId);
         if(removed != null) {
@@ -138,10 +211,23 @@ public class TaskTracker {
         return removed != null;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     Map<String, ActiveTask> getAllRunningTasks() {
         return Collections.unmodifiableMap(runningTasks);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param request
+     * @param avm
+     * @return
+     */
     boolean addAssignedTask(TaskRequest request, AssignableVirtualMachine avm) {
         final boolean assigned = assignedTasks.put(request.getId(), new ActiveTask(request, avm)) == null;
         if(assigned)
@@ -158,16 +244,31 @@ public class TaskTracker {
         usage.addUsage(request);
     }
 
+    /**
+     * @warn method description missing
+     */
     void clearAssignedTasks() {
         for(ActiveTask t: assignedTasks.values())
             taskGroupUsages.get(t.getTaskRequest().taskGroupName()).subtractUsage(t.getTaskRequest());
         assignedTasks.clear();
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     Map<String, ActiveTask> getAllAssignedTasks() {
         return Collections.unmodifiableMap(assignedTasks);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param taskGroupName
+     * @return
+     */
     public TaskGroupUsage getUsage(String taskGroupName) {
         return taskGroupUsages.get(taskGroupName);
     }

@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
+ * @warn class description missing
  * @author sthadeshwar
  */
 public abstract class AbstractInMemoryDao<T> {
@@ -37,6 +38,14 @@ public abstract class AbstractInMemoryDao<T> {
         this.idSeparator = String.format("%s%s%s", SEPARATOR, parameterClass.getName(), SEPARATOR);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param group
+     * @param id
+     * @param type
+     */
     protected void create(String group, String id, T type) {
         ConcurrentMap<String, T> subMap = new ConcurrentHashMap<String, T>();
         subMap.put(id, type);
@@ -48,12 +57,28 @@ public abstract class AbstractInMemoryDao<T> {
         }
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param group
+     * @param id
+     * @param type
+     */
     protected void update(String group, String id, T type) {
         synchronized (map) {
             map.get(group).put(id, type);
         }
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param group
+     * @param id
+     * @return
+     */
     protected T read(String group, String id) {
         ConcurrentMap<String, T> subMap = map.get(group);
         for (Iterator<String> iterator2 = subMap.keySet().iterator(); iterator2.hasNext();) {
@@ -65,21 +90,48 @@ public abstract class AbstractInMemoryDao<T> {
         return null;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param group
+     * @param id
+     */
     protected void delete(String group, String id) {
         synchronized (map) {
             map.get(group).remove(id);
         }
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param group
+     * @param count
+     * @return
+     */
     protected List<T> list(String group, int count) {
         List<T> items = list(group);
         return items.size() > count ? items.subList(0, count) : items;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter group description missing
+     *
+     * @param group
+     * @return
+     */
     protected List<T> list(String group) {
         return map.get(group) != null ? new ArrayList<T>(map.get(group).values()) : new ArrayList<T>();
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     protected List<T> list() {
         List<T> items = new ArrayList<>();
         for (Iterator<String> iterator = map.keySet().iterator(); iterator.hasNext();) {
@@ -88,6 +140,16 @@ public abstract class AbstractInMemoryDao<T> {
         return items;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     * @warn exception IllegalArgumentException description missing
+     *
+     * @param group
+     * @param id
+     * @return
+     * @throws IllegalArgumentException
+     */
     protected String createId(String group, String id) {
         if (group == null || id == null || group.contains(idSeparator) || id.contains(idSeparator)) {
             throw new IllegalArgumentException(String.format("Illegal arguments specified for column name creation (group = %s, id = %s)", group, id));
@@ -95,6 +157,15 @@ public abstract class AbstractInMemoryDao<T> {
         return String.format("%s%s%s", group, idSeparator, id);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter columnName description missing
+     * @warn exception IllegalArgumentException description missing
+     *
+     * @param columnName
+     * @return
+     * @throws IllegalArgumentException
+     */
     protected String extractGroupFromId(String columnName) {
         if (columnName == null || !columnName.contains(idSeparator)) return columnName;
         String[] tokens = columnName.split(idSeparator);

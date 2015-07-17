@@ -26,8 +26,14 @@ import com.netflix.fenzo.functions.Func1;
 
 import java.util.Iterator;
 
+/**
+ * @warn class description missing
+ */
 public class BinPackingFitnessCalculators {
 
+    /**
+     * @warn attribute description missing
+     */
     public final static VMTaskFitnessCalculator cpuBinPacker = new VMTaskFitnessCalculator() {
         @Override
         public String getName() {
@@ -50,6 +56,9 @@ public class BinPackingFitnessCalculators {
                     });
         }
     };
+    /**
+     * @warn attribute description missing
+     */
     public final static VMTaskFitnessCalculator memoryBinPacker = new VMTaskFitnessCalculator() {
         @Override
         public String getName() {
@@ -72,6 +81,9 @@ public class BinPackingFitnessCalculators {
                     });
         }
     };
+    /**
+     * @warn attribute description missing
+     */
     public final static VMTaskFitnessCalculator cpuMemBinPacker = new VMTaskFitnessCalculator() {
         @Override
         public String getName() {
@@ -84,6 +96,9 @@ public class BinPackingFitnessCalculators {
             return (cpuFitness + memoryFitness) / 2.0;
         }
     };
+    /**
+     * @warn attribute description missing
+     */
     public final static VMTaskFitnessCalculator networkBinPacker = new VMTaskFitnessCalculator() {
         @Override
         public String getName() {
@@ -106,6 +121,9 @@ public class BinPackingFitnessCalculators {
                     });
         }
     };
+    /**
+     * @warn attribute description missing
+     */
     public final static VMTaskFitnessCalculator cpuMemNetworkBinPacker = new VMTaskFitnessCalculator() {
         @Override
         public String getName() {

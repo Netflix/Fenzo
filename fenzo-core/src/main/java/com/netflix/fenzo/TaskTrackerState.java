@@ -18,7 +18,21 @@ package com.netflix.fenzo;
 
 import java.util.Map;
 
+/**
+ * @warn interface description missing
+ */
 public interface TaskTrackerState {
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Map<String, TaskTracker.ActiveTask> getAllRunningTasks();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Map<String, TaskTracker.ActiveTask> getAllCurrentlyAssignedTasks();
 }

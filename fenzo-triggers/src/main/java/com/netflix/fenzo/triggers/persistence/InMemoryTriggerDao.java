@@ -22,10 +22,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * In-memory implementation of {@code TriggerDao}
+ * In-memory implementation of {@code TriggerDao}.
  */
 public class InMemoryTriggerDao extends AbstractInMemoryDao<Trigger> implements TriggerDao {
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param triggerGroup
+     * @param trigger
+     * @return
+     */
     @Override
     public String createTrigger(String triggerGroup, Trigger trigger) {
         trigger.setId(createId(triggerGroup, UUID.randomUUID().toString()));
@@ -33,29 +41,60 @@ public class InMemoryTriggerDao extends AbstractInMemoryDao<Trigger> implements 
         return trigger.getId();
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter triggerId description missing
+     *
+     * @param triggerId
+     * @return
+     */
     @Override
     public Trigger getTrigger(String triggerId) {
         String triggerGroup = extractGroupFromId(triggerId);
         return read(triggerGroup, triggerId);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter trigger description missing
+     *
+     * @param trigger
+     */
     @Override
     public void updateTrigger(Trigger trigger) {
         String triggerGroup = extractGroupFromId(trigger.getId());
         update(triggerGroup, trigger.getId(), trigger);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param triggerGroup
+     * @param trigger
+     */
     @Override
-    public void deleteTrigger(Trigger trigger) {
-        String triggerGroup = extractGroupFromId(trigger.getId());
+    public void deleteTrigger(String triggerGroup, Trigger trigger) {
         delete(triggerGroup, trigger.getId());
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter triggerGroup description missing
+     *
+     * @param triggerGroup
+     * @return
+     */
     @Override
     public List<Trigger> getTriggers(String triggerGroup) {
         return list(triggerGroup);
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     @Override
     public List<Trigger> getTriggers() {
         return list();

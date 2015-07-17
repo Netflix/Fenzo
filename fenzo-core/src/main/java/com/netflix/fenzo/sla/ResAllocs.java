@@ -16,10 +16,42 @@
 
 package com.netflix.fenzo.sla;
 
+/**
+ * @warn interface description missing
+ */
 public interface ResAllocs {
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     String getTaskGroupName();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     double getCores();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     double getMemory();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     double getNetworkMbps();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     double getDisk();
 }

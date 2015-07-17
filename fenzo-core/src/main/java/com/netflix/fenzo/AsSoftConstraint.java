@@ -22,7 +22,18 @@ import com.netflix.fenzo.TaskTrackerState;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
 import com.netflix.fenzo.VirtualMachineCurrentState;
 
+/**
+ * @warn class description missing
+ */
 public class AsSoftConstraint {
+
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param c
+     * @return
+     */
     public static VMTaskFitnessCalculator get(final ConstraintEvaluator c) {
         // This fitness calculator return 0 or 1. This can possibly be improved upon by the ConstraintEvaluator using its
         // own logic.

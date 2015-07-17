@@ -16,7 +16,13 @@
 
 package com.netflix.fenzo;
 
+/**
+ * @warn interface description missing
+ */
 public interface ConstraintEvaluator {
+    /**
+     * @warn class description missing
+     */
     public static class Result {
         private final boolean isSuccessful;
         private final String failureReason;
@@ -25,14 +31,42 @@ public interface ConstraintEvaluator {
             isSuccessful = successful;
             this.failureReason = isSuccessful? "" : failureReason;
         }
+
+        /**
+         * @warn method description missing
+         *
+         * @return
+         */
         public boolean isSuccessful() {
             return isSuccessful;
         }
+
+        /**
+         * @warn method description missing
+         *
+         * @return
+         */
         public String getFailureReason() {
             return failureReason;
         }
     }
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getName();
+
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param taskRequest
+     * @param targetVM
+     * @param taskTrackerState
+     * @return
+     */
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM,
                            TaskTrackerState taskTrackerState);
 }

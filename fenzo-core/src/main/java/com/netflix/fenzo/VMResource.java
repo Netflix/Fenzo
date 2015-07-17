@@ -16,6 +16,9 @@
 
 package com.netflix.fenzo;
 
+/**
+ * @warn enum description missing
+ */
 public enum VMResource {
     ResAllocs,
     VirtualMachine,

@@ -34,6 +34,9 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @warn class description missing
+ */
 class AutoScaler {
 
     private static class HostAttributeGroup {
@@ -131,21 +134,44 @@ class AutoScaler {
         this.activeVmGroups = activeVmGroups;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     Collection<AutoScaleRule> getRules() {
         return Collections.unmodifiableCollection(autoScaleRules.getRules());
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param rule
+     */
     void replaceRule(AutoScaleRule rule) {
         if(rule == null)
             throw new NullPointerException("Can't add null rule");
         autoScaleRules.replaceRule(rule);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param ruleName
+     */
     void removeRule(String ruleName) {
         if(ruleName != null)
             autoScaleRules.remRule(ruleName);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param autoScalerInput
+     */
     void scheduleAutoscale(final AutoScalerInput autoScalerInput) {
         try {
             executor.submit(new Runnable() {
@@ -307,6 +333,12 @@ class AutoScaler {
         return attribute.getText().getValue();
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param callback
+     */
     public void setCallback(Action1<AutoScaleAction> callback) {
         this.callback = callback;
     }

@@ -39,21 +39,50 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * @warn class description missing
+ */
 public class SampleFramework {
 
+    /**
+     * @warn class description missing
+     */
     public class MesosScheduler implements Scheduler {
 
+        /**
+         * @warn method description missing
+         * @warn parameter descriptions missing
+         *
+         * @param driver
+         * @param frameworkId
+         * @param masterInfo
+         */
         @Override
         public void registered(SchedulerDriver driver, Protos.FrameworkID frameworkId, Protos.MasterInfo masterInfo) {
             System.out.println("Registered! ID = " + frameworkId.getValue());
             scheduler.expireAllLeases();
         }
+
+        /**
+         * @warn method description missing
+         * @warn parameter descriptions missing
+         *
+         * @param driver
+         * @param masterInfo
+         */
         @Override
         public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
             System.out.println("Re-registered " + masterInfo.getId());
             scheduler.expireAllLeases();
         }
 
+        /**
+         * @warn method description missing
+         * @warn parameter descriptions missing
+         *
+         * @param driver
+         * @param offers
+         */
         @Override
         public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
             for(Protos.Offer offer: offers) {
@@ -62,11 +91,25 @@ public class SampleFramework {
             }
         }
 
+        /**
+         * @warn method description missing
+         * @warn parameter descriptions missing
+         *
+         * @param driver
+         * @param offerId
+         */
         @Override
         public void offerRescinded(SchedulerDriver driver, Protos.OfferID offerId) {
             scheduler.expireLease(offerId.getValue());
         }
 
+        /**
+         * @warn method description missing
+         * @warn parameter descriptions missing
+         *
+         * @param driver
+         * @param status
+         */
         @Override
         public void statusUpdate(SchedulerDriver driver, Protos.TaskStatus status) {
             System.out.println("Task Update: " + status.getTaskId().getValue() + " in state " + status.getState());
@@ -80,20 +123,58 @@ public class SampleFramework {
             }
         }
 
+        /**
+         * @warn method description missing
+         * @warn parameter descriptions missing
+         *
+         * @param driver
+         * @param executorId
+         * @param slaveId
+         * @param data
+         */
         @Override
         public void frameworkMessage(SchedulerDriver driver, Protos.ExecutorID executorId, Protos.SlaveID slaveId, byte[] data) {}
 
+        /**
+         * @warn method description missing
+         * @warn parameter description missing
+         *
+         * @param driver
+         */
         @Override
         public void disconnected(SchedulerDriver driver) {}
 
+        /**
+         * @warn method description missing
+         * @warn parameter descriptions missing
+         *
+         * @param driver
+         * @param slaveId
+         */
         @Override
         public void slaveLost(SchedulerDriver driver, Protos.SlaveID slaveId) {}
 
+        /**
+         * @warn method description missing
+         * @warn parameter descriptions missing
+         *
+         * @param driver
+         * @param executorId
+         * @param slaveId
+         * @param status
+         */
         @Override
         public void executorLost(SchedulerDriver driver, Protos.ExecutorID executorId, Protos.SlaveID slaveId, int status) {
             System.out.println("Executor " + executorId.getValue() + " lost, status=" + status);
         }
 
+        /**
+         * @warn method description missing
+         * @warn parameter descriptions missing
+         *
+         * @param driver
+         * @param message
+         */
         @Override
         public void error(SchedulerDriver driver, String message) {}
     }
@@ -226,12 +307,18 @@ public class SampleFramework {
         }.start();
     }
 
+    /**
+     * @warn method description missing
+     */
     public void shutdown() {
         System.out.println("Stopping down mesos driver");
         Protos.Status status = mesosSchedulerDriver.stop();
         isShutdown.set(true);
     }
 
+    /**
+     * @warn method description missing
+     */
     public void start() {
         new Thread(new Runnable() {
             @Override
@@ -241,6 +328,9 @@ public class SampleFramework {
         }).start();
     }
 
+    /**
+     * @warn method description missing
+     */
     void runAll() {
         System.out.println("Running all");
         List<VirtualMachineLease> newLeases = new ArrayList<>();

@@ -16,6 +16,16 @@
 
 package com.netflix.fenzo.functions;
 
+/**
+ * @warn interface description missing
+ */
 public interface Func1<T1, R> {
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param t1
+     * @return
+     */
     public R call(T1 t1);
 }

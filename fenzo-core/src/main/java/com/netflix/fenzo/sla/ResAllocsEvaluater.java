@@ -32,6 +32,9 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+/**
+ * @warn class description missing
+ */
 public class ResAllocsEvaluater {
     private final Map<String, ResAllocs> resAllocs;
     private final TaskTracker taskTracker;
@@ -48,16 +51,33 @@ public class ResAllocsEvaluater {
         this.resAllocs = initialResAllocs==null? new HashMap<String, ResAllocs>() : new HashMap<>(initialResAllocs);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param r
+     */
     public void replaceResAllocs(ResAllocs r) {
         if(r != null)
             addQ.offer(r);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param groupName
+     */
     public void remResAllocs(String groupName) {
         if(groupName != null && !groupName.isEmpty())
             remQ.offer(groupName);
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public boolean prepare() {
         failedTaskGroups.clear();
         updateResAllocs();
@@ -84,10 +104,24 @@ public class ResAllocsEvaluater {
         }
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param taskGroupName
+     * @return
+     */
     public boolean taskGroupFailed(String taskGroupName) {
         return failedTaskGroups.contains(taskGroupName);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter description missing
+     *
+     * @param task
+     * @return
+     */
     public AssignmentFailure hasResAllocs(TaskRequest task) {
         if(resAllocs.isEmpty())
             return null;
@@ -121,6 +155,11 @@ public class ResAllocsEvaluater {
                         resAllocs.getNetworkMbps() > 0.0 || resAllocs.getDisk() > 0.0);
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Map<String, ResAllocs> getResAllocs() {
         return Collections.unmodifiableMap(resAllocs);
     }

@@ -16,9 +16,26 @@
 
 package com.netflix.fenzo;
 
+/**
+ * @warn interface description missing
+ */
 public interface AutoScaleAction {
+    /**
+     * @warn enum description missing
+     */
     public enum Type {Up, Down};
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getRuleName();
+
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Type getType();
 }

@@ -18,6 +18,9 @@ package com.netflix.fenzo;
 
 import java.util.Collection;
 
+/**
+ * @warn class description missing
+ */
 public class ScaleDownAction implements AutoScaleAction {
     private final String ruleName;
     private final Collection<String> hosts;
@@ -28,16 +31,31 @@ public class ScaleDownAction implements AutoScaleAction {
         // ToDo need to ensure those hosts' offers don't get used
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     @Override
     public String getRuleName() {
         return ruleName;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     @Override
     public Type getType() {
         return Type.Down;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public Collection<String> getHosts() {
         return hosts;
     }

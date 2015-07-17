@@ -16,6 +16,16 @@
 
 package com.netflix.fenzo.functions;
 
+/**
+ * @warn interface description missing
+ */
 public interface Action2<T1, T2> {
+    /**
+     * @warn method description missing
+     * @warn parameter descriptions missing
+     *
+     * @param t1
+     * @param t2
+     */
     void call(T1 t1, T2 t2);
 }

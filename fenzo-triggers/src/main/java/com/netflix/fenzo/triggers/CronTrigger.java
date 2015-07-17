@@ -25,7 +25,7 @@ import rx.functions.Action1;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 
 /**
- *
+ * @warn class description missing
  */
 public class CronTrigger<T> extends ScheduledTrigger<T> {
     private String cronExpression;
@@ -46,23 +46,50 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
         return quartzTrigger;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String getCronExpression() {
         return cronExpression;
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter cronExpression description missing
+     *
+     * @param cronExpression
+     */
     public void setCronExpression(String cronExpression) {
         this.cronExpression = cronExpression;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     @JsonIgnore
     public ScheduleBuilder getScheduleBuilder() {
         return cronSchedule(cronExpression);
     }
 
+    /**
+     * @warn method description missing
+     * @warn parameter quartzTrigger description missing
+     *
+     * @param quartzTrigger
+     */
     public void setQuartzTrigger(org.quartz.Trigger quartzTrigger) {
         this.quartzTrigger = quartzTrigger;
     }
 
+    /**
+     * @warn method description missing
+     *
+     * @return
+     */
     public String toString() {
         return "CronTrigger (" + getId() + ":" + getName() + ":" + cronExpression + ")";
     }
