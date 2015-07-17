@@ -17,16 +17,20 @@
 package com.netflix.fenzo;
 
 /**
- * @warn class description missing
+ * A default fitness calculator that always finds targets to be fit for all tasks. A fitness calculator computes
+ * a value between 0.0 and 1.0 to indicate the confidence with which it believes a particular target is suitable
+ * for a particular task, with 0.0 being completely unconfident, and 1.0 being completely confident. This default
+ * fitness calculator always computes this value to be 1.0, meaning that it always believes a target and a task
+ * are well matched for each other.
  */
 public class DefaultFitnessCalculator implements VMTaskFitnessCalculator {
     public DefaultFitnessCalculator() {
     }
 
     /**
-     * @warn method description missing
+     * Returns the name of this fitness calculator (the class name).
      *
-     * @return
+     * @return the name of this fitness calculator
      */
     @Override
     public String getName() {
@@ -34,13 +38,13 @@ public class DefaultFitnessCalculator implements VMTaskFitnessCalculator {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
+     * Computes the suitability of {@code targetVM} to take on the task described by {@code taskRequest} to be
+     * 1.0 (fully suitable).
      *
      * @param taskRequest
      * @param targetVM
      * @param taskTrackerState
-     * @return
+     * @return 1.0
      */
     @Override
     public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {

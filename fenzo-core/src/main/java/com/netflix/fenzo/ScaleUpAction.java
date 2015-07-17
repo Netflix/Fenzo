@@ -17,7 +17,7 @@
 package com.netflix.fenzo;
 
 /**
- * @warn class description missing
+ * An autoscale action indicating that the autoscale group was scaled up.
  */
 public class ScaleUpAction implements AutoScaleAction {
     private final String ruleName;
@@ -29,9 +29,9 @@ public class ScaleUpAction implements AutoScaleAction {
     }
 
     /**
-     * @warn method description missing
-     *
-     * @return
+     * Returns an indication of whether the autoscale action was to scale up or to scale down - in this case, up.
+     * 
+     * @return {@link AutoScaleAction.Type#Up}
      */
     @Override
     public Type getType() {

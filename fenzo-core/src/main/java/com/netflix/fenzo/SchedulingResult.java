@@ -47,13 +47,6 @@ public class SchedulingResult {
         return resultMap;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param request
-     * @param f
-     */
     void addFailures(TaskRequest request, List<TaskAssignmentResult> f) {
         failures.put(request, f);
     }
@@ -76,12 +69,6 @@ public class SchedulingResult {
         return leasesAdded;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param leasesAdded
-     */
     void setLeasesAdded(int leasesAdded) {
         this.leasesAdded = leasesAdded;
     }
@@ -95,12 +82,6 @@ public class SchedulingResult {
         return leasesRejected;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param leasesRejected
-     */
     void setLeasesRejected(int leasesRejected) {
         this.leasesRejected = leasesRejected;
     }
@@ -114,12 +95,6 @@ public class SchedulingResult {
         return runtime;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param runtime
-     */
     void setRuntime(long runtime) {
         this.runtime = runtime;
     }
@@ -133,12 +108,6 @@ public class SchedulingResult {
         return numAllocations;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param numAllocations
-     */
     void setNumAllocations(int numAllocations) {
         this.numAllocations = numAllocations;
     }
@@ -152,12 +121,6 @@ public class SchedulingResult {
         return totalVMsCount;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param totalVMsCount
-     */
     void setTotalVMsCount(int totalVMsCount) {
         this.totalVMsCount = totalVMsCount;
     }
@@ -171,12 +134,6 @@ public class SchedulingResult {
         return idleVMsCount;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param idleVMsCount
-     */
     void setIdleVMsCount(int idleVMsCount) {
         this.idleVMsCount = idleVMsCount;
     }

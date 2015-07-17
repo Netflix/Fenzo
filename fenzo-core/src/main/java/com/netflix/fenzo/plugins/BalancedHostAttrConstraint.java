@@ -29,7 +29,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * @warn class description missing
+ * A balanced host attribute constraint attempts to distribute co-tasks evenly among host types, where their
+ * types are determined by the values of particular host attributes.
  */
 public class BalancedHostAttrConstraint implements ConstraintEvaluator {
     private final String name;

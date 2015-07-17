@@ -17,7 +17,7 @@
 package com.netflix.fenzo;
 
 /**
- * @warn interface description missing
+ * Describes an autoscaling action, either the scaling up or down of an autoscaling group.
  */
 public interface AutoScaleAction {
     /**
@@ -35,7 +35,7 @@ public interface AutoScaleAction {
     /**
      * Returns an indication of whether the autoscale action was to scale up or to scale down.
      *
-     * @return an enum indicating whether the autoscale action was {@code Up} or {@code Down}
+     * @return an enum indicating whether the autoscale action was {@link Type#Up} or {@link Type#Down}
      */
     public Type getType();
 }

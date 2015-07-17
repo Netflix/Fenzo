@@ -27,7 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @warn class description missing
+ * An object that encapsulates the case of a target failing to satisfy a constraint mandated by a task.
  */
 public class ConstraintFailure {
     @JsonIgnore
@@ -46,27 +46,27 @@ public class ConstraintFailure {
     }
 
     /**
-     * @warn method description missing
+     * Returns the name of the constraint that was violated by the target.
      *
-     * @return
+     * @return the name of the constraint
      */
     public String getName() {
         return name;
     }
 
     /**
-     * @warn method description missing
+     * Returns a description of how the constraint was violated by the target.
      *
-     * @return
+     * @return a description of how the constraint failed
      */
     public String getReason() {
         return reason;
     }
 
     /**
-     * @warn method description missing
+     * Returns a textual description of the constraint failure.
      *
-     * @return
+     * @return a String representation of this {@code ConstraintFailure}
      */
     public String toString() {
         try {

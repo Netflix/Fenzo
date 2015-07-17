@@ -49,7 +49,8 @@ public final class ExclusiveHostConstraint implements ConstraintEvaluator {
      * @param taskRequest
      * @param targetVM
      * @param taskTrackerState
-     * @return a false Result if the target already has running tasks or assigned tasks, a true Result otherwise
+     * @return an unsuccessful Result if the target already has running tasks or assigned tasks, or a successful
+     *         Result otherwise
      */
     @Override
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {

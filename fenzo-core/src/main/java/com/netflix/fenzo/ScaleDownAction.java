@@ -19,7 +19,7 @@ package com.netflix.fenzo;
 import java.util.Collection;
 
 /**
- * @warn class description missing
+ * An autoscale action that indicates a scaling down of an autoscale group.
  */
 public class ScaleDownAction implements AutoScaleAction {
     private final String ruleName;
@@ -42,9 +42,10 @@ public class ScaleDownAction implements AutoScaleAction {
     }
 
     /**
-     * @warn method description missing
+     * Returns an indication of whether the autoscale action was to scale up or to scale down - in this case,
+     * down.
      *
-     * @return
+     * @return {@link AutoScaleAction.Type#Down}
      */
     @Override
     public Type getType() {
