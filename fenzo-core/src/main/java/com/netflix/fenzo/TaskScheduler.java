@@ -45,26 +45,30 @@ import java.util.concurrent.atomic.AtomicInteger;
  * {@code TaskScheduler} provides a scheduling service for assigning resources to tasks. User calls the method
  * {@code scheduleOnce()} with a list of task requests and a list of new resource lease offers. Any unused lease
  * offers are stored for use in future calls to {@code scheduleOnce()} until a time transpires, defined by the
- * lease offer expiry time that is set when building the {@code TaskScheduler}. The default is 10 seconds. Upon
- * reaching the expiry time, resource lease offers are rejected by invoking the action supplied with the builder.
- *
+ * lease offer expiry time that is set when building the {@code TaskScheduler}. The default is 10 seconds.
+ * Upon reaching the expiry time, resource lease offers are rejected by invoking the action supplied with the builder.
+ * 
  * TaskScheduler can be used in two modes:
  * <dl>
  *  <dt>Simple mode with no optimizations</dt>
- *   <dd>In this mode, after building the {@code TaskScheduler} object, only the {@code scheduleOnce()} method
- *       need be called.</dd>
+ *   <dd></dd>In this mode, after building the {@code TaskScheduler} object, only the
+ *            {@code scheduleOnce()} method need be called.</dd>
  *  <dt>Optimizations mode</dt>
- *   <dd>In this mode, {@code TaskScheduler} attempts to optimize the placement of tasks on resources by using
- *       the optimization functions (To be added). This requires that the user not only call
- *       {@code scheduleOnce()} method but also the task assigner and task un-assigner actions available from the
- *       methods {@code getTaskAssigner()} and {@code getTaskUnAssigner()}. These actions make the
- *       {@code TaskScheduler} keep track of tasks already assigned. Tracked tasks are then made available to
- *       optimization functions.</dd>
- * </dl>
- * The scheduler cannot be called concurrently. Task assignment proceeds in the order of the tasks received in
- * given list. Each task is checked against available resources until a match is found.
+ *   <dd>In this mode, (@code TaskScheduler} attempts to optimize the placement of tasks on
+ *             resources by using the optimization functions (To be added). This requires that the user not only call
+ *             {@code scheduleOnce()} method but also the task assigner and task un-assigner actions available from
+ *             the methods {@code getTaskAssigner()} and {@code getTaskUnAssigner()}. These actions make the
+ *             {@code TaskScheduler} keep track of tasks already assigned. Tracked tasks are then made available to optimization
+ *             functions.</dd>
+ *  </dl>
  *
- * The builder provides other methods to set autoscaling rules and fitness calculators, etc.
+ * 
+ *     The scheduler cannot be called concurrently. Task assignment proceeds in the order of the tasks received in
+ * given list. Each task is checked against available resources until a match is found.
+ * 
+ *     The builder provides other methods to set autoscaling rules and fitness calculators, etc.
+ * 
+ *
  */
 public class TaskScheduler {
 
@@ -272,14 +276,14 @@ public class TaskScheduler {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameterdescription missing
-     *
-     * @param callback
+     * Set the autoscale call back action. This action is called when it this scheduler determines that the
+     * cluster needs to be scaled up or down.
+     * @param callback The callback to invoke for autoscale actions.
+     * @throws IllegalStateException If autoscaler wasn't setup.
      */
-    public void setAutoscalerCallback(Action1<AutoScaleAction> callback) {
+    public void setAutoscalerCallback(Action1<AutoScaleAction> callback) throws IllegalStateException {
         if(autoScaler==null)
-            throw new IllegalStateException("No autoScale by attribute name setup");
+            throw new IllegalStateException("No autoScaler setup");
         autoScaler.setCallback(callback);
     }
 
@@ -304,38 +308,32 @@ public class TaskScheduler {
     }
 
     /**
-     * @warn method description missing
-     *
-     * @return
+     * Get the current mapping of resource allocations registered
+     * @return Current mapping of resource allocations
      */
     public Map<String, ResAllocs> getResAllocs() {
         return resAllocsEvaluator.getResAllocs();
     }
 
     /**
-     * @warn method description missing
-     * @warn parameterdescription missing
-     *
-     * @param resAllocs
+     * Add a new resource allocation, or replace an existing one of the same name.
+     * @param resAllocs The new resource allocation to add.
      */
     public void addOrReplaceResAllocs(ResAllocs resAllocs) {
         resAllocsEvaluator.replaceResAllocs(resAllocs);
     }
 
     /**
-     * @warn method description missing
-     * @warn parameterdescription missing
-     *
-     * @param groupName
+     * Remove resource allocation associated with the given name.
+     * @param groupName Name of the resource allocation to remove.
      */
     public void removeResAllocs(String groupName) {
         resAllocsEvaluator.remResAllocs(groupName);
     }
 
     /**
-     * @warn method description missing
-     *
-     * @return
+     * Get the currently registered autoscale rules.
+     * @return Collection of autoscale rules currently registered.
      */
     public Collection<AutoScaleRule> getAutoScaleRules() {
         if(autoScaler==null)
@@ -344,15 +342,18 @@ public class TaskScheduler {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameterdescription missing
-     *
-     * @param rule
+     * Add a new autoscale rule. If a rule with the same name exists, it is replaced. This autoscale rule is used
+     * next time the autoscale action is invoked.
+     * @param rule The autoscale rule to add.
      */
     public void addOrReplaceAutoScaleRule(AutoScaleRule rule) {
         autoScaler.replaceRule(rule);
     }
 
+    /**
+     * Remove the autoscale rule associated with the given name.
+     * @param ruleName Name of the autoscale rule to remove.
+     */
     /**
      * @warn method description missing
      * @warn parameterdescription missing
@@ -366,22 +367,27 @@ public class TaskScheduler {
     /**
      * Schedule given task requests using newly added resource leases in addition to previously unused leases.
      * This is the main scheduling method that attempts to assign resources to the given task requests. Resource
-     * leases are associated with a host name. A host can have zero or more leases. Leases unused in this
-     * scheduling run are stored for later use until they expire. Attempt to add a lease object with an Id equal
-     * to that of a stored lease object is disallowed by throwing {@code IllegalStateException}. Upon throwing
-     * this exception, if multiple leases were given in the {@code newLeases} argument, the state of internally
-     * maintained list of unused leases is unknown - some of the leases may have been successfully added.
-     *
+     * leases are associated with a host name. A host can have zero or more leases. Leases unused in this scheduling
+     * run are stored for later use until they expire. Attempt to add a lease object with an Id equal to that of a
+     * stored lease object is disallowed by throwing {@code IllegalStateException}.
+     * Upon throwing this exception, if multiple leases were given in the {@code newLeases} argument,
+     * the state of internally maintained list of unused leases is unknown - some of the leases may have been
+     * successfully added.
+     * 
      * Any expired leases are rejected before scheduling begins. Then, all leases of a host are combined to
      * determine total available resources on the host. Each task request, in the order that they appear in
      * the given list, is then tried for assignment against the available hosts until successful. For each
-     * task, either a successful assignment result is returned, or, the set of assignment failures is sent to
-     * the assignment results observer.
-     *
-     * @param requests list of requests to schedule, in the given order
-     * @param newLeases new resource leases for hosts to be used in addition to any previously ununsed leases
-     * @return a task assignment results map, a tuple of host name and its assignment result
-     * @throws IllegalStateException if called concurrently or if an existing lease is added again
+     * task, either a successful assignment result, or, the set of assignment failures, is returned.
+     * 
+     * After all assignments have been evaluated, a certain number of leases are rejected if they are unused and
+     * their offer time is longer than lease expiration interval. This is to prevent hoarding of leases. If an
+     * autoscaler was provided, autoscale evaluation is launched to run asynchronously, in which each autoscale rule
+     * registered is run based on its policy.
+     * 
+     * @param requests List of requests to assign resources to, in the given order.
+     * @param newLeases New resource leases for hosts to be used in addition to any previously ununsed leases.
+     * @return SchedulingResult object that contains task assignment results map and other summaries.
+     * @throws IllegalStateException If called concurrently or if an existing lease is added again.
      */
     public SchedulingResult scheduleOnce(
             List<? extends TaskRequest> requests,
@@ -507,12 +513,12 @@ public class TaskScheduler {
 
     /**
      * Returns state of resources on all known hosts. This is expected to be used for debugging or informational
-     * purposes only, and occasionally at that. Calling this obtains and holds a lock for the duration of
-     * creating the state information. Scheduling runs are blocked around the lock.
-     *
-     * @return a map of state information with hostname as key and a Map of resource state. The resource state
-     *         Map contains resource as the key and a two element Double array - the first contains used value
-     *         and the second element contains available value (available does not include used).
+     * purposes only, and occasionally at that. Calling this obtains and holds a lock for the duration of creating the
+     * state information. Scheduling runs are blocked around the lock.
+     * 
+     * @return Map of state information with hostname as key and a Map of resource state. The resource state Map contains
+     * resource as the key and a two element Double array - first contains used value and the second element contains
+     * available value (available does not include used).
      */
     public Map<String, Map<VMResource, Double[]>> getResourceStatus() {
         try (AutoCloseable ac = stateMonitor.enter()) {
@@ -525,18 +531,19 @@ public class TaskScheduler {
 
     /**
      * Returns current state of all known hosts. This is expected to be used for debugging or informational
-     * purposes only, and occasionally at that. Calling this obtains and holds a lock for the duration of
-     * creating the state information. Scheduling runs are blocked around the lock.
-     *
-     * @return a list of current state of all known VMs
+     * purposes only, and occasionally at that. Calling this obtains and holds a lock for the duration of creating the
+     * state information. Scheduling runs are blocked around the lock.
+     * 
+     * @return List of current state of all known VMs
+     * @throws IllegalStateException If called concurrently with main scheduling method, scheduleOnce().
      */
-    public List<VirtualMachineCurrentState> getVmCurrentStates() {
+    public List<VirtualMachineCurrentState> getVmCurrentStates() throws IllegalStateException {
         try (AutoCloseable ac = stateMonitor.enter()) {
             return assignableVMs.getVmCurrentStates();
         }
         catch (Exception e) {
             logger.error("Unexpected error from state monitor: " + e.getMessage(), e);
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
 
@@ -570,31 +577,25 @@ public class TaskScheduler {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameterdescription missing
-     *
-     * @param leaseId
+     * Expire a resource lease with the given lease Id.
+     * @param leaseId Lease ID of the lease to expire.
      */
     public void expireLease(String leaseId) {
         assignableVMs.expireLease(leaseId);
     }
 
     /**
-     * @warn method description missing
-     * @warn parameterdescription missing
-     *
-     * @param hostname
+     * Expire all leases of a host with the name <code>hostname</code>.
+     * @param hostname Name of the host.
      */
     public void expireAllLeases(String hostname) {
         assignableVMs.expireAllLeases(hostname);
     }
 
     /**
-     * @warn method description missing
-     * @warn parameterdescription missing
-     *
-     * @param vmId
-     * @return
+     * Expire all leases of a host with the Id, <code>vmId</code>.
+     * @param vmId ID of the host.
+     * @return True if the given Id was known, false otherwise.
      */
     public boolean expireAllLeasesByVMId(String vmId) {
         final String hostname = assignableVMs.getHostnameFromVMId(vmId);
@@ -605,7 +606,7 @@ public class TaskScheduler {
     }
 
     /**
-     * @warn method description missing
+     * Expire all leases currently stored.
      */
     public void expireAllLeases() {
         logger.info("Expiring all leases");
@@ -613,18 +614,16 @@ public class TaskScheduler {
     }
 
     /**
-     * @warn method summary sentence missing
-     * @warn method update description to active voice
-     * Tasks are scheduled in {@code scheduleOnce()} but not tracked by this class. Tracking assigned tasks is
-     * useful for optimizing future assignments for such purposes as task locality with other tasks, etc. If such
-     * optimization is desired, the caller of {@code scheduleOnce()} must invoke the task assigner from this
-     * method once for each task assignment actually used by the caller. Later, when that task terminates, the
-     * un-assigner from {@code getTaskUnAssigner()} must be called as well.
-     *
+     * Get the task assigner action object.
+     * Tasks are scheduled in {@code scheduleOnce()} but not tracked by this class. Tracking assigned tasks
+     * is useful for optimizing future assignments for such purposes as task locality with other tasks, etc. If such
+     * optimization is desired, call the taskAssigner from this method once for each task assignment actually used. 
+     * Later, when that task terminates, call the un-assigner from {@code getTaskUnAssigner()} as well.
+     * 
      * Note that calling the task assigner action concurrently with {@code scheduleOnce()} is disallowed. The
      * task assigner action will throw {@code IllegalStateException} in such a case.
-     *
-     * @return the task assigner action
+     * 
+     * @return Task assigner action
      */
     public Action2<TaskRequest, String> getTaskAssigner() {
         return new Action2<TaskRequest, String>() {
@@ -634,19 +633,18 @@ public class TaskScheduler {
                     assignableVMs.setTaskAssigned(request, hostname);
                 } catch (Exception e) {
                     logger.error("Unexpected error from state monitor: " + e.getMessage());
-                    throw new RuntimeException(e);
+                    throw new IllegalStateException(e);
                 }
             }
         };
     }
 
     /**
-     * @warn method summary sentence missing
-     * @warn method update description to active voice, rewrite it
-     * The previously set assignment is removed when this action is called. The un-assigner must be called for
-     * all corresponding task completions for
-     *
-     * @return the task un-assigner action.
+     * Get the task unassigner object.
+     * Call this object's {@code call()} method to unassign a previously set assignment for 
+     * each task that completes so internal state is maitained correctly.
+     * 
+     * @return The task un-assigner action.
      */
     public Action2<String, String> getTaskUnAssigner() {
         return new Action2<String, String>() {
@@ -659,9 +657,10 @@ public class TaskScheduler {
 
     /**
      * Disable a VM with the given hostname. If the hostname is not known yet, a new object for it is created and
-     * therefore, the disabling is remembered when offers come in later.
-     *
-     * @param hostname name of the host to disable
+     * therefore, the disabling is remembered when offers come in later. Disabled hosts are not used for allocating
+     * resources to tasks.
+     * 
+     * @param hostname Name of the host to disable.
      * @param durationMillis duration, in mSec, from now until which to disable
      */
     public void disableVM(String hostname, long durationMillis) {
@@ -669,12 +668,14 @@ public class TaskScheduler {
         assignableVMs.disableUntil(hostname, System.currentTimeMillis()+durationMillis);
     }
 
+
+
     /**
-     * Disable a VM given its ID.
-     *
-     * @param vmID the VM ID
+     * Disable a VM given it's ID.
+     * 
+     * @param vmID The VM ID
      * @param durationMillis duration, in mSec, from now until which to disable
-     * @return {@code true} if VM ID was found and disabled, {@code false} otherwise.
+     * @return {@code true} if VM ID was known, {@code false} otherwise.
      */
     public boolean disableVMByVMId(String vmID, long durationMillis) {
         final String hostname = assignableVMs.getHostnameFromVMId(vmID);
@@ -685,10 +686,8 @@ public class TaskScheduler {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param hostname
+     * Enable the VM with the given host name.
+     * @param hostname Name of the host.
      */
     public void enableVM(String hostname) {
         logger.info("Enabling VM " + hostname);
@@ -696,20 +695,18 @@ public class TaskScheduler {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param attributeName
+     * A VM (host) can belong to a group. The group is determine by the value of the given attribute name in its offers.
+     * @param attributeName Name of the attribute to determine a VM's group.
      */
     public void setActiveVmGroupAttributeName(String attributeName) {
         assignableVMs.setActiveVmGroupAttributeName(attributeName);
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param vmGroups
+     * Set the list of VM group names that are active. VMs (hosts) that belong to groups not included in this list are
+     * said to be disabled. Disabled hosts' resources are not used for allocation. A null list indicates that all
+     * groups are enabled.
+     * @param vmGroups List of VM group names that are set as enabled.
      */
     public void setActiveVmGroups(List<String> vmGroups) {
         assignableVMs.setActiveVmGroups(vmGroups);
