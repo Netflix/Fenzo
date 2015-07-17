@@ -30,10 +30,10 @@ Fenzo Features:
 - you can monitor resource allocation failures in order to assist in debugging why some tasks can't be launched
 - you have the ability to trade off scheduling optimizations with speed of assignments
 
-Beyond a first-fit assignment of resources, with Fenzo frameworks can optimize task placement by using the
-built-in plugins, or they can design and deploy their own custom task placement optimization plugins. Frameworks
-can balance scheduling speed with optimal task assignment quality based on their needs. The fitness calculator
-and constraint plugins that are built in to Fenzo include:
+Beyond a first-fit assignment of resources, Fenzo frameworks can optimize task placement by using the built-in
+plugins, or they can design and deploy their own custom task placement optimization plugins. Frameworks can
+balance scheduling speed with optimal task assignment quality based on their needs. The fitness calculator and
+constraint plugins that are built in to Fenzo include:
 
 - Bin packing fitness calculator
     - CPU, memory, or combined CPU and memory bin packing

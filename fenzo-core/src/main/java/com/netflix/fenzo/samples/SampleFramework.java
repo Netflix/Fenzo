@@ -308,7 +308,7 @@ public class SampleFramework {
     }
 
     /**
-     * @warn method description missing
+     * Shuts down the Mesos driver.
      */
     public void shutdown() {
         System.out.println("Stopping down mesos driver");

@@ -23,16 +23,22 @@ import com.netflix.fenzo.VMTaskFitnessCalculator;
 import com.netflix.fenzo.VirtualMachineCurrentState;
 
 /**
- * @warn class description missing
+ * Converts a hard constraint into a soft constraint. A {@link ConstraintEvaluator} is by default a "hard," or
+ * mandatory constraint. Fenzo will not place a task with a target that fails such a constraint, and will not
+ * place the task at all if no target passes the constraint. You can convert such a "hard" constraint into a
+ * "soft" constraint by passing it into the {@link #get} method of this class. That method returns a
+ * {@link VMTaskFitnessCalculator} that implements a "soft" constraint. When Fenzo uses such a constraint, it
+ * will attempt to place a task with a target that satisfies the constraint, but will place the task with a
+ * target that fails the constraint if no other target can be found.
  */
 public class AsSoftConstraint {
 
     /**
-     * @warn method description missing
-     * @warn parameter description missing
+     * Returns a "soft" constraint, in the form of a {@link VMTaskFitnessCalculator}, based on a specified "hard"
+     * constraint, in the form of a {@link ConstraintEvaluator}.
      *
-     * @param c
-     * @return
+     * @param c the "hard" constraint to convert
+     * @return a "soft" constraint version of {@code c}
      */
     public static VMTaskFitnessCalculator get(final ConstraintEvaluator c) {
         // This fitness calculator return 0 or 1. This can possibly be improved upon by the ConstraintEvaluator using its

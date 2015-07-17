@@ -51,13 +51,14 @@ public class HostAttrValueConstraint implements ConstraintEvaluator {
     }
 
     /**
-     * @warn method description missing
+     * Tests a host to determine whether it has an attribute of the required value for this task request.
      * @warn parameter descriptions missing
      *
      * @param taskRequest
      * @param targetVM
      * @param taskTrackerState
-     * @return
+     * @return a successful Result if the host has an attribute with the required value, or an unsuccessful
+     *         Result otherwise
      */
     @Override
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {

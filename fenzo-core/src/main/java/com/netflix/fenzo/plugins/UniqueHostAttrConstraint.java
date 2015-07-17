@@ -29,13 +29,14 @@ import java.util.Set;
  * A unique constraint evaluator that constrains tasks according to a given host attribute. Use this evaluator to
  * constrain a given set of tasks (co-tasks) by assigning them to hosts such that each task is assigned to a host
  * that has a different value for the host attribute you specify.
- *
+ * <p>
  * For example, if you specify the host attribute {@code ZoneAttribute}, the evaluator will place the co-tasks
  * such that each task is in a different zone. Note that because of this, if more tasks are submitted than there
  * are zones available for them, the excess tasks will not be assigned to any hosts. If instead you want to
  * implement a load balancing strategy, you can do so by converting this into a <em>soft</em> constraint by
- * passing it in to the {@link AsSoftConstraint} constructor.
- *
+ * passing it in to the
+ * {@link AsSoftConstraint#get(com.netflix.fenzo.ConstraintEvaluator) AsSoftConstraint.get()} method.
+ * <p>
  * If you construct this evaluator without passing in a host attribute name, it will use the host name as the
  * host attribute by which it uniquely identifies hosts.
  */
@@ -66,13 +67,17 @@ public class UniqueHostAttrConstraint implements ConstraintEvaluator {
     }
 
     /**
-     * @warn method description missing
+     * Determines whether a particular target host is appropriate for a particular task request by rejecting any
+     * host that has the same value for the unique constraint attribute as another host that is already assigned
+     * a co-task of the specified task request.
      * @warn parameter descriptions missing
      *
      * @param taskRequest
      * @param targetVM
      * @param taskTrackerState
-     * @return
+     * @return a successful Result if the target does not have the same value for its unique constraint attribute
+     *         as another host that has already been assigned a co-task of {@code taskRequest}, or an
+     *         unsuccessful Result otherwise
      */
     @Override
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {

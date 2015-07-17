@@ -27,7 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @warn class description missing
+ * Indicates that a quantifiable resource required in a certain quantity by a task was unavailable in that
+ * quantity by a target.
  */
 public class AssignmentFailure {
     @JsonIgnore
@@ -53,45 +54,46 @@ public class AssignmentFailure {
     }
 
     /**
-     * @warn method description missing
+     * Returns which target resource this assignment failure is referring to.
      *
-     * @return
+     * @return an enum that indicates which target resource this assignment failure refers to
      */
     public VMResource getResource() {
         return resource;
     }
 
     /**
-     * @warn method description missing
+     * Returns the quantity of this target resource the task was requesting.
      *
-     * @return
+     * @return the quantity of the target resource the task requested
      */
     public double getAsking() {
         return asking;
     }
 
     /**
-     * @warn method description missing
+     * Returns the quantity of this resource that is already assigned on the target.
      *
-     * @return
+     * @return the quantity of the target resource that is already allocated
      */
     public double getUsed() {
         return used;
     }
 
     /**
-     * @warn method description missing
+     * Returns the quantity of this resource that the target has free to be assigned to a new task or tasks.
      *
-     * @return
+     * @return the quantity of the target resource that is available for allocation
      */
     public double getAvailable() {
         return available;
     }
 
     /**
-     * @warn method description missing
+     * Returns a String representation of this assignment failure, with details about the resource that caused
+     * the failure and its current level of allocation and availability on the target.
      *
-     * @return
+     * @return a String representation of this assignment failure
      */
     public String toString() {
         try {

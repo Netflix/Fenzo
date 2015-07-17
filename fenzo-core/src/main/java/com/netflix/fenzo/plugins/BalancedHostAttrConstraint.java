@@ -114,9 +114,14 @@ public class BalancedHostAttrConstraint implements ConstraintEvaluator {
     }
 
     /**
-     * @warn method description missing
+     * Converts this constraint into a "soft" constraint. By default, a balanced host attribute constraint is a
+     * "hard" constraint, which is to say that Fenzo will guarantee that the constraint is applied and will fail
+     * to place a task if the only way it can do so is to violate the constraint. This method returns a
+     * {@link VMTaskFitnessCalculator} that represents this constraint as a "soft" constraint that will permit
+     * Fenzo to place a task in violation of the constraint if it cannot do so otherwise.
      *
-     * @return
+     * @return a task fitness calculator that represents the balanced host attribute constraint as a soft
+     *         constraint
      */
     public VMTaskFitnessCalculator asSoftConstraint() {
         return new VMTaskFitnessCalculator() {

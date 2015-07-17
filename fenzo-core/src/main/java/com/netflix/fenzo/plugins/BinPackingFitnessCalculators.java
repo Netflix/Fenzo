@@ -27,12 +27,12 @@ import com.netflix.fenzo.functions.Func1;
 import java.util.Iterator;
 
 /**
- * @warn class description missing
+ * A set of bin packing fitness calculators.
  */
 public class BinPackingFitnessCalculators {
 
     /**
-     * @warn attribute description missing
+     * A bin packing fitness calculator based on the number of CPUs needed by and available to the task.
      */
     public final static VMTaskFitnessCalculator cpuBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -57,7 +57,7 @@ public class BinPackingFitnessCalculators {
         }
     };
     /**
-     * @warn attribute description missing
+     * A bin packing fitness calculator based on the amount of memory needed by and available to the task.
      */
     public final static VMTaskFitnessCalculator memoryBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -82,7 +82,8 @@ public class BinPackingFitnessCalculators {
         }
     };
     /**
-     * @warn attribute description missing
+     * A bin packing fitness calculator based on the number of CPUs and the amount of memory needed by and
+     * available to the task.
      */
     public final static VMTaskFitnessCalculator cpuMemBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -97,7 +98,7 @@ public class BinPackingFitnessCalculators {
         }
     };
     /**
-     * @warn attribute description missing
+     * A bin packing fitness calculator based on the bandwidth needed by and available to the task.
      */
     public final static VMTaskFitnessCalculator networkBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -122,7 +123,8 @@ public class BinPackingFitnessCalculators {
         }
     };
     /**
-     * @warn attribute description missing
+     * A bin packing fitness calculator based on the bandwidth, the number of CPUs, and the amount of memory
+     * needed by and available to the task.
      */
     public final static VMTaskFitnessCalculator cpuMemNetworkBinPacker = new VMTaskFitnessCalculator() {
         @Override

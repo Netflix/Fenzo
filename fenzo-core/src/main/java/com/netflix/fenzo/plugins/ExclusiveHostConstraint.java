@@ -25,10 +25,10 @@ import com.netflix.fenzo.VirtualMachineCurrentState;
 import java.util.Collection;
 
 /**
- * A constraint to ensure that the host is exclusively assigned to the given job. You may not extend this class.
+ * This constraint ensures that the host is exclusively assigned to the given job. You may not extend this class.
  * The task scheduler gives this constraint special treatment: While usually the scheduler only evaluates the
- * constraints of a new task, if an already-assigned task has an {@code ExclusiveHostRestraint} then the host
- * fails this constraint check as well.
+ * constraints of a new task, if an already-assigned task has an {@code ExclusiveHostRestraint} then the host on
+ * which the task has been assigned fails this exclusive host constraint check as well.
  */
 public final class ExclusiveHostConstraint implements ConstraintEvaluator {
     /**

@@ -26,7 +26,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * @warn class description missing
+ * This class maintains the set of autoscaling rules. You may define different autoscaling rules for different
+ * sets of hosts. For example, you may create an autoscaling group for a certain sort of workload and populate it
+ * with machines with a certain set of capabilities specific to that workload, and a second autoscaling group for
+ * a more varied set of tasks that requires a more varied or flexible set of machines.
  */
 public class AutoScaleRules {
     private final Map<String, AutoScaleRule> ruleMap;
@@ -43,10 +46,11 @@ public class AutoScaleRules {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter description missing
+     * Adds or modifies an autoscale rule in the set of active rules. Pass in the {@link AutoScaleRule} you want
+     * to add or modify. If another {@code AutoScaleRule} with the same rule name already exists, it will be
+     * overwritten by {@code rule}. Otherwise, {@code rule} will be added to the active set of autoscale rules.
      *
-     * @param rule
+     * @param rule the autoscale rule you want to add or modify
      */
     void replaceRule(AutoScaleRule rule) {
         if(rule != null)
@@ -54,19 +58,17 @@ public class AutoScaleRules {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter description missing
+     * Removes an autoscale rule from the set of active rules. Pass in the name of the autoscale rule you want to
+     * remove (this is the same name that would be returned by its
+     * {@link AutoScaleRule#getRuleName getRuleName()} method).
      *
-     * @param ruleName
+     * @param ruleName the rule name of the autoscale rule you want to remove from the set of active rules
      */
     void remRule(String ruleName) {
         if(ruleName != null)
             remQ.offer(ruleName);
     }
 
-    /**
-     * @warn method description missing
-     */
     void prepare() {
         addQ.drainTo(addList);
         if(!addList.isEmpty()) {
@@ -91,21 +93,17 @@ public class AutoScaleRules {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter description missing
+     * Returns the autoscale rule whose name is equal to a specified String. The name of an autoscale rule is the
+     * value of the attribute that defines the type of host the rule applies to (for instance, the name of the
+     * autoscaling group).
      *
-     * @param attrValue
-     * @return
+     * @param attrValue the name of the autoscale rule you want to retrieve
+     * @return the autoscale rule whose name is equal to {@code attrValue}
      */
     public AutoScaleRule get(String attrValue) {
         return ruleMap.get(attrValue);
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     Collection<AutoScaleRule> getRules() {
         return ruleMap.values();
     }

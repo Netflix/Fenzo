@@ -21,7 +21,7 @@ package com.netflix.fenzo;
  */
 public interface AutoScaleAction {
     /**
-     * @warn enum description missing
+     * Indicates whether the autoscale action was to scale up or to scale down.
      */
     public enum Type {Up, Down};
 
@@ -33,9 +33,9 @@ public interface AutoScaleAction {
     public String getRuleName();
 
     /**
-     * @warn method description missing
+     * Returns an indication of whether the autoscale action was to scale up or to scale down.
      *
-     * @return
+     * @return an enum indicating whether the autoscale action was {@code Up} or {@code Down}
      */
     public Type getType();
 }
