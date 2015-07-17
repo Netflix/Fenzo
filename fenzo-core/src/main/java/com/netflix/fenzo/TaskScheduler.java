@@ -191,9 +191,15 @@ public class TaskScheduler {
         }
     }
 
-    public void setAutoscalerCallback(Action1<AutoScaleAction> callback) {
+    /**
+     * Set the autoscale call back action. This action is called when it this scheduler determines that the
+     * cluster needs to be scaled up or down.
+     * @param callback The callback to invoke for autoscale actions.
+     * @throws IllegalStateException If autoscaler wasn't setup.
+     */
+    public void setAutoscalerCallback(Action1<AutoScaleAction> callback) throws IllegalStateException {
         if(autoScaler==null)
-            throw new IllegalStateException("No autoScale by attribute name setup");
+            throw new IllegalStateException("No autoScaler setup");
         autoScaler.setCallback(callback);
     }
 
@@ -217,28 +223,53 @@ public class TaskScheduler {
         return builder.isFitnessGoodEnoughFunction.call(result.getFitness());
     }
 
+    /**
+     * Get the current mapping of resource allocations registered
+     * @return Current mapping of resource allocations
+     */
     public Map<String, ResAllocs> getResAllocs() {
         return resAllocsEvaluator.getResAllocs();
     }
 
+    /**
+     * Add a new resource allocation, or replace an existing one of the same name.
+     * @param resAllocs The new resource allocation to add.
+     */
     public void addOrReplaceResAllocs(ResAllocs resAllocs) {
         resAllocsEvaluator.replaceResAllocs(resAllocs);
     }
 
+    /**
+     * Remove resource allocation associated with the given name.
+     * @param groupName Name of the resource allocation to remove.
+     */
     public void removeResAllocs(String groupName) {
         resAllocsEvaluator.remResAllocs(groupName);
     }
 
+    /**
+     * Get the currently registered autoscale rules.
+     * @return Collection of autoscale rules currently registered.
+     */
     public Collection<AutoScaleRule> getAutoScaleRules() {
         if(autoScaler==null)
             return Collections.emptyList();
         return autoScaler.getRules();
     }
 
+    /**
+     * Add a new autoscale rule. If a rule with the same name exists, it is replaced. This autoscale rule is used
+     * next time the autoscale action is invoked.
+     * @param rule The autoscale rule to add.
+     */
     public void addOrReplaceAutoScaleRule(AutoScaleRule rule) {
         autoScaler.replaceRule(rule);
     }
 
+    /**
+     * Remove the autoscale rule associated with the given name.
+     * @param ruleName Name of the autoscale rule to remove.
+     */
     public void removeAutoScaleRule(String ruleName) {
         autoScaler.removeRule(ruleName);
     }
@@ -256,13 +287,23 @@ public class TaskScheduler {
      *     Any expired leases are rejected before scheduling begins. Then, all leases of a host are combined to
      *     determine total available resources on the host. Each task request, in the order that they appear in
      *     the given list, is then tried for assignment against the available hosts until successful. For each
-     *     task, either a successful assignment result is returned, or, the set of assignment failures is sent to
-     *     the assignment results observer.
+     *     task, either a successful assignment result, or, the set of assignment failures, is returned.
+     * </P>
+     * <P>
+     *     After all assignments have been evaluated, a certain number of leases are rejected if they are unused and
+     *     their offer time is longer than lease expiration interval. This is to prevent hoarding of leases. If an
+     *     autoscaler was provided, autoscale evaluation is launched to run asynchronously, in which each autoscale rule
+     *     registered is run based on its policy.
+     * </P>
+     * <P>
+     *     In addition to the assignment results, the returned result object contains summaries of events such
+     *     as number of allocations performed (which may be greater than the number of tasks), number of leases
+     *     added and rejected, total number of VMs known, and number of idle VMs.
      * </P>
      *
-     * @param requests List of requests to schedule, in the given order.
+     * @param requests List of requests to assign resources to, in the given order.
      * @param newLeases New resource leases for hosts to be used in addition to any previously ununsed leases.
-     * @return Task assignment results map, a tuple of host name and its assignment result
+     * @return SchedulingResult object that contains task assignment results map and other summaries.
      * @throws IllegalStateException If called concurrently or if an existing lease is added again.
      */
     public SchedulingResult scheduleOnce(
@@ -409,14 +450,15 @@ public class TaskScheduler {
      * purposes only, and occasionally at that. Calling this obtains and holds a lock for the duration of creating the
      * state information. Scheduling runs are blocked around the lock.
      * @return List of current state of all known VMs
+     * @throws IllegalStateException If called concurrently with main scheduling method, scheduleOnce().
      */
-    public List<VirtualMachineCurrentState> getVmCurrentStates() {
+    public List<VirtualMachineCurrentState> getVmCurrentStates() throws IllegalStateException {
         try (AutoCloseable ac = stateMonitor.enter()) {
             return assignableVMs.getVmCurrentStates();
         }
         catch (Exception e) {
             logger.error("Unexpected error from state monitor: " + e.getMessage(), e);
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
 
@@ -449,14 +491,27 @@ public class TaskScheduler {
         }
     }
 
+    /**
+     * Expire a resource lease with the given lease Id.
+     * @param leaseId Lease ID of the lease to expire.
+     */
     public void expireLease(String leaseId) {
         assignableVMs.expireLease(leaseId);
     }
 
+    /**
+     * Expire all leases of a host with the name <code>hostname</code>.
+     * @param hostname Name of the host.
+     */
     public void expireAllLeases(String hostname) {
         assignableVMs.expireAllLeases(hostname);
     }
 
+    /**
+     * Expire all leases of a host with the Id, <code>vmId</code>.
+     * @param vmId ID of the host.
+     * @return True if the given Id was known, false otherwise.
+     */
     public boolean expireAllLeasesByVMId(String vmId) {
         final String hostname = assignableVMs.getHostnameFromVMId(vmId);
         if(hostname == null)
@@ -465,13 +520,16 @@ public class TaskScheduler {
         return true;
     }
 
+    /**
+     * Expire all leases currently stored.
+     */
     public void expireAllLeases() {
         logger.info("Expiring all leases");
         assignableVMs.expireAllLeases();
     }
 
     /**
-     * Tasks are scheduled in <code>scheduleOnce()</code> but not tracked by this class. Tracking assigned tasks
+     * Tasks are scheduled in <code>scheduleOnce()</code> but not tracked automatically. Tracking assigned tasks
      * is useful for optimizing future assignments for such purposes as task locality with other tasks, etc. If such
      * optimization is desired, the caller of <code>scheduleOnce()</code> must invoke the taskAssigner from this method
      * once for each task assignment actually used by the caller. Later, when that task terminates, the un-assigner from
@@ -488,7 +546,7 @@ public class TaskScheduler {
                     assignableVMs.setTaskAssigned(request, hostname);
                 } catch (Exception e) {
                     logger.error("Unexpected error from state monitor: " + e.getMessage());
-                    throw new RuntimeException(e);
+                    throw new IllegalStateException(e);
                 }
             }
         };
@@ -496,7 +554,7 @@ public class TaskScheduler {
 
     /**
      * The previously set assignment is removed when this action is called. The
-     * un-assigner must be called for all corresponding task completions for
+     * un-assigner must be called for all corresponding task completions in order maintain right state.
      * @return The task un-assigner action.
      */
     public Action2<String, String> getTaskUnAssigner() {
@@ -510,7 +568,8 @@ public class TaskScheduler {
 
     /**
      * Disable a VM with the given hostname. If the hostname is not known yet, a new object for it is created and
-     * therefore, the disabling is remembered when offers come in later.
+     * therefore, the disabling is remembered when offers come in later. Disabled hosts are not used for allocating
+     * resources to tasks.
      * @param hostname Name of the host to disable.
      * @param durationMillis duration, in mSec, from now until which to disable
      */
@@ -523,7 +582,7 @@ public class TaskScheduler {
      * Disable a VM given it's ID.
      * @param vmID The VM ID
      * @param durationMillis duration, in mSec, from now until which to disable
-     * @return True if VM ID was found and disabled, false otherwise.
+     * @return True if VM ID was known, false otherwise.
      */
     public boolean disableVMByVMId(String vmID, long durationMillis) {
         final String hostname = assignableVMs.getHostnameFromVMId(vmID);
@@ -533,15 +592,29 @@ public class TaskScheduler {
         return true;
     }
 
+    /**
+     * Enable the VM with the given host name.
+     * @param hostname Name of the host.
+     */
     public void enableVM(String hostname) {
         logger.info("Enabling VM " + hostname);
         assignableVMs.enableVM(hostname);
     }
 
+    /**
+     * A VM (host) can belong to a group. The group is determine by the value of the given attribute name in its offers.
+     * @param attributeName Name of the attribute to determine a VM's group.
+     */
     public void setActiveVmGroupAttributeName(String attributeName) {
         assignableVMs.setActiveVmGroupAttributeName(attributeName);
     }
 
+    /**
+     * Set the list of VM group names that are active. VMs (hosts) that belong to groups not included in this list are
+     * said to be disabled. Disabled hosts' resources are not used for allocation. A null list indicates that all
+     * groups are enabled.
+     * @param vmGroups List of VM group names that are set as enabled.
+     */
     public void setActiveVmGroups(List<String> vmGroups) {
         assignableVMs.setActiveVmGroups(vmGroups);
     }
