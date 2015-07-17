@@ -40,9 +40,10 @@ public class HostAttrValueConstraint implements ConstraintEvaluator {
     }
 
     /**
-     * @warn method description missing
+     * Returns the name of this constraint as a String, in the form of the class name followed by a dash followed
+     * by the value of {@code hostAttributeName} as it was set when this object was constructed.
      *
-     * @return
+     * @return the name of this constraint
      */
     @Override
     public String getName() {

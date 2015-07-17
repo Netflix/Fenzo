@@ -26,17 +26,18 @@ import com.netflix.fenzo.functions.Func1;
 import java.util.Set;
 
 /**
- * @warn rewrite in active voice
- * A unique constraint evaluator to constrain tasks by a given host attribute.
+ * A unique constraint evaluator that constrains tasks according to a given host attribute. Use this evaluator to
+ * constrain a given set of tasks (co-tasks) by assigning them to hosts such that each task is assigned to a host
+ * that has a different value for the host attribute you specify.
  *
- * This can be used to constrain a given set of tasks (co-tasks) are assigned hosts with unique value for the
- * given host attribute. For example, given a host attribute {@code ZoneAttribute}, the co-tasks would be placed
- * one one task per zone. This implies that any co-tasks submitted in greater number than the number of zones
- * will not get assigned any hosts. Instead, if a load balancing strategy is to be obtained, the
- * {@code asSoftConstraint()} provides the conversion.
+ * For example, if you specify the host attribute {@code ZoneAttribute}, the evaluator will place the co-tasks
+ * such that each task is in a different zone. Note that because of this, if more tasks are submitted than there
+ * are zones available for them, the excess tasks will not be assigned to any hosts. If instead you want to
+ * implement a load balancing strategy, you can do so by converting this into a <em>soft</em> constraint by
+ * passing it in to the {@link AsSoftConstraint} constructor.
  *
- * When constructed without a host attribute name, this constraint evaluator uses host names as the attribute
- * for the unique constraint.
+ * If you construct this evaluator without passing in a host attribute name, it will use the host name as the
+ * host attribute by which it uniquely identifies hosts.
  */
 public class UniqueHostAttrConstraint implements ConstraintEvaluator {
     private final Func1<String, Set<String>> coTasksGetter;
@@ -54,9 +55,10 @@ public class UniqueHostAttrConstraint implements ConstraintEvaluator {
     }
 
     /**
-     * @warn method description missing
+     * Returns the name of this constraint evaluator as a String in the form of the name of this class followed
+     * by a dash followed by the host attribute name that this evaluator uses to uniquely identify the host.
      *
-     * @return
+     * @return the name of this constraint evaluator
      */
     @Override
     public String getName() {

@@ -18,16 +18,14 @@ package com.netflix.fenzo.functions;
 
 /**
  * A one-argument action.
- * @warn parameter description missing
  *
- * @param <T>
+ * @param <T> the type of the argument accepted by the action
  */
 public interface Action1<T> {
     /**
-     * @warn method description missing
-     * @warn parameter description missing
+     * Invoke the action.
      *
-     * @param t
+     * @param t the single argument to the action
      */
     public void call(T t);
 }

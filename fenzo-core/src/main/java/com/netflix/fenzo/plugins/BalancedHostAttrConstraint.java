@@ -45,9 +45,11 @@ public class BalancedHostAttrConstraint implements ConstraintEvaluator {
     }
 
     /**
-     * @warn method description missing
+     * Returns the name of the balanced host attribute constraint, which takes the form of the name of the
+     * class (or subclass) followed by a dash followed by the value of {@code hostAttributeName} as it was set
+     * when the constraint object was created.
      *
-     * @return
+     * @return the name of the balanced host attribute constraint
      */
     @Override
     public String getName() {
