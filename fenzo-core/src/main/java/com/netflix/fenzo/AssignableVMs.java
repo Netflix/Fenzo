@@ -28,14 +28,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-/**
- * @warn class description missing
- */
 class AssignableVMs {
 
-    /**
-     * @warn class description missing
-     */
     static class VMRejectLimiter {
         private long lastRejectAt=0;
         private int rejectedCount;
@@ -46,11 +40,6 @@ class AssignableVMs {
             this.limit = limit;
             this.rejectDelay = leaseOfferExpirySecs;
         }
-        /**
-         * @warn method description missing
-         *
-         * @return
-         */
         synchronized boolean reject() {
             if(rejectedCount==limit)
                 return false;
@@ -58,17 +47,9 @@ class AssignableVMs {
             lastRejectAt = System.currentTimeMillis();
             return true;
         }
-        /**
-         * @warn method description missing
-         *
-         * @return
-         */
         boolean limitReached() {
             return rejectedCount == limit;
         }
-        /**
-         * @warn method description missing
-         */
         private void reset() {
             if(System.currentTimeMillis() > (lastRejectAt + rejectDelay))
                 rejectedCount=0;
@@ -106,11 +87,6 @@ class AssignableVMs {
         activeVmGroups = new ActiveVmGroups();
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     Map<String, Map<VMResource, Double[]>> getResourceStatus() {
         Map<String, Map<VMResource, Double[]>> result = new HashMap<>();
         for(AssignableVirtualMachine avm: virtualMachinesMap.values())
@@ -118,26 +94,12 @@ class AssignableVMs {
         return result;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param request
-     * @param host
-     */
     void setTaskAssigned(TaskRequest request, String host) {
         createAvmIfAbsent(host);
         AssignableVirtualMachine avm = virtualMachinesMap.get(host);
         avm.setAssignedTask(request);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param taskId
-     * @param host
-     */
     void unAssignTask(String taskId, String host) {
         AssignableVirtualMachine avm = virtualMachinesMap.get(host);
         if(avm != null) {
@@ -147,13 +109,6 @@ class AssignableVMs {
             logger.warn("No VM for host " + host + " to unassign task " + taskId);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param leases
-     * @return
-     */
     int addLeases(List<VirtualMachineLease> leases) {
         for(AssignableVirtualMachine avm: virtualMachinesMap.values())
         avm.resetResources();
@@ -169,12 +124,6 @@ class AssignableVMs {
         return rejected;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param hostname
-     */
     private void createAvmIfAbsent(String hostname) {
         if(virtualMachinesMap.get(hostname) == null)
             virtualMachinesMap.putIfAbsent(hostname,
@@ -182,12 +131,6 @@ class AssignableVMs {
                             leaseRejectAction, leaseOfferExpirySecs, taskTracker));
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param leaseId
-     */
     void expireLease(String leaseId) {
         final String hostname = leaseIdToHostnameMap.get(leaseId);
         if(hostname==null) {
@@ -203,45 +146,23 @@ class AssignableVMs {
             avm.expireLease(leaseId);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param hostname
-     */
     void expireAllLeases(String hostname) {
         final AssignableVirtualMachine avm = virtualMachinesMap.get(hostname);
         if(avm!=null)
             avm.expireAllLeases();
     }
 
-    /**
-     * @warn method description missing
-     */
     void expireAllLeases() {
         for(AssignableVirtualMachine avm: virtualMachinesMap.values())
             avm.expireAllLeases();
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param host
-     * @param until
-     */
     void disableUntil(String host, long until) {
         createAvmIfAbsent(host);
         AssignableVirtualMachine avm = virtualMachinesMap.get(host);
         avm.setDisabledUntil(until);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param host
-     */
     void enableVM(String host) {
         AssignableVirtualMachine avm = virtualMachinesMap.get(host);
         if(avm != null)
@@ -250,33 +171,14 @@ class AssignableVMs {
             logger.warn("Can't enable host " + host + ", no such host");
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param vmId
-     * @return
-     */
     String getHostnameFromVMId(String vmId) {
         return vmIdToHostnameMap.get(vmId);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param attributeName
-     */
     void setActiveVmGroupAttributeName(String attributeName) {
         this.activeVmGroupAttributeName = attributeName;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param vmGroups
-     */
     void setActiveVmGroups(List<String> vmGroups) {
         activeVmGroups.setActiveVmGroups(vmGroups);
     }
@@ -297,11 +199,6 @@ class AssignableVMs {
         }
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     List<AssignableVirtualMachine> prepareAndGetOrderedVMs() {
         expireAnyUnknownLeaseIds();
         removeExpiredLeases();
@@ -327,13 +224,6 @@ class AssignableVMs {
             avm.removeExpiredLeases(!isInActiveVmGroup(avm));
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param idleResourcesList
-     * @return
-     */
     int removeLimitedLeases(List<VirtualMachineLease> idleResourcesList) {
         int rejected=0;
         List<VirtualMachineLease> randomized = new ArrayList<>(idleResourcesList);
@@ -348,19 +238,11 @@ class AssignableVMs {
         return rejected;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     int getTotalNumVMs() {
         return virtualMachinesMap.size();
     }
 
-    /**
-     * @warn method description missing
-     */
-    /* package */ void purgeInactiveVMs() {
+    void purgeInactiveVMs() {
         for(String hostname: virtualMachinesMap.keySet()) {
             AssignableVirtualMachine avm = virtualMachinesMap.get(hostname);
             if(avm != null) {
@@ -399,25 +281,10 @@ class AssignableVMs {
         }
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param attrValue
-     * @return
-     */
     Map<VMResource, Double> getMaxResources(String attrValue) {
         return maxResourcesMap.get(attrValue);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param attrValue
-     * @param task
-     * @return
-     */
     AssignmentFailure getFailedMaxResource(String attrValue, TaskRequest task) {
         AssignmentFailure savedFailure = null;
         for(Map.Entry<String, Map<VMResource, Double>> entry: maxResourcesMap.entrySet()) {
@@ -465,20 +332,10 @@ class AssignableVMs {
         return savedFailure;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     ActiveVmGroups getActiveVmGroups() {
         return activeVmGroups;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     List<VirtualMachineCurrentState> getVmCurrentStates() {
         List<VirtualMachineCurrentState> result = new ArrayList<>();
         for(AssignableVirtualMachine avm: virtualMachinesMap.values())
@@ -486,11 +343,6 @@ class AssignableVMs {
         return result;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     AssignableVirtualMachine getDummyVM() {
         return dummyVM;
     }

@@ -17,41 +17,37 @@
 package com.netflix.fenzo.sla;
 
 /**
- * @warn interface description missing
+ * Interface that represents resource allocations for a task group name.
+ * Limit the sum of resources used by all tasks of the task group name to the amounts provided.
  */
 public interface ResAllocs {
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     String getTaskGroupName();
 
     /**
-     * @warn method description missing
+     * Get the number of cores to limit usage by all tasks of the group name.
      *
-     * @return
+     * @return Total number of cores limit.
      */
     double getCores();
 
     /**
-     * @warn method description missing
+     * Get the amount of memory to limit usage by all tasks of the group name.
      *
-     * @return
+     * @return Total memory limit.
      */
     double getMemory();
 
     /**
-     * @warn method description missing
+     * Get the amount of network bandwidth to limit usage by all tasks of the group name.
      *
-     * @return
+     * @return Total network bandwidth limit.
      */
     double getNetworkMbps();
 
     /**
-     * @warn method description missing
+     * Get the amount of disk space to limit usage by all tasks of the group name.
      *
-     * @return
+     * @return Total disk space limit.
      */
     double getDisk();
 }

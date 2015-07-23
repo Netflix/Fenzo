@@ -17,7 +17,7 @@
 package com.netflix.fenzo.sla;
 
 /**
- * @warn class description missing
+ * Builder class for {@link ResAllocs}.
  */
 public class ResAllocsBuilder {
     private double cores=Double.MAX_VALUE;
@@ -30,59 +30,26 @@ public class ResAllocsBuilder {
         this.taskGroupName = taskGroupName;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param cores
-     * @return
-     */
     public ResAllocsBuilder withCores(double cores) {
         this.cores = cores;
         return this;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param memory
-     * @return
-     */
     public ResAllocsBuilder withMemory(double memory) {
         this.memory = memory;
         return this;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param networkMbps
-     * @return
-     */
     public ResAllocsBuilder withNetworkMbps(double networkMbps) {
         this.networkMbps = networkMbps;
         return this;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param disk
-     * @return
-     */
     public ResAllocsBuilder withDisk(double disk) {
         this.disk = disk;
         return this;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public ResAllocs build() {
         final double c = cores;
         final double m = memory;

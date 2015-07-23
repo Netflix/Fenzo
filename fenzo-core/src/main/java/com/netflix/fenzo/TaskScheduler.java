@@ -17,7 +17,6 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.sla.ResAllocs;
-import com.netflix.fenzo.sla.ResAllocsEvaluater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.netflix.fenzo.functions.Action1;
@@ -75,7 +74,7 @@ public class TaskScheduler {
     private static final int PARALLEL_SCHED_EVAL_MIN_BATCH_SIZE = 30;
 
     /**
-     * @warn class description missing
+     * Builder class for TaskScheduler.
      */
     public final static class Builder {
 
@@ -96,11 +95,10 @@ public class TaskScheduler {
         private Map<String, ResAllocs> resAllocs=null;
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
-         *
-         * @param leaseRejectAction
-         * @return
+         * Invoke the given action when rejecting a VM lease.
+         * @param leaseRejectAction The single argument action to trigger when rejecting a VM lease, with the lease
+         *                          being rejected as the only argument.
+         * @return The builder.
          */
         public Builder withLeaseRejectAction(Action1<VirtualMachineLease> leaseRejectAction) {
             this.leaseRejectAction = leaseRejectAction;
@@ -108,10 +106,10 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Expire unused VM leases after the given number of seconds transpire. The scheduler routinely rejects some of
+         * the available unused leases.
          *
-         * @param leaseOfferExpirySecs
+         * @param leaseOfferExpirySecs Number of seconds since offer received, after which mark offer expired.
          * @return
          */
         public Builder withLeaseOfferExpirySecs(long leaseOfferExpirySecs) {
@@ -120,11 +118,10 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Use the given fitness calculator.
          *
          * @param fitnessCalculator
-         * @return
+         *
          */
         public Builder withFitnessCalculator(VMTaskFitnessCalculator fitnessCalculator) {
             this.fitnessCalculator = fitnessCalculator;
@@ -132,11 +129,9 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Use the given attribute name to group VMs by, for evaluating autoscaling policies.
          *
-         * @param name
-         * @return
+         * @param name Name of the VM attribute name.
          */
         public Builder withAutoScaleByAttributeName(String name) {
             this.autoScaleByAttributeName = name;
@@ -144,11 +139,10 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Use the given attribute name to determine alternate hostname of VM to use as argument for autoscaling action
+         * on the VM.
          *
-         * @param name
-         * @return
+         * @param name Attribute name.
          */
         public Builder withAutoScalerMapHostnameAttributeName(String name) {
             this.autoScalerMapHostnameAttributeName = name;
@@ -156,11 +150,9 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * When scaling down cluster, balance the number of VMs across unique values of the given attribute name.
          *
-         * @param name
-         * @return
+         * @param name Attribute name.
          */
         public Builder withAutoScaleDownBalancedByAttributeName(String name) {
             this.autoScaleDownBalancedByAttributeName = name;
@@ -168,11 +160,11 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Use the given function to determine if obtained fitness is good enough. If this is not provided, Fenzo
+         * may use the default function that returns true only when fitness is {@code 1.0} (perfect fit).
          *
-         * @param f
-         * @return
+         * @param f Single argument function that acceps a double value, the fitness, and returns a {@code Boolean}.
+         * @return {@code true} if the fitness is good enough, {@code false} otherwise.
          */
         public Builder withFitnessGoodEnoughFunction(Func1<Double, Boolean> f) {
             this.isFitnessGoodEnoughFunction = f;
@@ -180,9 +172,15 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
+         * Disable resource shortfall evaluation. The shortfall evaluation is performed when evaluating the autoscaling
+         * needs. This is useful for evaluating the actual resources needed to scale up by, for pending tasks, which may
+         * be greater than the number of resources scaled up by thresholds based scale up.
          *
-         * @return
+         * This evaluation can be computaionally expensive and/or may scale up aggressively, initially, to more resources
+         * than needed. The initial aggressive scale up is corrected later by scale down, which is triggered by scale
+         * down evaluation after a cool down period transpires.
+         *
+         * @see AutoScaleRule
          */
         public Builder disableShortfallEvaluation() {
             disableShortfallEvaluation = true;
@@ -190,11 +188,10 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Initialize the scheduler with the given mapping of resource allocation limits.
          *
-         * @param resAcllocs
-         * @return
+         * @param resAllocs Map with task group name as keys and resource allocation limits as values.
+         *                  @see ResAllocs
          */
         public Builder withInitialResAllocs(Map<String, ResAllocs> resAllocs) {
             this.resAllocs = resAllocs;
@@ -202,11 +199,10 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Add the given autoscale rule to list of rules to initialize the scheduler with.
          *
-         * @param rule
-         * @return
+         * @param rule The autoscale rule to add.
+         * @see AutoScaleRule
          */
         public Builder withAutoScaleRule(AutoScaleRule rule) {
             if(autoScaleByAttributeName==null || autoScaleByAttributeName.isEmpty())
@@ -220,9 +216,8 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
+         * Build the task scheduler.
          *
-         * @return
          */
         public TaskScheduler build() {
             return new TaskScheduler(this);
@@ -353,12 +348,6 @@ public class TaskScheduler {
     /**
      * Remove the autoscale rule associated with the given name.
      * @param ruleName Name of the autoscale rule to remove.
-     */
-    /**
-     * @warn method description missing
-     * @warn parameterdescription missing
-     *
-     * @param ruleName
      */
     public void removeAutoScaleRule(String ruleName) {
         autoScaler.removeRule(ruleName);

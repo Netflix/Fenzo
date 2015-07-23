@@ -17,7 +17,7 @@
 package com.netflix.fenzo;
 
 /**
- * @warn class description missing
+ * A scale up action used by autoscaler to trigger cluster scale up for a given autoscale rule.
  */
 public class ScaleUpAction implements AutoScaleAction {
     private final String ruleName;
@@ -29,9 +29,9 @@ public class ScaleUpAction implements AutoScaleAction {
     }
 
     /**
-     * @warn method description missing
+     * Get the type of the autoscale action, {@code Up} in this case.
      *
-     * @return
+     * @return {@code Up}
      */
     @Override
     public Type getType() {
@@ -39,9 +39,9 @@ public class ScaleUpAction implements AutoScaleAction {
     }
 
     /**
-     * @warn method description missing
+     * Get the name of the autoscale rule for which scale up is triggered.
      *
-     * @return
+     * @return Name of the autoscale rule.
      */
     @Override
     public String getRuleName() {
@@ -49,9 +49,9 @@ public class ScaleUpAction implements AutoScaleAction {
     }
 
     /**
-     * @warn method description missing
+     * Get the number of hosts to add to the cluster for this autoscale rule.
      *
-     * @return
+     * @return Number of hosts to add.
      */
     public int getScaleUpCount() {
         return scaleUpCount;

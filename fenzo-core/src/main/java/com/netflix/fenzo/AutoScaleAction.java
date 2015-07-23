@@ -16,26 +16,24 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.functions.Action1;
+
 /**
- * @warn interface description missing
+ * This interface represents an action to take for autoscaling the mesos cluster. Fenzo's autoscaler
+ * calls the autoscaler callback that was registered via {@link TaskScheduler#setAutoscalerCallback(Action1)} method.
  */
 public interface AutoScaleAction {
     /**
-     * @warn enum description missing
+     * Enumeration to indicate if autoscale action is to scale up or scale down.
      */
     public enum Type {Up, Down};
 
     /**
-     * @warn method description missing
+     * Get the name of the auto scale rule for which the autoscale action is being triggered.
      *
-     * @return
+     * @return Name of the autoscale rule.
      */
     public String getRuleName();
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public Type getType();
 }

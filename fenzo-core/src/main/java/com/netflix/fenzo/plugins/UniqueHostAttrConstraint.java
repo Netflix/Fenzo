@@ -27,51 +27,45 @@ import java.util.Set;
 
 /**
  * @warn rewrite in active voice
- * A unique constraint evaluator to constrain tasks by a given host attribute.
+ * A constraint evaluator implementation to constrain tasks by a given host attribute.
+ * Ensure that tasks of a group are assigned to VMs that have unique values for a given attribute name.
  *
- * This can be used to constrain a given set of tasks (co-tasks) are assigned hosts with unique value for the
- * given host attribute. For example, given a host attribute {@code ZoneAttribute}, the co-tasks would be placed
- * one one task per zone. This implies that any co-tasks submitted in greater number than the number of zones
- * will not get assigned any hosts. Instead, if a load balancing strategy is to be obtained, the
- * {@code asSoftConstraint()} provides the conversion.
- *
- * When constructed without a host attribute name, this constraint evaluator uses host names as the attribute
- * for the unique constraint.
+ * For example, given a host attribute {@code ZoneAttribute}, place one co-task per zone. If number of co-tasks submitted
+ * is greater number than the number of zones, do not assign any hosts beyond unique zone values. If you need a load
+ * balancing strategy across unique values of the attribute, see {@link BalancedHostAttrConstraint}.
  */
 public class UniqueHostAttrConstraint implements ConstraintEvaluator {
     private final Func1<String, Set<String>> coTasksGetter;
     private final String hostAttributeName;
     private final String name;
 
+    /**
+     * Create this constraint evaluator with the given co-tasks of a group.
+     * Equivalent to {@code UniqueHostAttrConstraint(coTasksGetter, null)}.
+     *
+     * @param coTasksGetter A single argument function that, given a task ID, returns the set of task IDs of its co-tasks.
+     */
     public UniqueHostAttrConstraint(Func1<String, Set<String>> coTasksGetter) {
         this(coTasksGetter, AttributeUtilities.DEFAULT_ATTRIBUTE);
     }
 
+    /**
+     * Create this constraint evaluator with the given co-tasks of a group and given VM attribute name.
+     * @param coTasksGetter A single argument function that, given a task ID, returns the set of task IDs of its co-tasks.
+     * @param hostAttributeName The name of the attribute whose value is to be unique for each co-task's VM assignment.
+     *                          If this is null, ensure VM's hostname is unique for each co-task's VM assignment.
+     */
     public UniqueHostAttrConstraint(Func1<String, Set<String>> coTasksGetter, String hostAttributeName) {
         this.coTasksGetter = coTasksGetter;
         this.hostAttributeName = hostAttributeName;
         this.name = UniqueHostAttrConstraint.class.getName()+"-"+hostAttributeName;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     @Override
     public String getName() {
         return name;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param taskRequest
-     * @param targetVM
-     * @param taskTrackerState
-     * @return
-     */
     @Override
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
         Set<String> coTasks = coTasksGetter.call(taskRequest.getId());

@@ -23,7 +23,9 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
- * @warn class description missing
+ * Manage set of active VM groups.
+ * A VM belongs to a VM group indicated by its value for the attribute name set via
+ * {@link TaskScheduler#setActiveVmGroupAttributeName(String)}.
  */
 class ActiveVmGroups {
     private static class VmGroup {
@@ -57,12 +59,6 @@ class ActiveVmGroups {
         return null;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param vmGroups
-     */
     void setActiveVmGroups(List<String> vmGroups) {
         List<VmGroup> oldList = activeVmGroupsMap.get(0);
         List<VmGroup> vmGroupsList = new ArrayList<>();
@@ -77,23 +73,10 @@ class ActiveVmGroups {
         activeVmGroupsMap.put(0, vmGroupsList);
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     long getLastSetAt() {
         return lastSetAt;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param vmGroupName
-     * @param strict
-     * @return
-     */
     boolean isActiveVmGroup(String vmGroupName, boolean strict) {
         final List<VmGroup> vmGroupList = activeVmGroupsMap.get(0);
         if(vmGroupList.isEmpty())
@@ -107,13 +90,6 @@ class ActiveVmGroups {
         return false;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param vmGroupName
-     * @return
-     */
     long getActivatedAt(String vmGroupName) {
         final List<VmGroup> vmGroupList = activeVmGroupsMap.get(0);
         for(VmGroup group: vmGroupList) {

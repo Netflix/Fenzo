@@ -27,7 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @warn class description missing
+ * A class to indicate failure of a constraint evaluation.
  */
 public class ConstraintFailure {
     @JsonIgnore
@@ -45,29 +45,14 @@ public class ConstraintFailure {
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public String getName() {
         return name;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public String getReason() {
         return reason;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public String toString() {
         try {
             return objectMapper.writeValueAsString(this);

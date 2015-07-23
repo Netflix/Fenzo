@@ -17,31 +17,17 @@
 package com.netflix.fenzo;
 
 /**
- * @warn class description missing
+ * Default fitness calculator. This simple calculator always returns 1.0 for fitness.
  */
 public class DefaultFitnessCalculator implements VMTaskFitnessCalculator {
     public DefaultFitnessCalculator() {
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     @Override
     public String getName() {
         return DefaultFitnessCalculator.class.getName();
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param taskRequest
-     * @param targetVM
-     * @param taskTrackerState
-     * @return
-     */
     @Override
     public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
         return 1.0;

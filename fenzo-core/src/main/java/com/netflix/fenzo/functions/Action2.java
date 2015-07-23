@@ -17,12 +17,11 @@
 package com.netflix.fenzo.functions;
 
 /**
- * @warn interface description missing
+ * A two argument action.
  */
 public interface Action2<T1, T2> {
     /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
+     * The method to call for triggering action.
      *
      * @param t1
      * @param t2

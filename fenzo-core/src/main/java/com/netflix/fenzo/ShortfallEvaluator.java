@@ -22,9 +22,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * @warn class description missing
+ * Used by AutoScaler to evaluate number of hosts that we are falling short based on assignment failures
  */
-// Used by AutoScaler to evaluate number of hosts that we are falling short based on assignment failures
 class ShortfallEvaluator {
     private static final long TOO_OLD_THRESHOLD_MILLIS = 15 * 60000; // 15 mins
     private final TaskScheduler phantomTaskScheduler;
@@ -34,14 +33,6 @@ class ShortfallEvaluator {
         this.phantomTaskScheduler = phantomTaskScheduler;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param attrKeys
-     * @param failures
-     * @return
-     */
     Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures) {
         // A naive approach to figuring out shortfall of hosts to satisfy the tasks that failed assignments is,
         // strictly speaking, not possible by just attempting to add up required resources for the tasks and then mapping

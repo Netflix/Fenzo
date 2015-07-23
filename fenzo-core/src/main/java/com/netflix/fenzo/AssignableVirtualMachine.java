@@ -39,7 +39,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * @warn class description missing
+ * This class represents a VM that contains resources that can be assigned to tasks.
  */
 class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
 
@@ -171,16 +171,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         }
     }
 
-    /**
-     * @warn method description missing
-     */
     void updateCurrTotalLease() {
         currTotalLease = createTotaledLease();
     }
 
-    /**
-     * @warn method description missing
-     */
     void resetResources() {
         currTotalCpus=0.0;
         currUsedCpus=0.0;
@@ -196,11 +190,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             addToAvailableResources(l);
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     VirtualMachineLease getCurrTotalLease() {
         return currTotalLease;
     }
@@ -254,12 +243,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         };
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param all
-     */
     void removeExpiredLeases(boolean all) {
         @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") Set<String> leasesToExpireIds = new HashSet<>();
         leasesToExpire.drainTo(leasesToExpireIds);
@@ -276,13 +259,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         }
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param vmRejectLimiter
-     * @return
-     */
     int expireLimitedLeases(AssignableVMs.VMRejectLimiter vmRejectLimiter) {
         int rejected=0;
         Iterator<Map.Entry<String,VirtualMachineLease>> iterator = leasesMap.entrySet().iterator();
@@ -299,22 +275,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return rejected;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     String getCurrVMId() {
         return currVMId;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param lease
-     * @return
-     */
     boolean addLease(VirtualMachineLease lease) {
         if(!Objects.equals(currVMId, lease.getVMID())) {
             currVMId = lease.getVMID();
@@ -333,12 +297,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return true;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param disabledUntil
-     */
     void setDisabledUntil(long disabledUntil) {
         this.disabledUntil = disabledUntil;
         Iterator<Map.Entry<String, VirtualMachineLease>> entriesIterator = leasesMap.entrySet().iterator();
@@ -350,28 +308,15 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         }
     }
 
-    /**
-     * @warn method description missing
-     */
     public void enable() {
         disabledUntil = 0;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     long getDisabledUntil() {
         return disabledUntil;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
-    /* package */ boolean isActive() {
+    boolean isActive() {
         return !leasesMap.isEmpty() ||
                 hasPreviouslyAssignedTasks() ||
                 !leasesToExpire.isEmpty() ||
@@ -379,21 +324,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                 System.currentTimeMillis() < disabledUntil;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     boolean isAssignableNow() {
         return (System.currentTimeMillis()>disabledUntil) && !leasesMap.isEmpty();
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param request
-     */
     void setAssignedTask(TaskRequest request) {
         if(!taskTracker.addRunningTask(request, this))
             logger.error("Unexpected to add duplicate task id=" + request.getId());
@@ -401,30 +335,15 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         setIfExclusive(request);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param leaseId
-     */
     void expireLease(String leaseId) {
         logger.info("Got request to expire lease on " + hostname);
         leasesToExpire.offer(leaseId);
     }
 
-    /**
-     * @warn method description missing
-     */
     void expireAllLeases() {
         expireAllLeasesNow.set(true);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param taskId
-     */
     void markTaskForUnassigning(String taskId) {
         workersToUnAssign.offer(taskId);
     }
@@ -445,9 +364,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             exclusiveTaskId = null;
     }
 
-    /**
-     * @warn method description missing
-     */
     void prepareForScheduling() {
         @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") List<String> tasks = new ArrayList<>();
         workersToUnAssign.drainTo(tasks);
@@ -459,12 +375,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         assignmentResults.clear();
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param attrName
-     */
     String getAttrValue(String attrName) {
         if(getCurrTotalLease()==null)
             return null;
@@ -474,11 +384,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return attribute.getText().getValue();
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     Map<VMResource, Double> getMaxResources() {
         double cpus=0.0;
         double memory=0.0;
@@ -509,12 +414,16 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
+     * Try assigning resources for a given task.
+     * This is the main allocation method to allocate resources from this VM to a given task. This method evaluates
+     * hard constraints first. Then, it tries to assign resources. If either of these results in failures, it returns a
+     * failure result. If successful, it invokes the fitness calculator to determine the fitness value. Then, it
+     * evaluates soft constraints to get its fitness value. The resulting fitness value is reduced as a
+     * weighted average of the two fitness values.
      *
-     * @param request
-     * @param fitnessCalculator
-     * @return
+     * @param request The task request to assign resources to.
+     * @param fitnessCalculator The fitness calculator to use for resource assignment.
+     * @return Assignment result.
      */
     TaskAssignmentResult tryRequest(TaskRequest request, VMTaskFitnessCalculator fitnessCalculator) {
         //logger.info("    #leases=" + leases.size());
@@ -612,11 +521,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         };
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     VirtualMachineCurrentState getVmCurrentState() {
         return new VirtualMachineCurrentState() {
             @Override
@@ -671,29 +575,19 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return null;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     String getHostname() {
         return hostname;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     boolean hasPreviouslyAssignedTasks() {
         return !previouslyAssignedTasksMap.isEmpty();
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter description missing
+     * Assign the given result and update internal counters for used resources. Use this to assign an individual
+     * assignment result within a scheduling iteration.
      *
-     * @param result
+     * @param result The assignment result to assign.
      */
     void assignResult(TaskAssignmentResult result) {
         currUsedCpus += result.getRequest().getCPUs();
@@ -708,9 +602,11 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     /**
-     * @warn method description missing
+     * Reset the assignment results of current scheduling iteration and return the total assignment result for this VM.
+     * Use this at the end of the scheduling iteration. Include all of the assignment results as well as all of the VM
+     * leases available in the result.
      *
-     * @return
+     * @return Total assignment result including the tasks assigned and VM leases used.
      */
     VMAssignmentResult resetAndGetSuccessfullyAssignedRequests() {
         if(assignmentResults.isEmpty())
@@ -729,13 +625,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return vmar;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param o
-     * @return
-     */
     // Only makes sense to get called after leases have been consolidated and total resources set in
     // {@Code setAvailableResources()}
     @Override
@@ -750,9 +639,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     /**
-     * @warn method description missing
+     * Get resource status, showing used and available amounts. The available amounts are in addition to the amounts used.
      *
-     * @return
+     * @return Map with keys containing resources and values containing corresponding usage represented as a two number
+     * array, where the first represents the used amounts and the second represents additional available amounts.
      */
     Map<VMResource, Double[]> getResourceStatus() {
         Map<VMResource, Double[]> resourceMap = new HashMap<>();

@@ -18,7 +18,8 @@ package com.netflix.fenzo;
 
 /**
  * A rule to define the behavior for auto scaling the number of hosts of a certain type. Rules are defined
- * per unique value of host attribute that is used for matching.
+ * per unique value of host attribute that is used for matching, see
+ * {@link com.netflix.fenzo.TaskScheduler.Builder#withAutoScaleByAttributeName(String)}.
  */
 public interface AutoScaleRule {
     /**
@@ -29,21 +30,24 @@ public interface AutoScaleRule {
     public String getRuleName();
 
     /**
-     * @warn method description missing
+     * Get the minimum number of idle hosts to keep. The autoscaler will trigger scale up action if the idle number of
+     * hosts goes below this value.
      *
-     * @return
+     * @return Minimum idle hosts for this rule.
      */
     public int getMinIdleHostsToKeep();
 
     /**
-     * @warn method description missing
+     * Get the maximum number of idle hosts to keep. The autoscaler will trigger scale down action if the idle number of
+     * hosts goes higher than this value.
      *
      * @return
      */
     public int getMaxIdleHostsToKeep();
 
     /**
-     * @warn method description missing
+     * Get the number of seconds for cool down duration. Suppress autoscale actions for this many seconds after a previous
+     * autoscale action.
      *
      * @return
      */

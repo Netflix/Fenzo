@@ -27,12 +27,14 @@ import com.netflix.fenzo.functions.Func1;
 import java.util.Iterator;
 
 /**
- * @warn class description missing
+ * A collection of bin packing fitness calculators.
  */
 public class BinPackingFitnessCalculators {
 
     /**
-     * @warn attribute description missing
+     * A CPU bin packing fitness calculator.
+     * This fitness calculator has the effect of using a VM that has the least number of available CPUs that can fit a
+     * given task for assignment.
      */
     public final static VMTaskFitnessCalculator cpuBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -57,7 +59,9 @@ public class BinPackingFitnessCalculators {
         }
     };
     /**
-     * @warn attribute description missing
+     * A memory bin packing fitness calcualtor.
+     * This fitness calculator has the effect of using a VM that has the least amount of available memory that can fit a
+     * given task for assignment.
      */
     public final static VMTaskFitnessCalculator memoryBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -82,7 +86,7 @@ public class BinPackingFitnessCalculators {
         }
     };
     /**
-     * @warn attribute description missing
+     * A bin packing fitness calculator that achieves both CPU and Memory bin packing with equal weights to both goals.
      */
     public final static VMTaskFitnessCalculator cpuMemBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -97,7 +101,9 @@ public class BinPackingFitnessCalculators {
         }
     };
     /**
-     * @warn attribute description missing
+     * A network bandwidth bin packing fitness calculator.
+     * This fitness calculator has the effect of using a VM that has the least amount of available network bandwidth that
+     * can git a given task for assignment.
      */
     public final static VMTaskFitnessCalculator networkBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -122,7 +128,8 @@ public class BinPackingFitnessCalculators {
         }
     };
     /**
-     * @warn attribute description missing
+     * A fitness calculator that achieves CPU, Memory, and network bandwidth bin packing with equal weights to each of
+     * the three goals.
      */
     public final static VMTaskFitnessCalculator cpuMemNetworkBinPacker = new VMTaskFitnessCalculator() {
         @Override

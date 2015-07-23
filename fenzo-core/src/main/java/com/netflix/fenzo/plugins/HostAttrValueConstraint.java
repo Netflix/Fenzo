@@ -39,25 +39,11 @@ public class HostAttrValueConstraint implements ConstraintEvaluator {
         this.hostAttributeValueGetter = hostAttributeValueGetter;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     @Override
     public String getName() {
         return HostAttrValueConstraint.class.getName()+"-"+hostAttributeName;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param taskRequest
-     * @param targetVM
-     * @param taskTrackerState
-     * @return
-     */
     @Override
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
         String targetHostAttrVal = getAttrValue(targetVM.getCurrAvailableResources());

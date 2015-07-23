@@ -25,10 +25,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * @warn class description missing
- */
-public class AutoScaleRules {
+class AutoScaleRules {
     private final Map<String, AutoScaleRule> ruleMap;
     private final BlockingQueue<AutoScaleRule> addQ = new LinkedBlockingQueue<>();
     private final List<AutoScaleRule> addList = new LinkedList<>();
@@ -42,31 +39,16 @@ public class AutoScaleRules {
                 ruleMap.put(r.getRuleName(), r);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param rule
-     */
     void replaceRule(AutoScaleRule rule) {
         if(rule != null)
             addQ.offer(rule);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param ruleName
-     */
     void remRule(String ruleName) {
         if(ruleName != null)
             remQ.offer(ruleName);
     }
 
-    /**
-     * @warn method description missing
-     */
     void prepare() {
         addQ.drainTo(addList);
         if(!addList.isEmpty()) {
@@ -90,22 +72,10 @@ public class AutoScaleRules {
         }
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param attrValue
-     * @return
-     */
     public AutoScaleRule get(String attrValue) {
         return ruleMap.get(attrValue);
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     Collection<AutoScaleRule> getRules() {
         return ruleMap.values();
     }

@@ -17,11 +17,13 @@
 package com.netflix.fenzo;
 
 /**
- * @warn interface description missing
+ * An interface to represent a task constraint evaluator.
  */
 public interface ConstraintEvaluator {
     /**
-     * @warn class description missing
+     * Result of a task constraint evaluation.
+     * Implementations of the interface are expected to indicate success or failure of constraint evaluation as well as
+     * a message upon failure.
      */
     public static class Result {
         private final boolean isSuccessful;
@@ -33,39 +35,33 @@ public interface ConstraintEvaluator {
         }
 
         /**
-         * @warn method description missing
+         * Whether or not constraint evaluation was successful.
          *
-         * @return
+         * @return {@code true} if successful, {@code false} otherwise.
          */
         public boolean isSuccessful() {
             return isSuccessful;
         }
 
         /**
-         * @warn method description missing
+         * Get failure reason.
          *
-         * @return
+         * @return Failure message.
          */
         public String getFailureReason() {
             return failureReason;
         }
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public String getName();
 
     /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
+     * Evaluate constraint for a task being considered for assignment on a VM.
      *
-     * @param taskRequest
-     * @param targetVM
-     * @param taskTrackerState
-     * @return
+     * @param taskRequest The task being considered for assignment.
+     * @param targetVM The VM on which the task is being considered for assignment.
+     * @param taskTrackerState The current state of all known tasks.
+     * @return Result of constraint including whether or not successful along with possible failure reason.
      */
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM,
                            TaskTrackerState taskTrackerState);

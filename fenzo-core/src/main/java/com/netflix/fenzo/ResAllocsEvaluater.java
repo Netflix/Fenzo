@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package com.netflix.fenzo.sla;
+package com.netflix.fenzo;
 
 import com.netflix.fenzo.AssignmentFailure;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskTracker;
 import com.netflix.fenzo.VMResource;
+import com.netflix.fenzo.sla.ResAllocs;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,9 +34,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * @warn class description missing
+ * Evaluator for resource allocation limits.
  */
-public class ResAllocsEvaluater {
+class ResAllocsEvaluater {
     private final Map<String, ResAllocs> resAllocs;
     private final TaskTracker taskTracker;
     private final Set<String> failedTaskGroups = new HashSet<>();
@@ -46,39 +47,22 @@ public class ResAllocsEvaluater {
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final List<String> remList = new LinkedList<>();
 
-    public ResAllocsEvaluater(TaskTracker taskTracker, Map<String, ResAllocs> initialResAllocs) {
+    ResAllocsEvaluater(TaskTracker taskTracker, Map<String, ResAllocs> initialResAllocs) {
         this.taskTracker = taskTracker;
         this.resAllocs = initialResAllocs==null? new HashMap<String, ResAllocs>() : new HashMap<>(initialResAllocs);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param r
-     */
-    public void replaceResAllocs(ResAllocs r) {
+    void replaceResAllocs(ResAllocs r) {
         if(r != null)
             addQ.offer(r);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param groupName
-     */
-    public void remResAllocs(String groupName) {
+    void remResAllocs(String groupName) {
         if(groupName != null && !groupName.isEmpty())
             remQ.offer(groupName);
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
-    public boolean prepare() {
+    boolean prepare() {
         failedTaskGroups.clear();
         updateResAllocs();
         return !resAllocs.isEmpty();
@@ -104,25 +88,11 @@ public class ResAllocsEvaluater {
         }
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param taskGroupName
-     * @return
-     */
-    public boolean taskGroupFailed(String taskGroupName) {
+    boolean taskGroupFailed(String taskGroupName) {
         return failedTaskGroups.contains(taskGroupName);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param task
-     * @return
-     */
-    public AssignmentFailure hasResAllocs(TaskRequest task) {
+    AssignmentFailure hasResAllocs(TaskRequest task) {
         if(resAllocs.isEmpty())
             return null;
         if(failedTaskGroups.contains(task.taskGroupName()))
@@ -155,11 +125,6 @@ public class ResAllocsEvaluater {
                         resAllocs.getNetworkMbps() > 0.0 || resAllocs.getDisk() > 0.0);
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public Map<String, ResAllocs> getResAllocs() {
         return Collections.unmodifiableMap(resAllocs);
     }

@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @warn class description missing
+ * Result of a task assignment.
  */
 public class TaskAssignmentResult {
     @JsonIgnore
@@ -59,92 +59,43 @@ public class TaskAssignmentResult {
         assignedPorts = new ArrayList<>();
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public String getTaskId() {
         return taskId;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public String getHostname() {
         return hostname;
     }
 
-    /**
-     * @warn method description missing
-     */
     void assignResult() {
         avm.assignResult(this);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameterdescription missing
-     *
-     * @param port
-     */
     void addPort(int port) {
         assignedPorts.add(port);
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public List<Integer> getAssignedPorts() {
         return assignedPorts;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     @JsonIgnore
     public TaskRequest getRequest() {
         return request;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public boolean isSuccessful() {
         return successful;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public List<AssignmentFailure> getFailures() {
         return failures;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public ConstraintFailure getConstraintFailure() {
         return constraintFailure;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public double getFitness() {
         return fitness;
     }

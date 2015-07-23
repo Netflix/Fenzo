@@ -27,7 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @warn class description missing
+ * A class that an assignment failure to indicate the resource that failed assignment, the amount that was requested
+ * (asked) by the task, amount of resource already used, and amount available.
  */
 public class AssignmentFailure {
     @JsonIgnore
@@ -52,47 +53,22 @@ public class AssignmentFailure {
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public VMResource getResource() {
         return resource;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public double getAsking() {
         return asking;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public double getUsed() {
         return used;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public double getAvailable() {
         return available;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public String toString() {
         try {
             return objectMapper.writeValueAsString(this);

@@ -17,15 +17,14 @@
 package com.netflix.fenzo.functions;
 
 /**
- * @warn interface description missing
+ * A one argument function.
  */
 public interface Func1<T1, R> {
     /**
-     * @warn method description missing
-     * @warn parameter description missing
+     * The function to call with one argument of type {@code T1}.
      *
      * @param t1
-     * @return
+     * @return Object of type {@code R}.
      */
     public R call(T1 t1);
 }
