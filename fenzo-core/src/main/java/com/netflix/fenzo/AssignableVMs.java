@@ -242,7 +242,7 @@ class AssignableVMs {
         return virtualMachinesMap.size();
     }
 
-    /* package */ void purgeInactiveVMs() {
+    void purgeInactiveVMs() {
         for(String hostname: virtualMachinesMap.keySet()) {
             AssignableVirtualMachine avm = virtualMachinesMap.get(hostname);
             if(avm != null) {

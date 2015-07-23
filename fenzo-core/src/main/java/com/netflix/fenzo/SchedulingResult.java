@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @warn class description missing
+ * Result of a scheduling trial, returned by {@link TaskScheduler#scheduleOnce(List, List)}.
  */
 public class SchedulingResult {
     private final Map<String, VMAssignmentResult> resultMap;
@@ -39,9 +39,10 @@ public class SchedulingResult {
     }
 
     /**
-     * @warn method description missing
+     * Get the result map. The keys are host names on which at least one task has been assigned resources. The values
+     * are the assignment results containing the offers used and assigned tasks.
      *
-     * @return
+     * @return Map of results.
      */
     public Map<String, VMAssignmentResult> getResultMap() {
         return resultMap;
@@ -52,18 +53,19 @@ public class SchedulingResult {
     }
 
     /**
-     * @warn method description missing
+     * Get assignment failures map incurred during scheduling. The keys are the task requests that failed assignments
+     * and the values are the list of all failures incurred.
      *
-     * @return
+     * @return Map of failures for all tasks that failed assignments.
      */
     public Map<TaskRequest, List<TaskAssignmentResult>> getFailures() {
         return failures;
     }
 
     /**
-     * @warn method description missing
+     * Get the number of leases (resource offers) added during the assignment trial.
      *
-     * @return
+     * @return Number of leases added.
      */
     public int getLeasesAdded() {
         return leasesAdded;
@@ -74,9 +76,9 @@ public class SchedulingResult {
     }
 
     /**
-     * @warn method description missing
+     * Get the number of leases (offers) rejected during the scheduling trial.
      *
-     * @return
+     * @return Number of leases rejected.
      */
     public int getLeasesRejected() {
         return leasesRejected;
@@ -87,9 +89,9 @@ public class SchedulingResult {
     }
 
     /**
-     * @warn method description missing
+     * Get the time taken, in milli seconds, for this scheduling trial.
      *
-     * @return
+     * @return Time to complete the scheduling trial, in milli seconds.
      */
     public long getRuntime() {
         return runtime;
@@ -100,9 +102,9 @@ public class SchedulingResult {
     }
 
     /**
-     * @warn method description missing
+     * Get the number of resource allocation trials performed during the scheduling iteration.
      *
-     * @return
+     * @return The number of resource allocations during this scheduling trial.
      */
     public int getNumAllocations() {
         return numAllocations;
@@ -113,9 +115,9 @@ public class SchedulingResult {
     }
 
     /**
-     * @warn method description missing
+     * Get the total number of hosts (VMs) known during this scheduling iteration.
      *
-     * @return
+     * @return The number of hosts (VMs) known.
      */
     public int getTotalVMsCount() {
         return totalVMsCount;
@@ -126,9 +128,10 @@ public class SchedulingResult {
     }
 
     /**
-     * @warn method description missing
+     * Get the number of hosts (VMs) that are known to be idle at the end of this scheduling trial. This is the number
+     * before any scale down action is triggered.
      *
-     * @return
+     * @return The number of idle hosts.
      */
     public int getIdleVMsCount() {
         return idleVMsCount;

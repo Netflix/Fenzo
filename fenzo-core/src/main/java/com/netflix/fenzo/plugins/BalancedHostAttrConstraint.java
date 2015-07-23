@@ -38,6 +38,17 @@ public class BalancedHostAttrConstraint implements ConstraintEvaluator {
     private final String hostAttributeName;
     private final int expectedValues;
 
+    /**
+     * Create a constraint evaluator to balance tasks across VMs based on a given attribute.
+     * This evaluator achieves the result of balancing the number of tasks running on each distinct value of the VM
+     * attribute. For example, if 10 VMs have 3 distinct host attribute values of A, B, and C. Then, 9 tasks are
+     * scheduled such that 3 tasks are assigned to VMs with attribute value A, another 3 tasks to VMs with attribute B,
+     * and so on.
+     * @param coTasksGetter A one argument function that, given a task ID being considered for assignment, returns the
+     *                      set of Task IDs for tasks that form the group of tasks which need to be balanced.
+     * @param hostAttributeName The name of the VM attribute whose values need to be balanced across the co-tasks.
+     * @param expectedValues The number of distinct values to expect for {@code hostAttributeName}.
+     */
     public BalancedHostAttrConstraint(Func1<String, Set<String>> coTasksGetter, String hostAttributeName, int expectedValues) {
         this.coTasksGetter = coTasksGetter;
         this.hostAttributeName = hostAttributeName;
@@ -57,15 +68,6 @@ public class BalancedHostAttrConstraint implements ConstraintEvaluator {
         return name;
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter descriptions missing
-     *
-     * @param taskRequest
-     * @param targetVM
-     * @param taskTrackerState
-     * @return
-     */
     @Override
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
         Set<String> coTasks = coTasksGetter.call(taskRequest.getId());

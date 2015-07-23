@@ -307,12 +307,6 @@ class AutoScaler {
         return attribute.getText().getValue();
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param callback
-     */
     public void setCallback(Action1<AutoScaleAction> callback) {
         this.callback = callback;
     }

@@ -17,7 +17,7 @@
 package com.netflix.fenzo.functions;
 
 /**
- * A two-argument action.
+ * A two argument action.
  */
 public interface Action2<T1, T2> {
     /**

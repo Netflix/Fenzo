@@ -40,22 +40,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * @warn class description missing
+ * A sample Mesos framework that shows a sample usage of Fenzo {@link TaskScheduler}.
  */
 public class SampleFramework {
 
     /**
-     * @warn class description missing
+     * A sample mesos scheduler that shows how mesos callbacks can be setup for use with Fenzo TaskScheduler.
      */
     public class MesosScheduler implements Scheduler {
 
         /**
-         * @warn method description missing
-         * @warn parameter descriptions missing
-         *
-         * @param driver
-         * @param frameworkId
-         * @param masterInfo
+         * When we register successfully with mesos, any previous resource offers are invalid. Tell Fenzo scheduler
+         * to expire all leases (aka offers) right away.
          */
         @Override
         public void registered(SchedulerDriver driver, Protos.FrameworkID frameworkId, Protos.MasterInfo masterInfo) {
@@ -64,11 +60,8 @@ public class SampleFramework {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter descriptions missing
-         *
-         * @param driver
-         * @param masterInfo
+         * Similar to {@code registered()} method, expire any previously known resource offers by asking Fenzo
+         * scheduler to expire all leases right away.
          */
         @Override
         public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
@@ -77,11 +70,9 @@ public class SampleFramework {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter descriptions missing
-         *
-         * @param driver
-         * @param offers
+         * Add the received Mesos resource offers to the lease queue. Fenzo scheduler is used by calling its main
+         * allocation routine in a loop, see {@link SampleFramework#runAll()}. Collect offers from mesos into a queue
+         * so the next call to Fenzo's allocation routine can pick them up.
          */
         @Override
         public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
@@ -92,11 +83,7 @@ public class SampleFramework {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter descriptions missing
-         *
-         * @param driver
-         * @param offerId
+         * Tell Fenzo scheduler that a resource offer should be expired immediately.
          */
         @Override
         public void offerRescinded(SchedulerDriver driver, Protos.OfferID offerId) {
@@ -104,11 +91,11 @@ public class SampleFramework {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter descriptions missing
+         * Update Fenzo scheduler of task completion if received status indicates a terminal state. There is no need
+         * to tell Fenzo scheduler of task started because that is supposed to have been already done before launching
+         * the task in Mesos.
          *
-         * @param driver
-         * @param status
+         * In a real world framework, this state change would also be persisted with a state machine of choice.
          */
         @Override
         public void statusUpdate(SchedulerDriver driver, Protos.TaskStatus status) {
@@ -123,62 +110,40 @@ public class SampleFramework {
             }
         }
 
-        /**
-         * @warn method description missing
-         * @warn parameter descriptions missing
-         *
-         * @param driver
-         * @param executorId
-         * @param slaveId
-         * @param data
-         */
         @Override
         public void frameworkMessage(SchedulerDriver driver, Protos.ExecutorID executorId, Protos.SlaveID slaveId, byte[] data) {}
 
-        /**
-         * @warn method description missing
-         * @warn parameter description missing
-         *
-         * @param driver
-         */
         @Override
         public void disconnected(SchedulerDriver driver) {}
 
         /**
-         * @warn method description missing
-         * @warn parameter descriptions missing
-         *
-         * @param driver
-         * @param slaveId
+         * Upon slave lost notification, tell Fenzo scheduler to expire all leases with the given slave ID. Note, however,
+         * that if there was no offer received from that slave prior to this call, Fenzo would not have a mapping from
+         * the slave ID to hostname (Fenzo maintains slaves state by hostname). This is OK since there would be no offers
+         * to expire. However, any tasks running on the lost slave will not be removed by this call to Fenzo. Task lost
+         * status updates would ensure that.
          */
         @Override
-        public void slaveLost(SchedulerDriver driver, Protos.SlaveID slaveId) {}
+        public void slaveLost(SchedulerDriver driver, Protos.SlaveID slaveId) {
+            scheduler.expireAllLeasesByVMId(slaveId.getValue());
+        }
 
         /**
-         * @warn method description missing
-         * @warn parameter descriptions missing
-         *
-         * @param driver
-         * @param executorId
-         * @param slaveId
-         * @param status
+         * Do nothing, instead, rely on task lost status updates to inform Fenzo of task completions.
          */
         @Override
         public void executorLost(SchedulerDriver driver, Protos.ExecutorID executorId, Protos.SlaveID slaveId, int status) {
             System.out.println("Executor " + executorId.getValue() + " lost, status=" + status);
         }
 
-        /**
-         * @warn method description missing
-         * @warn parameter descriptions missing
-         *
-         * @param driver
-         * @param message
-         */
         @Override
         public void error(SchedulerDriver driver, String message) {}
     }
 
+    /**
+     * Fenzo maintains a VM Lease object for every mesos slave. The lease object is a wrapper for a resource offer. This
+     * sample implementation shows what you need to extract from the resource offer.
+     */
     private static class VMLeaseObject implements VirtualMachineLease {
         private Protos.Offer offer;
         private double cpuCores;
@@ -276,6 +241,21 @@ public class SampleFramework {
     private final Func1<String, String> taskCmdGetter;
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
+    /**
+     * Create a sample mesos framework with the given task queue and mesos master connection string. As would be typical
+     * for frameworks that wish to use Fenzo task scheduler, a lease queue is created for mesos scheduler callback to
+     * insert offers received from mesos. This sample implementation obtains the tasks to run via a task queue. The
+     * {@link SampleFramework#runAll()} method implements the scheduling loop that continuously takes pending tasks from
+     * the queue and uses Fenzo's task scheduler to assign resources to them.
+     *
+     * The task scheduler created in this sample is a rather simple one, with no advanced features.
+     *
+     * @param taskQueue The task queue.
+     * @param mesosMaster Connection string for mesos master.
+     * @param onTaskComplete A single argument action trigger to invoke upon task completion, with task ID is the argument.
+     * @param taskCmdGetter A single argument function to invoke to get the command line to execute for a given task ID,
+     *                      passed as the only argument.
+     */
     public SampleFramework(BlockingQueue<TaskRequest> taskQueue, String mesosMaster, Action1<String> onTaskComplete,
                            Func1<String, String> taskCmdGetter) {
         this.taskQueue = taskQueue;
@@ -316,9 +296,6 @@ public class SampleFramework {
         isShutdown.set(true);
     }
 
-    /**
-     * @warn method description missing
-     */
     public void start() {
         new Thread(new Runnable() {
             @Override
@@ -328,6 +305,20 @@ public class SampleFramework {
         }).start();
     }
 
+    /**
+     * Run scheduling loop until shutdown is called.
+     * This sample implementation shows the general pattern of using Fenzo's task scheduler. Scheduling occurs in a
+     * continuous loop, iteratively calling {@link TaskScheduler#scheduleOnce(List, List)} method, passing in the
+     * list of tasks currently pending launch, and a list of any new resource offers obtained from mesos since the last
+     * time the lease queue was drained. The call returns an assignments result object from which any tasks assigned
+     * can be launched via the mesos driver. The result contains a map with hostname as the key and assignment result
+     * as the value. The assignment result contains the resource offers of the host that were used for the assignments
+     * and a list of tasks assigned resources from the host. The resource offers were removed from the internal state in
+     * Fenzo. However, the task assignments are not updated, yet. If the returned assignments are being used to launch
+     * the tasks in mesos, call Fenzo's task assigner for each task launched to indicate that the task is being launched.
+     * If the returned assignments are not being used, the resource offers in the assignment results must either be
+     * rejected in mesos, or added back into Fenzo explicitly.
+     */
     void runAll() {
         System.out.println("Running all");
         List<VirtualMachineLease> newLeases = new ArrayList<>();
@@ -361,9 +352,12 @@ public class SampleFramework {
                     List<VirtualMachineLease> leasesUsed = result.getLeasesUsed();
                     List<Protos.TaskInfo> taskInfos = new ArrayList<>();
                     StringBuilder stringBuilder = new StringBuilder("Launching on VM " + leasesUsed.get(0).hostname() + " tasks ");
+                    final Protos.SlaveID slaveId = leasesUsed.get(0).getOffer().getSlaveId();
                     for(TaskAssignmentResult t: result.getTasksAssigned()) {
                         stringBuilder.append(t.getTaskId()).append(", ");
-                        taskInfos.add(getTaskInfo(leasesUsed, t.getTaskId()));
+                        taskInfos.add(getTaskInfo(slaveId, t.getTaskId()));
+                        // remove task from pending tasks map and put into launched tasks map
+                        // (in real world, transition the task state)
                         pendingTasksMap.remove(t.getTaskId());
                         launchedTasks.put(t.getTaskId(), leasesUsed.get(0).hostname());
                         scheduler.getTaskAssigner().call(t.getRequest(), leasesUsed.get(0).hostname());
@@ -375,17 +369,17 @@ public class SampleFramework {
                     mesosSchedulerDriver.launchTasks(offerIDs, taskInfos);
                 }
             }
-            // sleep a bit before looping for new tasks to launch
+            // insert a short delay before scheduling any new tasks or tasks from before that haven't been launched yet.
             try{Thread.sleep(100);}catch(InterruptedException ie){}
         }
     }
-    private Protos.TaskInfo getTaskInfo(List<VirtualMachineLease> leasesUsed, final String taskId) {
+    private Protos.TaskInfo getTaskInfo(Protos.SlaveID slaveID, final String taskId) {
         Protos.TaskID pTaskId = Protos.TaskID.newBuilder()
                 .setValue(taskId).build();
         return Protos.TaskInfo.newBuilder()
                 .setName("task " + pTaskId.getValue())
                 .setTaskId(pTaskId)
-                .setSlaveId(leasesUsed.get(0).getOffer().getSlaveId())
+                .setSlaveId(slaveID)
                 .addResources(Protos.Resource.newBuilder()
                         .setName("cpus")
                         .setType(Protos.Value.Type.SCALAR)

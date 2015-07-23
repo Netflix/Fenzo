@@ -28,7 +28,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * @warn class description missing
+ * A simple task generator to use with {@link SampleFramework}.
+ * This is the main class to run a sample framework.
+ * Create and submit a given number of tasks for given number of iterations until all tasks complete.
  */
 public class TaskGenerator implements Runnable {
 
@@ -46,9 +48,6 @@ public class TaskGenerator implements Runnable {
 
     private int launchedTasks = 0;
 
-    /**
-     * @warn method description missing
-     */
     @Override
     public void run() {
         for (int i = 0; i < numIters; i++) {
@@ -113,10 +112,8 @@ public class TaskGenerator implements Runnable {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param args
+     * Main method to run the task generator.
+     * @param args Arguments to the program. Provide as the only argument, the mesos connection string.
      */
     public static void main(String[] args) {
         if(args.length!=1) {

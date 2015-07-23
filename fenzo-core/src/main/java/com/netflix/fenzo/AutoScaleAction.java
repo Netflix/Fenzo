@@ -26,9 +26,9 @@ public interface AutoScaleAction {
     public enum Type {Up, Down};
 
     /**
-     * @warn method description missing
+     * Get the name of the auto scale rule for which the autoscale action is being triggered.
      *
-     * @return
+     * @return Name of the autoscale rule.
      */
     public String getRuleName();
 

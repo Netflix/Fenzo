@@ -17,7 +17,6 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.sla.ResAllocs;
-import com.netflix.fenzo.sla.ResAllocsEvaluater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.netflix.fenzo.functions.Action1;
@@ -64,8 +63,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Do not call the scheduler concurrently. The scheduler assigns tasks in the order that they are received in a
  * particular list. It checks each task against available resources until it finds a match.
  * <p>
- * You create your {@code TaskScheduler} by meas of the {@link TaskScheduler.Builder}. It provide methods with
- * whic you can adjust the scheduler's autoscaling rules, fitness calculators, and so forth.
+ * You create your {@code TaskScheduler} by means of the {@link TaskScheduler.Builder}. It provide methods with
+ * which you can adjust the scheduler's autoscaling rules, fitness calculators, and so forth.
  *
  * @see <a href="https://en.wikipedia.org/wiki/Builder_pattern">Wikipedia: Builder pattern</a>
  */
@@ -98,10 +97,9 @@ public class TaskScheduler {
         private Map<String, ResAllocs> resAllocs=null;
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
-         *
-         * @param leaseRejectAction
+         * Invoke the given action when rejecting a VM lease.
+         * @param leaseRejectAction The single argument action to trigger when rejecting a VM lease, with the lease
+         *                          being rejected as the only argument.
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withLeaseRejectAction(Action1<VirtualMachineLease> leaseRejectAction) {
@@ -148,10 +146,10 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Use the given attribute name to determine alternate hostname of VM to use as argument for autoscaling action
+         * on the VM.
          *
-         * @param name
+         * @param name Attribute name.
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withAutoScalerMapHostnameAttributeName(String name) {
@@ -160,10 +158,9 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * When scaling down cluster, balance the number of VMs across unique values of the given attribute name.
          *
-         * @param name
+         * @param name Attribute name.
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withAutoScaleDownBalancedByAttributeName(String name) {
@@ -172,10 +169,10 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Use the given function to determine if obtained fitness is good enough. If this is not provided, Fenzo
+         * may use the default function that returns true only when fitness is {@code 1.0} (perfect fit).
          *
-         * @param f
+         * @param f Single argument function that acceps a double value, the fitness, and returns a {@code Boolean}.
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withFitnessGoodEnoughFunction(Func1<Double, Boolean> f) {
@@ -184,8 +181,15 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
+         * Disable resource shortfall evaluation. The shortfall evaluation is performed when evaluating the autoscaling
+         * needs. This is useful for evaluating the actual resources needed to scale up by, for pending tasks, which may
+         * be greater than the number of resources scaled up by thresholds based scale up.
          *
+         * This evaluation can be computaionally expensive and/or may scale up aggressively, initially, to more resources
+         * than needed. The initial aggressive scale up is corrected later by scale down, which is triggered by scale
+         * down evaluation after a cool down period transpires.
+         *
+         * @see AutoScaleRule
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder disableShortfallEvaluation() {
@@ -194,10 +198,10 @@ public class TaskScheduler {
         }
 
         /**
-         * @warn method description missing
-         * @warn parameter description missing
+         * Initialize the scheduler with the given mapping of resource allocation limits.
          *
-         * @param resAllocs
+         * @param resAllocs Map with task group name as keys and resource allocation limits as values.
+         *                  @see ResAllocs
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withInitialResAllocs(Map<String, ResAllocs> resAllocs) {

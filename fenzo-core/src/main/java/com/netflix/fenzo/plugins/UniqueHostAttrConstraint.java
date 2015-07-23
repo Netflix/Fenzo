@@ -33,9 +33,7 @@ import java.util.Set;
  * For example, if you specify the host attribute {@code ZoneAttribute}, the evaluator will place the co-tasks
  * such that each task is in a different zone. Note that because of this, if more tasks are submitted than there
  * are zones available for them, the excess tasks will not be assigned to any hosts. If instead you want to
- * implement a load balancing strategy, you can do so by converting this into a <em>soft</em> constraint by
- * passing it in to the
- * {@link AsSoftConstraint#get(com.netflix.fenzo.ConstraintEvaluator) AsSoftConstraint.get()} method.
+ * implement a load balancing strategy, use {@link BalancedHostAttrConstraint} instead.
  * <p>
  * If you construct this evaluator without passing in a host attribute name, it will use the host name as the
  * host attribute by which it uniquely identifies hosts.
@@ -45,10 +43,22 @@ public class UniqueHostAttrConstraint implements ConstraintEvaluator {
     private final String hostAttributeName;
     private final String name;
 
+    /**
+     * Create this constraint evaluator with the given co-tasks of a group.
+     * Equivalent to {@code UniqueHostAttrConstraint(coTasksGetter, null)}.
+     *
+     * @param coTasksGetter A single argument function that, given a task ID, returns the set of task IDs of its co-tasks.
+     */
     public UniqueHostAttrConstraint(Func1<String, Set<String>> coTasksGetter) {
         this(coTasksGetter, AttributeUtilities.DEFAULT_ATTRIBUTE);
     }
 
+    /**
+     * Create this constraint evaluator with the given co-tasks of a group and given VM attribute name.
+     * @param coTasksGetter A single argument function that, given a task ID, returns the set of task IDs of its co-tasks.
+     * @param hostAttributeName The name of the attribute whose value is to be unique for each co-task's VM assignment.
+     *                          If this is null, ensure VM's hostname is unique for each co-task's VM assignment.
+     */
     public UniqueHostAttrConstraint(Func1<String, Set<String>> coTasksGetter, String hostAttributeName) {
         this.coTasksGetter = coTasksGetter;
         this.hostAttributeName = hostAttributeName;
