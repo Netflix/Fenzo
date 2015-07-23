@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Result of a task assignment.
+ * Encapsulates the results of attempting to assign a task to a target.
  */
 public class TaskAssignmentResult {
     @JsonIgnore
@@ -59,10 +59,21 @@ public class TaskAssignmentResult {
         assignedPorts = new ArrayList<>();
     }
 
+    /**
+     * Returns the string identifier of the task request for the task whose assignment result this is.
+     *
+     * @return the identifier of the task request
+     */
     public String getTaskId() {
         return taskId;
     }
 
+    /**
+     * Returns the name of the host machine on which resides the target to which this task was attempted to be
+     * assigned.
+     *
+     * @return the hostname of the target
+     */
     public String getHostname() {
         return hostname;
     }
@@ -75,27 +86,59 @@ public class TaskAssignmentResult {
         assignedPorts.add(port);
     }
 
+    /**
+     * Returns a list of port numbers corresponding to the ports the task was assigned on the target.
+     *
+     * @return a list of port numbers
+     */
     public List<Integer> getAssignedPorts() {
         return assignedPorts;
     }
 
+    /**
+     * Returns the {@link TaskRequest} corresponding to the task whose assignment result this is.
+     *
+     * @return the {@code TaskRequest} for this task
+     */
     @JsonIgnore
     public TaskRequest getRequest() {
         return request;
     }
 
+    /**
+     * Indicates whether the assignment of this task to the target succeeded.
+     *
+     * @return {@code true} if this assignment succeeded, {@code false} otherwise
+     */
     public boolean isSuccessful() {
         return successful;
     }
 
+    /**
+     * Get a list of {@link AssignmentFailure}s corresponding to the reasons why the assignment of this task to
+     * the target did not succeed.
+     *
+     * @return a list of reasons why the task could not be assigned to the target
+     */
     public List<AssignmentFailure> getFailures() {
         return failures;
     }
 
+    /**
+     * Get the {@link ConstraintFailure} corresponding to the task constraint that the target failed to meet.
+     *
+     * @return a constraint that the target failed to satisfy
+     */
     public ConstraintFailure getConstraintFailure() {
         return constraintFailure;
     }
 
+    /**
+     * Get the result of the fitness calculation applied to this target for this task.
+     *
+     * @return a number between 0.0 (indicating that the target is completely unfit for this task) to 1.0
+     *         (indicating that the target is a perfect fit for this task)
+     */
     public double getFitness() {
         return fitness;
     }

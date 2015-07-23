@@ -19,7 +19,7 @@ package com.netflix.fenzo;
 import java.util.Collection;
 
 /**
- * A scale down action used by autoscaler to trigger cluster scale down for a given autoscale rule.
+ * An autoscale action that indicates a scaling down of an autoscale group.
  */
 public class ScaleDownAction implements AutoScaleAction {
     private final String ruleName;
@@ -42,9 +42,10 @@ public class ScaleDownAction implements AutoScaleAction {
     }
 
     /**
-     * Get the type of the autoscale action, {@code Down} in this case.
+     * Returns an indication of whether the autoscale action was to scale up or to scale down - in this case,
+     * down.
      *
-     * @return {@code Down}
+     * @return {@link AutoScaleAction.Type#Down}
      */
     @Override
     public Type getType() {

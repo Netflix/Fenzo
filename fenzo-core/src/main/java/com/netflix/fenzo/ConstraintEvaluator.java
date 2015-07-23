@@ -17,13 +17,15 @@
 package com.netflix.fenzo;
 
 /**
- * An interface to represent a task constraint evaluator.
+ * A constraint evaluator inspects a target to decide whether or not its attributes are satisfactory according to
+ * some standard. Different constraint evaluators look at different attributes and have different standards for
+ * how they make this decision.
  */
 public interface ConstraintEvaluator {
     /**
-     * Result of a task constraint evaluation.
-     * Implementations of the interface are expected to indicate success or failure of constraint evaluation as well as
-     * a message upon failure.
+     * The result of the evaluation of a {@link ConstraintEvaluator}. This combines a boolean that indicates
+     * whether or not the target satisfied the constraint, and, if it did not, a string that includes the reason
+     * why.
      */
     public static class Result {
         private final boolean isSuccessful;
@@ -35,33 +37,38 @@ public interface ConstraintEvaluator {
         }
 
         /**
-         * Whether or not constraint evaluation was successful.
+         * Indicates whether the constraint evaluator found the target to satisfy the constraint
          *
-         * @return {@code true} if successful, {@code false} otherwise.
+         * @return {@code true} if the target satisfies the constraint, {@code false} otherwise
          */
         public boolean isSuccessful() {
             return isSuccessful;
         }
 
         /**
-         * Get failure reason.
+         * Returns the reason why the target did not satisfy the constraint.
          *
-         * @return Failure message.
+         * @return the reason why the constraint was not satisfied, or an empty string if it was met
          */
         public String getFailureReason() {
             return failureReason;
         }
     }
 
+    /**
+     * Returns the name of the constraint evaluator.
+     *
+     * @return the name of the constraint evaluator
+     */
     public String getName();
 
     /**
-     * Evaluate constraint for a task being considered for assignment on a VM.
+     * Inspects a target to decide whether or not it meets the constraints appropriate to a particular task.
      *
-     * @param taskRequest The task being considered for assignment.
-     * @param targetVM The VM on which the task is being considered for assignment.
-     * @param taskTrackerState The current state of all known tasks.
-     * @return Result of constraint including whether or not successful along with possible failure reason.
+     * @param taskRequest
+     * @param targetVM
+     * @param taskTrackerState
+     * @return a successful Result if the target meets the constraints, or an unsuccessful Result otherwise
      */
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM,
                            TaskTrackerState taskTrackerState);

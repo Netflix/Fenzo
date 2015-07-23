@@ -60,7 +60,7 @@ public class SampleFramework {
         }
 
         /**
-         * Same deal here as {@code registered()} method, expire any previously known resource offers by asking Fenzo
+         * Similar to {@code registered()} method, expire any previously known resource offers by asking Fenzo
          * scheduler to expire all leases right away.
          */
         @Override
@@ -287,6 +287,9 @@ public class SampleFramework {
         }.start();
     }
 
+    /**
+     * Shuts down the Mesos driver.
+     */
     public void shutdown() {
         System.out.println("Stopping down mesos driver");
         Protos.Status status = mesosSchedulerDriver.stop();

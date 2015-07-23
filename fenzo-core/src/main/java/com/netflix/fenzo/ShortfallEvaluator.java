@@ -22,7 +22,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Used by AutoScaler to evaluate number of hosts that we are falling short based on assignment failures
+ * Determines by how many hosts the system is currently undershooting its needs, based on task assignment
+ * failures. This is used in autoscaling.
  */
 class ShortfallEvaluator {
     private static final long TOO_OLD_THRESHOLD_MILLIS = 15 * 60000; // 15 mins

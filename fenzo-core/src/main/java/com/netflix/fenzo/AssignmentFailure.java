@@ -27,8 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A class that an assignment failure to indicate the resource that failed assignment, the amount that was requested
- * (asked) by the task, amount of resource already used, and amount available.
+ * An assignment failure to indicate that a quantifiable resource failed assignment, along with the amount
+ * that was requested (asked) by the task, the amount already used, and the amount available on the target.
  */
 public class AssignmentFailure {
     @JsonIgnore
@@ -53,22 +53,48 @@ public class AssignmentFailure {
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
+    /**
+     * Returns which target resource this assignment failure is referring to.
+     *
+     * @return an enum that indicates which target resource this assignment failure refers to
+     */
     public VMResource getResource() {
         return resource;
     }
 
+    /**
+     * Returns the quantity of this target resource the task was requesting.
+     *
+     * @return the quantity of the target resource the task requested
+     */
     public double getAsking() {
         return asking;
     }
 
+    /**
+     * Returns the quantity of this resource that is already assigned on the target.
+     *
+     * @return the quantity of the target resource that is already allocated
+     */
     public double getUsed() {
         return used;
     }
 
+    /**
+     * Returns the quantity of this resource that the target has free to be assigned to a new task or tasks.
+     *
+     * @return the quantity of the target resource that is available for allocation
+     */
     public double getAvailable() {
         return available;
     }
 
+    /**
+     * Returns a String representation of this assignment failure, with details about the resource that caused
+     * the failure and its current level of allocation and availability on the target.
+     *
+     * @return a String representation of this assignment failure
+     */
     public String toString() {
         try {
             return objectMapper.writeValueAsString(this);

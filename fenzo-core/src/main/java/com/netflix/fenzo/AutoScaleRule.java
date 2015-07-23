@@ -23,43 +23,49 @@ package com.netflix.fenzo;
  */
 public interface AutoScaleRule {
     /**
-     * Value of the host attribute to match to apply this rule.
+     * Returns the value of the host attribute for those hosts that this rule applies to (for example, the name
+     * of the autoscaling group).
      *
      * @return value of matching host attribute
      */
     public String getRuleName();
 
     /**
-     * Get the minimum number of idle hosts to keep. The autoscaler will trigger scale up action if the idle number of
-     * hosts goes below this value.
+     * Returns the minimum number of hosts of the type this rule applies to that Fenzo is to aim to keep in idle
+     * readiness. Keeping idle hosts in a standby state like this allows Fenzo to rapidly launch new jobs without
+     * waiting for new instances to spin up.
      *
-     * @return Minimum idle hosts for this rule.
+     * @return the minimum number of idle hosts of this type
      */
     public int getMinIdleHostsToKeep();
 
     /**
-     * Get the maximum number of idle hosts to keep. The autoscaler will trigger scale down action if the idle number of
-     * hosts goes higher than this value.
+     * Returns the maximum number of hosts of the type this rule applies to that Fenzo is to aim to keep in idle
+     * readiness. Keeping idle hosts in a standby state like this allows Fenzo to rapidly launch new jobs without
+     * waiting for new instances to spin up.
      *
-     * @return
+     * @return the maximum number of idle hosts of this type
      */
     public int getMaxIdleHostsToKeep();
 
     /**
+     * Returns the amount of time to wait from the beginning of a scale up or scale down operation before
+     * initiating another autoscale operation.
      * Get the number of seconds for cool down duration. Suppress autoscale actions for this many seconds after a previous
      * autoscale action.
      *
-     * @return
+     * @return the cool down time, in seconds
      */
     public long getCoolDownSecs();
 
     /**
-     * Predicate to check if an idle host has too few resources to be considered idle. This is used to filter out
-     * hosts with too few resources before considering them as excess resources. If not filtered out, they could
-     * prevent a much needed scale up action.
+     * A predicate with which one can check to see if a technically-idle host has too few resources to be
+     * considered effectively idle. This is used to filter out hosts with too few resources before considering
+     * them to be excess resources. If they are not filtered out, they could prevent a much-needed scale up
+     * action.
      *
      * @param lease the lease object of the VM
-     * @return {@code true} if the idle machine is too small, {@code false} otherwise
+     * @return {@code true} if the idle machine has too few resources to count as idle, {@code false} otherwise
      */
     public boolean idleMachineTooSmall(VirtualMachineLease lease);
 }

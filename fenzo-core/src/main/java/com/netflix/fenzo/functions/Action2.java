@@ -21,10 +21,10 @@ package com.netflix.fenzo.functions;
  */
 public interface Action2<T1, T2> {
     /**
-     * The method to call for triggering action.
+     * Invoke the action.
      *
-     * @param t1
-     * @param t2
+     * @param t1 the first argument to the action
+     * @param t2 the second argument to the action
      */
     void call(T1 t1, T2 t2);
 }

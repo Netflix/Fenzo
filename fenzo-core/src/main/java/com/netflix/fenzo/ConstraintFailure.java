@@ -27,7 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A class to indicate failure of a constraint evaluation.
+ * An object that encapsulates the case of a target failing to satisfy a constraint mandated by a task.
  */
 public class ConstraintFailure {
     @JsonIgnore
@@ -45,14 +45,29 @@ public class ConstraintFailure {
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
+    /**
+     * Returns the name of the constraint that was violated by the target.
+     *
+     * @return the name of the constraint
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Returns a description of how the constraint was violated by the target.
+     *
+     * @return a description of how the constraint failed
+     */
     public String getReason() {
         return reason;
     }
 
+    /**
+     * Returns a textual description of the constraint failure.
+     *
+     * @return a String representation of this {@code ConstraintFailure}
+     */
     public String toString() {
         try {
             return objectMapper.writeValueAsString(this);

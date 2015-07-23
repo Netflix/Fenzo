@@ -19,13 +19,13 @@ package com.netflix.fenzo.functions;
 /**
  * A one-argument action.
  *
- * @param <T>
+ * @param <T> the type of the argument accepted by the action
  */
 public interface Action1<T> {
     /**
-     * Method to call for triggering action.
+     * Invoke the action.
      *
-     * @param t The argument passed by invoker.
+     * @param t the single argument to the action
      */
     public void call(T t);
 }

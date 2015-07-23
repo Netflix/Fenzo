@@ -25,16 +25,33 @@ import com.netflix.fenzo.VirtualMachineCurrentState;
 import java.util.Collection;
 
 /**
- * A constraint implementation to ensure that the host is exclusively assigned to the given job.
- * Ensure that a VM that is assigned to a task with this constraint is not assigned to any other task until the
- * former task completes.
+ * This constraint ensures that the host is exclusively assigned to the given job. You may not extend this class.
+ * The task scheduler gives this constraint special treatment: While usually the scheduler only evaluates the
+ * constraints of a new task, if an already-assigned task has an {@code ExclusiveHostRestraint} then the host on
+ * which the task has been assigned fails this exclusive host constraint check as well.
  */
 public final class ExclusiveHostConstraint implements ConstraintEvaluator {
+    /**
+     * Returns the name of this class as a String.
+     *
+     * @return the name of this class
+     */
     @Override
     public String getName() {
         return ExclusiveHostConstraint.class.getName();
     }
 
+    /**
+     * Determines whether the prospective target already has tasks either running on it or assigned to be run on
+     * it, and returns a false Result if either of those things is the case.
+     * @warn parameter descriptions missing
+     *
+     * @param taskRequest
+     * @param targetVM
+     * @param taskTrackerState
+     * @return an unsuccessful Result if the target already has running tasks or assigned tasks, or a successful
+     *         Result otherwise
+     */
     @Override
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
         Collection<TaskRequest> runningTasks = targetVM.getRunningTasks();

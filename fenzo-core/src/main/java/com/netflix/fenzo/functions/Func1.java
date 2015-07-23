@@ -17,14 +17,14 @@
 package com.netflix.fenzo.functions;
 
 /**
- * A one argument function.
+ * Represents a function with a single argument.
  */
 public interface Func1<T1, R> {
     /**
-     * The function to call with one argument of type {@code T1}.
+     * Invoke the function.
      *
-     * @param t1
-     * @return Object of type {@code R}.
+     * @param t1 the single argument to the function
+     * @return the return value from the function
      */
     public R call(T1 t1);
 }
