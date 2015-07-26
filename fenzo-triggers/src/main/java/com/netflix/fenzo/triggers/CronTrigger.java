@@ -40,6 +40,7 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
                        @JsonProperty("action") Class<? extends Action1<T>> action) {
         super(name, data, dataType, action);
         this.cronExpression = cronExpression;
+        TriggerUtils.validateCronExpression(cronExpression);
     }
 
     protected org.quartz.Trigger getQuartzTrigger() {
