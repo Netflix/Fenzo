@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * @warn class description missing
+ * Result of resource assignments for a host (VM).
  */
 public class VMAssignmentResult {
     private final String hostname;
@@ -34,27 +34,27 @@ public class VMAssignmentResult {
     }
 
     /**
-     * @warn method description missing
+     * Get the name of the host whose assignment results are available.
      *
-     * @return
+     * @return Name of te host.
      */
     public String getHostname() {
         return hostname;
     }
 
     /**
-     * @warn method description missing
+     * Get ehe list of leases (offers) used in creating the resource assignments for tasks.
      *
-     * @return
+     * @return List of leases.
      */
     public List<VirtualMachineLease> getLeasesUsed() {
         return leasesUsed;
     }
 
     /**
-     * @warn method description missing
+     * Get the set of tasks that are assigned resources from this host.
      *
-     * @return
+     * @return Set of tasks.
      */
     public Set<TaskAssignmentResult> getTasksAssigned() {
         return tasksAssigned;

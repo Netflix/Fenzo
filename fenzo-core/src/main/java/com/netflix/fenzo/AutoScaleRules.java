@@ -31,7 +31,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * with machines with a certain set of capabilities specific to that workload, and a second autoscaling group for
  * a more varied set of tasks that requires a more varied or flexible set of machines.
  */
-public class AutoScaleRules {
+class AutoScaleRules {
     private final Map<String, AutoScaleRule> ruleMap;
     private final BlockingQueue<AutoScaleRule> addQ = new LinkedBlockingQueue<>();
     private final List<AutoScaleRule> addList = new LinkedList<>();

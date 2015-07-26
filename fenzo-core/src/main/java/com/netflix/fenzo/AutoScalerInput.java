@@ -19,32 +19,19 @@ package com.netflix.fenzo;
 import java.util.List;
 import java.util.Set;
 
-/**
- * @warn class description missing
- */
-public class AutoScalerInput {
+class AutoScalerInput {
     private final List<VirtualMachineLease> idleResourcesList;
     private final Set<TaskRequest> failedTasks;
 
-    public AutoScalerInput(List<VirtualMachineLease> idleResources, Set<TaskRequest> failedTasks) {
+    AutoScalerInput(List<VirtualMachineLease> idleResources, Set<TaskRequest> failedTasks) {
         this.idleResourcesList= idleResources;
         this.failedTasks = failedTasks;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public List<VirtualMachineLease> getIdleResourcesList() {
         return idleResourcesList;
     }
 
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public Set<TaskRequest> getFailures() {
         return failedTasks;
     }

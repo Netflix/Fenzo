@@ -39,9 +39,9 @@ public class ScaleUpAction implements AutoScaleAction {
     }
 
     /**
-     * @warn method description missing
+     * Returns the name of the autoscale rule for which scale up is triggered.
      *
-     * @return
+     * @return Name of the autoscale rule.
      */
     @Override
     public String getRuleName() {
@@ -49,9 +49,9 @@ public class ScaleUpAction implements AutoScaleAction {
     }
 
     /**
-     * @warn method description missing
+     * Returns the number of hosts to add to the cluster for this autoscale rule.
      *
-     * @return
+     * @return Number of hosts to add.
      */
     public int getScaleUpCount() {
         return scaleUpCount;

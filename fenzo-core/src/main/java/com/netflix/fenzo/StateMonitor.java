@@ -18,6 +18,9 @@ package com.netflix.fenzo;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * A monitor to ensure scheduler state is not compromised by concurrent calls that are disallowed.
+ */
 class StateMonitor {
     private final AtomicBoolean lock;
 

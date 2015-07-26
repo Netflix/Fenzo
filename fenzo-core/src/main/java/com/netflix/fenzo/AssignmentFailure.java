@@ -27,8 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Indicates that a quantifiable resource required in a certain quantity by a task was unavailable in that
- * quantity by a target.
+ * An assignment failure to indicate that a quantifiable resource failed assignment, along with the amount
+ * that was requested (asked) by the task, the amount already used, and the amount available on the target.
  */
 public class AssignmentFailure {
     @JsonIgnore

@@ -19,69 +19,65 @@ package com.netflix.fenzo;
 import java.util.List;
 
 /**
- * @warn interface description missing
+ * A task request needing resource assignment.
  */
 public interface TaskRequest {
-    /**
-     * @warn method description missing
-     *
-     * @return
-     */
     public String getId();
 
     /**
-     * @warn method description missing
+     * Get the name of the group that the task belongs to.
      *
-     * @return
+     * @return Name of the group.
      */
     public String taskGroupName();
 
     /**
-     * @warn method description missing
+     * Get the number of CPUs requested by the task.
      *
-     * @return
+     * @return Number of CPUs.
      */
     public double getCPUs();
 
     /**
-     * @warn method description missing
+     * Get the amount of memory in MBs requested by the task.
      *
-     * @return
+     * @return Number of MBs of memory.
      */
     public double getMemory();
 
     /**
-     * @warn method description missing
+     * Get the network bandwidth in Mbps requested by the task.
      *
-     * @return
+     * @return Network Mbps requested.
      */
     public double getNetworkMbps();
 
     /**
-     * @warn method description missing
+     * Get the disk space in MBs requested by the task
      *
-     * @return
+     * @return The disk space in MBs.
      */
     public double getDisk();
 
     /**
-     * @warn method description missing
+     * Get the number of ports requested by the task.
      *
-     * @return
+     * @return The number of ports.
      */
     public int getPorts();
 
     /**
-     * @warn method description missing
+     * Get list of hard constraints set by the task. All hard constraints must be met for assignment to succeed.
      *
-     * @return
+     * @return List of hard constraints.
      */
     public List<? extends ConstraintEvaluator> getHardConstraints();
 
     /**
-     * @warn method description missing
+     * Get list of soft constraints set by the task. Soft constraints need not be satisfied for assignment to succeed,
+     * but, generally, hosts that satisfy the constraints are preferred over those that don't.
      *
-     * @return
+     * @return List of soft constraints.
      */
     public List<? extends VMTaskFitnessCalculator> getSoftConstraints();
 }

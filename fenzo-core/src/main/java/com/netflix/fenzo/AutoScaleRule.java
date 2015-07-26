@@ -17,8 +17,9 @@
 package com.netflix.fenzo;
 
 /**
- * A rule that defines the behavior for autoscaling the number of hosts of a certain type. You define one rule
- * for each value of that host attribute that you use to identify the type of the host.
+ * A rule to define the behavior for auto scaling the number of hosts of a certain type. Rules are defined
+ * per unique value of host attribute that is used for matching, see
+ * {@link com.netflix.fenzo.TaskScheduler.Builder#withAutoScaleByAttributeName(String)}.
  */
 public interface AutoScaleRule {
     /**
@@ -50,6 +51,8 @@ public interface AutoScaleRule {
     /**
      * Returns the amount of time to wait from the beginning of a scale up or scale down operation before
      * initiating another autoscale operation.
+     * Get the number of seconds for cool down duration. Suppress autoscale actions for this many seconds after a previous
+     * autoscale action.
      *
      * @return the cool down time, in seconds
      */

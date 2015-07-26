@@ -38,6 +38,9 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * This class represents a VM that contains resources that can be assigned to tasks.
+ */
 class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
 
     private static class PortRange {
@@ -313,7 +316,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return disabledUntil;
     }
 
-    /* package */ boolean isActive() {
+    boolean isActive() {
         return !leasesMap.isEmpty() ||
                 hasPreviouslyAssignedTasks() ||
                 !leasesToExpire.isEmpty() ||
@@ -410,6 +413,18 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return result;
     }
 
+    /**
+     * Try assigning resources for a given task.
+     * This is the main allocation method to allocate resources from this VM to a given task. This method evaluates
+     * hard constraints first. Then, it tries to assign resources. If either of these results in failures, it returns a
+     * failure result. If successful, it invokes the fitness calculator to determine the fitness value. Then, it
+     * evaluates soft constraints to get its fitness value. The resulting fitness value is reduced as a
+     * weighted average of the two fitness values.
+     *
+     * @param request The task request to assign resources to.
+     * @param fitnessCalculator The fitness calculator to use for resource assignment.
+     * @return Assignment result.
+     */
     TaskAssignmentResult tryRequest(TaskRequest request, VMTaskFitnessCalculator fitnessCalculator) {
         //logger.info("    #leases=" + leases.size());
         if(leasesMap.isEmpty())
@@ -568,6 +583,12 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return !previouslyAssignedTasksMap.isEmpty();
     }
 
+    /**
+     * Assign the given result and update internal counters for used resources. Use this to assign an individual
+     * assignment result within a scheduling iteration.
+     *
+     * @param result The assignment result to assign.
+     */
     void assignResult(TaskAssignmentResult result) {
         currUsedCpus += result.getRequest().getCPUs();
         currUsedMemory += result.getRequest().getMemory();
@@ -580,6 +601,13 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         assignmentResults.put(result.getRequest(), result);
     }
 
+    /**
+     * Reset the assignment results of current scheduling iteration and return the total assignment result for this VM.
+     * Use this at the end of the scheduling iteration. Include all of the assignment results as well as all of the VM
+     * leases available in the result.
+     *
+     * @return Total assignment result including the tasks assigned and VM leases used.
+     */
     VMAssignmentResult resetAndGetSuccessfullyAssignedRequests() {
         if(assignmentResults.isEmpty())
             return null;
@@ -610,6 +638,12 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return Double.compare(o.currTotalCpus, currTotalCpus);
     }
 
+    /**
+     * Get resource status, showing used and available amounts. The available amounts are in addition to the amounts used.
+     *
+     * @return Map with keys containing resources and values containing corresponding usage represented as a two number
+     * array, where the first represents the used amounts and the second represents additional available amounts.
+     */
     Map<VMResource, Double[]> getResourceStatus() {
         Map<VMResource, Double[]> resourceMap = new HashMap<>();
         double cpusUsed=0.0;

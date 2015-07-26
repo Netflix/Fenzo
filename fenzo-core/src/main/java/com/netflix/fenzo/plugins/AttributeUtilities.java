@@ -21,10 +21,7 @@ import org.apache.mesos.Protos;
 
 import java.util.Map;
 
-/**
- * @warn class description missing
- */
-public class AttributeUtilities {
+class AttributeUtilities {
 
     /* package */ final static String DEFAULT_ATTRIBUTE="HOSTNAME";
 

@@ -22,6 +22,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+/**
+ * Manage set of active VM groups.
+ * A VM belongs to a VM group indicated by its value for the attribute name set via
+ * {@link TaskScheduler#setActiveVmGroupAttributeName(String)}.
+ */
 class ActiveVmGroups {
     private static class VmGroup {
         private final long activatedAt;

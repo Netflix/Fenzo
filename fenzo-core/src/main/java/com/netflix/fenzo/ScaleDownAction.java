@@ -32,9 +32,9 @@ public class ScaleDownAction implements AutoScaleAction {
     }
 
     /**
-     * @warn method description missing
+     * Get the name of the autoscale rule for which scale down is triggered.
      *
-     * @return
+     * @return Name of the autoscale rule.
      */
     @Override
     public String getRuleName() {
@@ -53,9 +53,9 @@ public class ScaleDownAction implements AutoScaleAction {
     }
 
     /**
-     * @warn method description missing
+     * Get the hostnames to remove from the cluster for scale down.
      *
-     * @return
+     * @return Collection of host names.
      */
     public Collection<String> getHosts() {
         return hosts;

@@ -24,15 +24,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @warn class description missing
- */
 public class TaskTracker {
 
-    /**
-     * @warn class description missing
-     */
-    public static class TaskGroupUsage implements ResAllocs {
+    static class TaskGroupUsage implements ResAllocs {
         private final String taskGroupName;
         private double cores=0.0;
         private double memory=0.0;
@@ -43,51 +37,26 @@ public class TaskTracker {
             this.taskGroupName = taskGroupName;
         }
 
-        /**
-         * @warn method description missing
-         *
-         * @return
-         */
         @Override
         public String getTaskGroupName() {
             return taskGroupName;
         }
 
-        /**
-         * @warn method description missing
-         *
-         * @return
-         */
         @Override
         public double getCores() {
             return cores;
         }
 
-        /**
-         * @warn method description missing
-         *
-         * @return
-         */
         @Override
         public double getMemory() {
             return memory;
         }
 
-        /**
-         * @warn method description missing
-         *
-         * @return
-         */
         @Override
         public double getNetworkMbps() {
             return networkMbps;
         }
 
-        /**
-         * @warn method description missing
-         *
-         * @return
-         */
         @Override
         public double getDisk() {
             return disk;
@@ -124,8 +93,9 @@ public class TaskTracker {
         }
     }
 
+    // TODO move this class out into its own class instead of being an inner class
     /**
-     * @warn class description missing
+     * An active task in the scheduler.
      */
     public static class ActiveTask {
         private TaskRequest taskRequest;
@@ -136,18 +106,16 @@ public class TaskTracker {
         }
 
         /**
-         * @warn method description missing
-         *
-         * @return
+         * Get the task request object associated with the active task.
+         * @return The task request object.
          */
         public TaskRequest getTaskRequest() {
             return taskRequest;
         }
 
         /**
-         * @warn method description missing
-         *
-         * @return
+         * Get the totals resource offers associated with the host on which the task is active.
+         * @return The total resource offers for the host.
          */
         public VirtualMachineLease getTotalLease() {
             return avm.getCurrTotalLease();
@@ -214,14 +182,7 @@ public class TaskTracker {
         return Collections.unmodifiableMap(assignedTasks);
     }
 
-    /**
-     * @warn method description missing
-     * @warn parameter description missing
-     *
-     * @param taskGroupName
-     * @return
-     */
-    public TaskGroupUsage getUsage(String taskGroupName) {
+    TaskGroupUsage getUsage(String taskGroupName) {
         return taskGroupUsages.get(taskGroupName);
     }
 }

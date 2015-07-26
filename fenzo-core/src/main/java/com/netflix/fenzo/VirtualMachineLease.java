@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @warn interface description missing
+ * A representation of a lease (resource offer).
  */
 public interface VirtualMachineLease {
 
@@ -42,79 +42,79 @@ public interface VirtualMachineLease {
     }
 
     /**
-     * @warn method description missing
+     * Get the ID of the lease (offer ID).
      *
-     * @return
+     * @return Lease ID.
      */
     public String getId();
 
     /**
-     * @warn method description missing
+     * Get the time that this lease (offer) was obtained.
      *
-     * @return
+     * @return Time when this lease was obtained, in mSecs since epoch.
      */
     public long getOfferedTime();
 
     /**
-     * @warn method description missing
+     * Get the host name.
      *
-     * @return
+     * @return Host name.
      */
     public String hostname();
 
     /**
-     * @warn method description missing
+     * Get the ID of the host (mesos slave ID).
      *
-     * @return
+     * @return host ID.
      */
     public String getVMID();
 
     /**
-     * @warn method description missing
+     * Get the number of cores (CPUs) on this host that are available for assigning.
      *
-     * @return
+     * @return The number of CPUs.
      */
     public double cpuCores();
 
     /**
-     * @warn method description missing
+     * Get the amount of memory, in MBs, on this host that are available for assigning.
      *
-     * @return
+     * @return Amount of memory in MB.
      */
     public double memoryMB();
 
     /**
-     * @warn method description missing
+     * Get the amount of network bandwidth, in Mbps, on this host that is available for assigning.
      *
-     * @return
+     * @return Network bandwidth, in Mbps.
      */
     public double networkMbps();
 
     /**
-     * @warn method description missing
+     * Get the amount of disk, in MB, on this host that is avaialble for assigning.
      *
-     * @return
+     * @return The amount of disk, in MB.
      */
     public double diskMB();
 
     /**
-     * @warn method description missing
+     * Get the list of port ranges on this host that are available for assigning.
      *
-     * @return
+     * @return List of port ranges.
      */
     public List<Range> portRanges();
 
     /**
-     * @warn method description missing
+     * Get the mesos resource offer associated with this lease.
      *
-     * @return
+     * @return The offer.
      */
     public Protos.Offer getOffer();
 
     /**
-     * @warn method description missing
+     * Get the map of mesos attributes associated with this lease (offer).
      *
-     * @return
+     * @return Map of attributes.
      */
     public Map<String, Protos.Attribute> getAttributeMap();
 }
