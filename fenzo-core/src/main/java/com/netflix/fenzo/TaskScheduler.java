@@ -85,7 +85,8 @@ public class TaskScheduler {
         private VMTaskFitnessCalculator fitnessCalculator = new DefaultFitnessCalculator();
         private String autoScaleByAttributeName=null;
         private String autoScalerMapHostnameAttributeName=null;
-        private String autoScaleDownBalancedByAttributeName =null;
+        private String autoScaleDownBalancedByAttributeName=null;
+        private Action1<AutoScaleAction> autoscalerCallback=null;
         private List<AutoScaleRule> autoScaleRules=new ArrayList<>();
         private Func1<Double, Boolean> isFitnessGoodEnoughFunction = new Func1<Double, Boolean>() {
             @Override
@@ -232,6 +233,11 @@ public class TaskScheduler {
             return this;
         }
 
+        public Builder withAutoScalerCallback(Action1<AutoScaleAction> callback) {
+            this.autoscalerCallback = callback;
+            return this;
+        }
+
         /**
          * Creates a {@link TaskScheduler} based on the various builder methods you have chained.
          *
@@ -282,6 +288,8 @@ public class TaskScheduler {
                     builder.autoScaleDownBalancedByAttributeName,
                     builder.autoScaleRules, assignableVMs, null,
                     builder.disableShortfallEvaluation, assignableVMs.getActiveVmGroups());
+            if(builder.autoscalerCallback != null)
+                autoScaler.setCallback(builder.autoscalerCallback);
         }
         else {
             autoScaler=null;

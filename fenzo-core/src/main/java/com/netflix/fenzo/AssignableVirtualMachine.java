@@ -649,23 +649,28 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         double cpusUsed=0.0;
         double memUsed=0.0;
         double portsUsed=0.0;
+        double networkUsed=0.0;
         for(TaskRequest r: previouslyAssignedTasksMap.values()) {
             cpusUsed += r.getCPUs();
             memUsed += r.getMemory();
             portsUsed += r.getPorts();
+            networkUsed += r.getNetworkMbps();
         }
         double cpusAvail=0.0;
         double memAvail=0.0;
         double portsAvail=0;
+        double networkAvail=0.0;
         for(VirtualMachineLease l: leasesMap.values()) {
             cpusAvail += l.cpuCores();
             memAvail += l.memoryMB();
             for(VirtualMachineLease.Range range: l.portRanges())
                 portsAvail += range.getEnd()-range.getBeg();
+            networkAvail += l.networkMbps();
         }
         resourceMap.put(VMResource.CPU, new Double[]{cpusUsed, cpusAvail});
         resourceMap.put(VMResource.Memory, new Double[]{memUsed, memAvail});
         resourceMap.put(VMResource.Ports, new Double[]{portsUsed, portsAvail});
+        resourceMap.put(VMResource.Network, new Double[]{networkUsed, networkAvail});
         return resourceMap;
     }
 }

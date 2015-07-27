@@ -67,10 +67,16 @@ public class AutoScalerTest {
         return getScheduler(false, rules);
     }
     private TaskScheduler getScheduler(final boolean expectLeaseRejection, AutoScaleRule... rules) {
+        return getScheduler(expectLeaseRejection, null, rules);
+    }
+    private TaskScheduler getScheduler(final boolean expectLeaseRejection, final Action1<AutoScaleAction> callback,
+                                       AutoScaleRule... rules) {
         TaskScheduler.Builder builder = new TaskScheduler.Builder()
                 .withAutoScaleByAttributeName(hostAttrName);
         for(AutoScaleRule rule: rules)
             builder.withAutoScaleRule(rule);
+        if(callback != null)
+            builder.withAutoScalerCallback(callback);
         return builder
                 .withFitnessCalculator(BinPackingFitnessCalculators.cpuMemBinPacker)
                 .withLeaseOfferExpirySecs(3600)
@@ -172,13 +178,8 @@ public class AutoScalerTest {
      */
     @Test
     public void testOneRuleTwoTypes() throws Exception {
-        TaskScheduler scheduler = getScheduler(rule2);
-        final List<TaskRequest> requests = new ArrayList<>();
-        final List<VirtualMachineLease> leases = new ArrayList<>();
         final CountDownLatch latch = new CountDownLatch(1);
-        for(int i=0; i<maxIdle*cpus1; i++)
-            requests.add(TaskRequestProvider.getTaskRequest(1.0, 100, 1));
-        scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
+        TaskScheduler scheduler = getScheduler(false, new Action1<AutoScaleAction>() {
             @Override
             public void call(AutoScaleAction action) {
                 if (action instanceof ScaleUpAction) {
@@ -186,7 +187,11 @@ public class AutoScalerTest {
                         latch.countDown();
                 }
             }
-        });
+        }, rule2);
+        final List<TaskRequest> requests = new ArrayList<>();
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        for(int i=0; i<maxIdle*cpus1; i++)
+            requests.add(TaskRequestProvider.getTaskRequest(1.0, 100, 1));
         int i=0;
         do {
             Thread.sleep(1000);
