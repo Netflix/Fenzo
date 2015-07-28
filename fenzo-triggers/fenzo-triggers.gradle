@@ -18,6 +18,7 @@ apply plugin: 'groovy'
 
 dependencies {
     compile ("org.quartz-scheduler:quartz:latest.release")
+    compile("joda-time:joda-time:latest.release")
     compile ("io.reactivex:rxjava:latest.release")
     compile ("com.fasterxml.jackson.core:jackson-annotations:latest.release")
     testCompile ("org.codehaus.groovy:groovy-all:latest.release")
