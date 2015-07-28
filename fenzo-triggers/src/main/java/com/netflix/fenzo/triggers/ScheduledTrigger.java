@@ -21,18 +21,26 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.quartz.ScheduleBuilder;
 import rx.functions.Action1;
 
+import java.util.Date;
+
 /**
  * Placeholder super class for all the triggers that can be scheduled.
- *
  */
 public abstract class ScheduledTrigger<T> extends Trigger<T> {
+    final private Date startAt;
+    final private Date endAt;
 
     @JsonCreator
-    public ScheduledTrigger(@JsonProperty("name") String name,
-                            @JsonProperty("data") T data,
-                            @JsonProperty("dataType") Class<T> dataType,
-                            @JsonProperty("action") Class<? extends Action1<T>> action) {
+    public ScheduledTrigger(
+            @JsonProperty("name") String name,
+            @JsonProperty("data") T data,
+            @JsonProperty("dataType") Class<T> dataType,
+            @JsonProperty("action") Class<? extends Action1<T>> action,
+            @JsonProperty("startAt") Date startAt,
+            @JsonProperty("endAt") Date endAt) {
         super(name, data, dataType, action);
+        this.startAt = startAt;
+        this.endAt = endAt;
     }
 
     /**
@@ -49,4 +57,12 @@ public abstract class ScheduledTrigger<T> extends Trigger<T> {
      * @param quartzTrigger
      */
     public abstract void setQuartzTrigger(org.quartz.Trigger quartzTrigger);
+
+    public Date getStartAt() {
+        return startAt;
+    }
+
+    public Date getEndAt() {
+        return endAt;
+    }
 }
