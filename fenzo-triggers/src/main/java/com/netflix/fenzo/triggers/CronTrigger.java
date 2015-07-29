@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.quartz.ScheduleBuilder;
 import rx.functions.Action1;
 
+import java.util.Date;
+
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 
 /**
@@ -29,27 +31,28 @@ import static org.quartz.CronScheduleBuilder.cronSchedule;
  */
 public class CronTrigger<T> extends ScheduledTrigger<T> {
     private String cronExpression;
-    @JsonIgnore
-    private org.quartz.Trigger quartzTrigger;
 
     @JsonCreator
     public CronTrigger(@JsonProperty("cronExpression") String cronExpression,
+                       @JsonProperty("startAt") Date startAt,
                        @JsonProperty("name") String name,
                        @JsonProperty("data") T data,
                        @JsonProperty("dataType") Class<T> dataType,
                        @JsonProperty("action") Class<? extends Action1<T>> action) {
-        super(name, data, dataType, action);
+        super(name, data, dataType, action, startAt, null);
         this.cronExpression = cronExpression;
         TriggerUtils.validateCronExpression(cronExpression);
     }
 
-    protected org.quartz.Trigger getQuartzTrigger() {
-        return quartzTrigger;
+    public CronTrigger(String cronExpression,
+                       String name,
+                       T data,
+                       Class<T> dataType,
+                       Class<? extends Action1<T>> action) {
+        this(cronExpression, new Date(), name, data, dataType, action);
     }
 
     /**
-     * @warn method description missing
-     *
      * @return
      */
     public String getCronExpression() {
@@ -57,9 +60,6 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter cronExpression description missing
-     *
      * @param cronExpression
      */
     public void setCronExpression(String cronExpression) {
@@ -77,18 +77,6 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
     }
 
     /**
-     * @warn method description missing
-     * @warn parameter quartzTrigger description missing
-     *
-     * @param quartzTrigger
-     */
-    public void setQuartzTrigger(org.quartz.Trigger quartzTrigger) {
-        this.quartzTrigger = quartzTrigger;
-    }
-
-    /**
-     * @warn method description missing
-     *
      * @return
      */
     public String toString() {

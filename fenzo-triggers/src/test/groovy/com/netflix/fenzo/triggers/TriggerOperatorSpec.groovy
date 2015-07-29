@@ -14,30 +14,49 @@
  * limitations under the License.
  */
 
-package com.netflix.fenzo.triggers.persistence
-import com.netflix.fenzo.triggers.CronTrigger
-import com.netflix.fenzo.triggers.Trigger
-import com.netflix.fenzo.triggers.TriggerOperator
+package com.netflix.fenzo.triggers
+
+import com.netflix.fenzo.triggers.persistence.InMemoryTriggerDao
+import com.netflix.fenzo.triggers.persistence.TriggerDao
+import org.joda.time.DateTime
 import rx.functions.Action1
 import spock.lang.Shared
 import spock.lang.Specification
+
 /**
  *
  * @author sthadeshwar
  */
 class TriggerOperatorSpec extends Specification {
 
-    @Shared TriggerDao triggerDao = new InMemoryTriggerDao()
-    @Shared TriggerOperator triggerOperator = new TriggerOperator(triggerDao, 1)
+    @Shared
+    TriggerDao triggerDao = new InMemoryTriggerDao()
+    @Shared
+    TriggerOperator triggerOperator = new TriggerOperator(triggerDao, 1)
 
     class Data {
         String status
+
         Data(String status) { this.status = status }
+    }
+
+    class Count {
+        int cnt
+        Count(int cnt) { this.cnt = cnt }
+    }
+
+    static class CountAction implements Action1<Count> {
+        @Override
+        void call(Count foo) {foo.cnt = foo.cnt + 1}
     }
 
     static class TestAction implements Action1<Data> {
         @Override
         void call(Data foo) { foo.status = 'executed' }
+    }
+
+    def setupSpec() {
+        triggerOperator.initialize()
     }
 
     void 'test register trigger'() {
@@ -88,7 +107,7 @@ class TriggerOperatorSpec extends Specification {
         then:
         enabledTrigger != null
         enabledTrigger.id == disableEnableTrigger.id
-        enabledTrigger.disabled == false
+        !enabledTrigger.disabled
 
         when:
         triggerOperator.execute(enabledTrigger.id)
@@ -110,8 +129,24 @@ class TriggerOperatorSpec extends Specification {
 
         then:
         executedTrigger.data.status == 'executed'
+    }
 
-        cleanup:
+    void 'test interval trigger'() {
+        setup:
+        triggerOperator.initialize()
+
+        when:
+        def triggerStartTime = DateTime.now().plusSeconds(10)
+        Trigger<Count> scheduledTrigger = new IntervalTrigger<Count>( triggerStartTime.toString() + "/PT10S", 5, "test-trigger", new Count(0), Count.class, CountAction.class);
+        String tid = triggerOperator.registerTrigger("int", scheduledTrigger);
+        Thread.sleep(30 * 1000);
+        Trigger<Count> executedTrigger = triggerOperator.getTrigger(tid);
+
+        then:
+        executedTrigger.data.cnt == 3
+    }
+
+    def cleanupSpec() {
         triggerOperator.destroy()
     }
 
