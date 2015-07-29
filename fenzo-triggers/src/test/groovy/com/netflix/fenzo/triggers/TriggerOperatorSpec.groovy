@@ -55,6 +55,10 @@ class TriggerOperatorSpec extends Specification {
         void call(Data foo) { foo.status = 'executed' }
     }
 
+    def setupSpec() {
+        triggerOperator.initialize()
+    }
+
     void 'test register trigger'() {
         when:
         Trigger<Data> registerTrigger = new Trigger<Data>('trigger1', new Data('registerTrigger'), Data.class, TestAction.class)
@@ -125,9 +129,6 @@ class TriggerOperatorSpec extends Specification {
 
         then:
         executedTrigger.data.status == 'executed'
-
-        cleanup:
-        triggerOperator.destroy()
     }
 
     void 'test interval trigger'() {
@@ -143,8 +144,9 @@ class TriggerOperatorSpec extends Specification {
 
         then:
         executedTrigger.data.cnt == 3
+    }
 
-        cleanup:
+    def cleanupSpec() {
         triggerOperator.destroy()
     }
 
