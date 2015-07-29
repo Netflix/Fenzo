@@ -16,15 +16,18 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
 import junit.framework.Assert;
+import org.apache.mesos.Protos;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import com.netflix.fenzo.functions.Action1;
 
-import java.rmi.dgc.Lease;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -441,6 +444,51 @@ public class BasicSchedulerTests {
         final VMAssignmentResult result = resultMap.values().iterator().next();
         Assert.assertEquals(1, result.getLeasesUsed().size());
         Assert.assertEquals(1, result.getTasksAssigned().size());
+    }
+
+    @Test
+    public void testASGsOfTwoTypes() throws Exception {
+        TaskScheduler scheduler = new TaskScheduler.Builder()
+                .withFitnessCalculator(BinPackingFitnessCalculators.cpuMemBinPacker)
+                .withLeaseOfferExpirySecs(100000000)
+                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
+                    @Override
+                    public void call(VirtualMachineLease virtualMachineLease) {
+                        Assert.fail("Unexpected to reject lease");
+                        //System.out.println("Rejecting lease on " + virtualMachineLease.hostname());
+                    }
+                })
+                .build();
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        int nHosts8core=3;
+        int nHosts16core=1;
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 100));
+        Map<String, Protos.Attribute> attributes = new HashMap<>();
+        Protos.Attribute attribute = Protos.Attribute.newBuilder().setName("ASG")
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue("8cores")).build();
+        attributes.put("ASG", attribute);
+        for(int l=0; l<nHosts8core; l++)
+            leases.add(LeaseProvider.getLeaseOffer("host"+l, 8, 32000, 1024.0, ports, attributes));
+        attributes = new HashMap<>();
+        Protos.Attribute attribute2 = Protos.Attribute.newBuilder().setName("ASG")
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue("16cores")).build();
+        attributes.put("ASG", attribute2);
+        for(int l=0; l<nHosts16core; l++)
+            leases.add(LeaseProvider.getLeaseOffer("bighost" + l, 16, 64000, 1024.0, ports, attributes));
+        List<TaskRequest> tasks = Arrays.asList(TaskRequestProvider.getTaskRequest(1, 100, 1));
+        SchedulingResult schedulingResult = scheduler.scheduleOnce(tasks, leases);
+        Assert.assertEquals(1, schedulingResult.getResultMap().size());
+        Assert.assertTrue("Unexpected hostname for task", schedulingResult.getResultMap().keySet().iterator().next().startsWith("host"));
+        System.out.println("result map #elements: " + schedulingResult.getResultMap().size());
+        Assert.assertEquals(0, schedulingResult.getFailures().size());
+        schedulingResult = scheduler.scheduleOnce(Arrays.asList(TaskRequestProvider.getTaskRequest(16, 1000, 1)), Collections.EMPTY_LIST);
+        Assert.assertEquals(1, schedulingResult.getResultMap().size());
+        Assert.assertTrue("Unexpected hostname for task", schedulingResult.getResultMap().keySet().iterator().next().startsWith("bighost"));
+        System.out.println("result map #elements: " + schedulingResult.getResultMap().size());
+        Assert.assertEquals(0, schedulingResult.getFailures().size());
     }
 
 }
