@@ -32,14 +32,6 @@ import static org.quartz.CronScheduleBuilder.cronSchedule;
 public class CronTrigger<T> extends ScheduledTrigger<T> {
     private String cronExpression;
 
-    public CronTrigger(@JsonProperty("cronExpression") String cronExpression,
-                       @JsonProperty("name") String name,
-                       @JsonProperty("data") T data,
-                       @JsonProperty("dataType") Class<T> dataType,
-                       @JsonProperty("action") Class<? extends Action1<T>> action) {
-        this(cronExpression, new Date(), name, data, dataType, action);
-    }
-
     @JsonCreator
     public CronTrigger(@JsonProperty("cronExpression") String cronExpression,
                        @JsonProperty("startAt") Date startAt,
@@ -50,6 +42,14 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
         super(name, data, dataType, action, startAt, null);
         this.cronExpression = cronExpression;
         TriggerUtils.validateCronExpression(cronExpression);
+    }
+
+    public CronTrigger(String cronExpression,
+                       String name,
+                       T data,
+                       Class<T> dataType,
+                       Class<? extends Action1<T>> action) {
+        this(cronExpression, new Date(), name, data, dataType, action);
     }
 
     /**
