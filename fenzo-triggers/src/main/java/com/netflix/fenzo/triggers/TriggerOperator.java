@@ -55,6 +55,14 @@ public class TriggerOperator {
 
     /**
      * Constructor
+     * @param threadPoolSize the thread pool size for the scheduler
+     */
+    public TriggerOperator(int threadPoolSize) {
+        this(new InMemoryTriggerDao(), threadPoolSize);
+    }
+
+    /**
+     * Constructor
      * @param triggerDao dao implementation for {@code Trigger}
      * @param threadPoolSize the thread pool size for the scheduler
      */

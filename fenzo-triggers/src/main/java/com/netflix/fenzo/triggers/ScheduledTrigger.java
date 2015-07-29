@@ -17,6 +17,7 @@
 package com.netflix.fenzo.triggers;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.quartz.ScheduleBuilder;
 import rx.functions.Action1;
@@ -27,8 +28,10 @@ import java.util.Date;
  * Placeholder super class for all the triggers that can be scheduled.
  */
 public abstract class ScheduledTrigger<T> extends Trigger<T> {
-    final private Date startAt;
-    final private Date endAt;
+    private final Date startAt;
+    private final Date endAt;
+    @JsonIgnore
+    private org.quartz.Trigger quartzTrigger;
 
     @JsonCreator
     public ScheduledTrigger(
@@ -56,7 +59,13 @@ public abstract class ScheduledTrigger<T> extends Trigger<T> {
      *
      * @param quartzTrigger
      */
-    public abstract void setQuartzTrigger(org.quartz.Trigger quartzTrigger);
+    void setQuartzTrigger(org.quartz.Trigger quartzTrigger) {
+        this.quartzTrigger = quartzTrigger;
+    }
+
+    org.quartz.Trigger getQuartzTrigger() {
+        return quartzTrigger;
+    }
 
     public Date getStartAt() {
         return startAt;
