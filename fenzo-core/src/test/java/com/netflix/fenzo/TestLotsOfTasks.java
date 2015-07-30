@@ -114,18 +114,6 @@ public class TestLotsOfTasks {
     // |  1.0        |    200 |   8      |  200               |      58   |    96.50      |
     // ------------------------------------------------------------------------------------
     //
-    // 1. For GOOD_ENOUGH_FITNESS=0.5
-    // Scheduling time total=2585, avg=   26.11 (min=5, max=60) from 99 iterations of 100 tasks each
-    // Total tasks assigned: 10000 of 10000 total #allocations=10809760
-    // Utilization: 100.00%
-    // Total numHosts=2000
-    //
-    // OR, increasing the batch size from 100 to 200 tasks per iteration:
-    //
-    // Scheduling time total=2402, avg=   49.02 (min=10, max=97) from 49 iterations of 200 tasks each
-    // Total tasks assigned: 10000 of 10000 total #allocations=10926713
-    // Utilization: 100.00%
-    // Total numHosts=2000
 
 
     public static void main(String[] args) {
