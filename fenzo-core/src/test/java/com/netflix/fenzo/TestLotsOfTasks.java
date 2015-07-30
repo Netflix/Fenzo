@@ -27,6 +27,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * A crude sample that tests Fenzo assignment speed with lots of mocked hosts and lots of tasks that are iteratively
+ * assigned in batches, like how a real world system may get tasks submitted routinely. Quantities that can be varied
+ * in the code include number of hosts, number of CPUs per host, number of tasks to assign per iteration, and Fenzo's
+ * "fitness good enough" value. The main() method creates the hosts' offers (mocked) and enough tasks to fill all of
+ * the hosts. It creates tasks of three different kinds - 1, single cpu task, tasks asking for half the number of total
+ * CPUs per host, and tasks asking for 0.75 times the number of CPUs per host. Then, it iteratively assigns resources
+ * to "batch" number of tasks until all tasks have been tried for assignment. At the end, it prints the average time
+ * taken for each batch's assignment in Fenzo. It "primes" the assignment routine by not including the time taken for
+ * the first few iterations. Also, it prints how many tasks were not assigned any resources and the
+ * total fill/utilization of the resources. Because of the way tasks may get assigned resources and the fitness strategy
+ * used, the utilization may not be 100%.
+ */
 public class TestLotsOfTasks {
     private int numHosts;
     private int numCores;
@@ -41,18 +54,18 @@ public class TestLotsOfTasks {
         int numCoresUsed=0;
         for(int t=0; t<numHosts*numCores*fractionSingleCore; t++, numCoresUsed++)
             requests.add(TaskRequestProvider.getTaskRequest(1, 1000, 1));
-        System.out.println("numCoresUsed=" + numCoresUsed);
+        System.out.println("numCoresRequested=" + numCoresUsed);
         for(int t=0; t<(numCores*numHosts*fractionHalfSized/(numCores/2)); t++) {
             requests.add(TaskRequestProvider.getTaskRequest(numCores/2, numCores*1000/2, 1));
             numCoresUsed += numCores/2;
         }
-        System.out.println("numCoresUsed=" + numCoresUsed);
+        System.out.println("numCoresRequested=" + numCoresUsed);
         for(int t=0; t<(numCores*numHosts*fractionThreeQuarterSized/(numCores*0.75)); t++) {
             requests.add(TaskRequestProvider.getTaskRequest(numCores*0.75, numCores*1000*0.75, 1));
             numCoresUsed += numCores*0.75;
         }
         // fill remaining cores with single-core tasks to get 100% potential utilization
-        System.out.println("#Tasks=" + requests.size() + ", numCoresUsed=" + numCoresUsed + " of possible " + (numCores*numHosts));
+        System.out.println("#Tasks=" + requests.size() + ", numCoresRequested=" + numCoresUsed + " of possible " + (numCores*numHosts));
         for(int t=0; t<(numCores*numHosts-numCoresUsed); t++)
             requests.add(TaskRequestProvider.getTaskRequest(1, 1000, 1));
         List<TaskRequest> result = new ArrayList<>();
@@ -77,9 +90,30 @@ public class TestLotsOfTasks {
         return LeaseProvider.getLeases(numHosts, numCores, memory, 1, 10);
     }
 
-    private static final double GOOD_ENOUGH_FITNESS=0.0;
+    private static final double GOOD_ENOUGH_FITNESS=1.0;
 
     // Results looks like this;
+    //
+    // ------------------------------------------------------------------------------------
+    // | Fitness     | #Hosts | #CPUs    | #tasks to assign   | Avg mSecs | Utilization % |
+    // | Good Enough |        | per host | per scheduling run | per run   |               |
+    // ------------------------------------------------------------------------------------
+    // |  0.01       | 10,000 |   8      |  200               |      58   |    97.14      |
+    // |  0.1        | 10,000 |   8      |  200               |      56   |    97.19      |
+    // |  0.5        | 10,000 |   8      |  200               |     145   |    97.24      |
+    // |  1.0        | 10,000 |   8      |  200               |     246   |    97.11      |
+    // ------------------------------------------------------------------------------------
+    // |  0.01       |  2,000 |   8      |  200               |      31   |    97.09      |
+    // |  0.1        |  2,000 |   8      |  200               |      30   |    97.45      |
+    // |  0.5        |  2,000 |   8      |  200               |      35   |    97.00      |
+    // |  1.0        |  2,000 |   8      |  200               |      54   |    97.23      |
+    // ------------------------------------------------------------------------------------
+    // |  0.01       |    200 |   8      |  200               |      59   |    97.13      |
+    // |  0.1        |    200 |   8      |  200               |      57   |    97.00      |
+    // |  0.5        |    200 |   8      |  200               |      45   |    97.00      |
+    // |  1.0        |    200 |   8      |  200               |      58   |    96.50      |
+    // ------------------------------------------------------------------------------------
+    //
     // 1. For GOOD_ENOUGH_FITNESS=0.5
     // Scheduling time total=2585, avg=   26.11 (min=5, max=60) from 99 iterations of 100 tasks each
     // Total tasks assigned: 10000 of 10000 total #allocations=10809760
@@ -97,7 +131,7 @@ public class TestLotsOfTasks {
     public static void main(String[] args) {
         TaskScheduler scheduler = getTaskScheduler();
         TestLotsOfTasks tester = new TestLotsOfTasks();
-        tester.numHosts=2000;
+        tester.numHosts=200;
         tester.numCores=8;
         tester.memory=1000*tester.numCores;
         List<TaskRequest> tasks = tester.getTasks();
@@ -116,6 +150,7 @@ public class TestLotsOfTasks {
                               List<VirtualMachineLease> leases) {
         // schedule 1 task first
         int n=0;
+        double totalAssignedCpus=0.0;
         Map<String, TaskRequest> jobIds = new HashMap<>();
         Map<String, List<TaskRequest>> assignmentsMap = new HashMap<>();
         for(TaskRequest r: tasks)
@@ -128,6 +163,8 @@ public class TestLotsOfTasks {
         TaskRequest request = taskAssignmentResult.getRequest();
         if(jobIds.remove(request.getId()) == null)
             System.err.println("    Removed " + request.getId() + " already!");
+        else
+            totalAssignedCpus += request.getCPUs();
         addToAsgmtMap(assignmentsMap, assignmentResult.getHostname(), request);
         //System.out.println(assignmentResult.getHostname() + " : " + request.getId());
         scheduler.getTaskAssigner().call(request, assignmentResult.getHostname());
@@ -144,6 +181,8 @@ public class TestLotsOfTasks {
             request = taskAssignmentResult.getRequest();
             if(jobIds.remove(request.getId()) == null)
                 System.err.println("    Removed " + request.getId() + " already!");
+            else
+                totalAssignedCpus += request.getCPUs();
             addToAsgmtMap(assignmentsMap, assignmentResult.getHostname(), request);
             //System.out.println(assignmentResult.getHostname() + " : " + request.getId());
             scheduler.getTaskAssigner().call(request, assignmentResult.getHostname());
@@ -162,7 +201,7 @@ public class TestLotsOfTasks {
             leases.add(consumedLease);
         long st = 0;
         long totalTime=0;
-        int batchSize=10;
+        int batchSize=200;
         boolean first=true;
         String lastJobId="-1";
         while(n < tasks.size()) {
@@ -185,6 +224,7 @@ public class TestLotsOfTasks {
                     addToAsgmtMap(assignmentsMap, result.getHostname(), t.getRequest());
                     assigned++;
                     scheduler.getTaskAssigner().call(t.getRequest(), result.getHostname());
+                    totalAssignedCpus += t.getRequest().getCPUs();
                     usedCpus += t.getRequest().getCPUs();
                     usedMem += t.getRequest().getMemory();
                     portsUsed.addAll(t.getAssignedPorts());
@@ -217,6 +257,7 @@ public class TestLotsOfTasks {
                 totalTime, ((double) totalTime / Math.max(1, (numIters - 1))), min, max, numIters-1, batchSize);
         System.out.println("Total tasks assigned: " + totalTasksAssigned + " of " + tasks.size()
                 + " total #allocations=" + totalNumAllocations);
+        System.out.println("Total CPUs assigned = " + totalAssignedCpus);
         int numHosts=0;
         double ununsedMem=0.0;
         double unusedCpus=0.0;
@@ -314,11 +355,11 @@ public class TestLotsOfTasks {
                     .withFitnessGoodEnoughFunction(new Func1<Double, Boolean>() {
                         @Override
                         public Boolean call(Double aDouble) {
-                            return aDouble > GOOD_ENOUGH_FITNESS;
+                            return aDouble >= GOOD_ENOUGH_FITNESS;
                         }
                     })
-                    .withFitnessCalculator(BinPackingFitnessCalculators.cpuMemBinPacker)
-                    .withLeaseOfferExpirySecs(1000)
+                    .withFitnessCalculator(BinPackingFitnessCalculators.cpuBinPacker)
+                    .withLeaseOfferExpirySecs(1000000)
                     .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
                         @Override
                         public void call(VirtualMachineLease lease) {
@@ -329,7 +370,7 @@ public class TestLotsOfTasks {
     }
 
     private static class BinSpreader implements VMTaskFitnessCalculator {
-        private VMTaskFitnessCalculator binPacker = BinPackingFitnessCalculators.cpuBinPacker;
+        private VMTaskFitnessCalculator binPacker = BinPackingFitnessCalculators.cpuMemBinPacker;
         @Override
         public String getName() {
             return "Bin Spreader";
