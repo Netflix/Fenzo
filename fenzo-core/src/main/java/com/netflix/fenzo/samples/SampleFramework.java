@@ -24,6 +24,7 @@ import com.netflix.fenzo.VMAssignmentResult;
 import com.netflix.fenzo.VirtualMachineLease;
 import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.plugins.VMLeaseObject;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
@@ -138,96 +139,6 @@ public class SampleFramework {
 
         @Override
         public void error(SchedulerDriver driver, String message) {}
-    }
-
-    /**
-     * Fenzo maintains a VM Lease object for every mesos slave. The lease object is a wrapper for a resource offer. This
-     * sample implementation shows what you need to extract from the resource offer.
-     */
-    private static class VMLeaseObject implements VirtualMachineLease {
-        private Protos.Offer offer;
-        private double cpuCores;
-        private double memoryMB;
-        private double networkMbps=0.0;
-        private double diskMB;
-        private String hostname;
-        private String vmID;
-        private List<Range> portRanges;
-        private Map<String, Protos.Attribute> attributeMap;
-        private long offeredTime;
-        VMLeaseObject(Protos.Offer offer) {
-            this.offer = offer;
-            hostname = offer.getHostname();
-            this.vmID = offer.getSlaveId().getValue();
-            offeredTime = System.currentTimeMillis();
-            // parse out resources from offer
-            // expects network bandwidth to come in as consumable scalar resource named "network"
-            for (Protos.Resource resource : offer.getResourcesList()) {
-                if ("cpus".equals(resource.getName())) {
-                    cpuCores = resource.getScalar().getValue();
-                } else if ("mem".equals(resource.getName())) {
-                    memoryMB = resource.getScalar().getValue();
-                } else if("network".equals(resource.getName())) {
-                    networkMbps = resource.getScalar().getValue();
-                } else if ("disk".equals(resource.getName())) {
-                    diskMB = resource.getScalar().getValue();
-                } else if ("ports".equals(resource.getName())) {
-                    portRanges = new ArrayList<>();
-                    for (Protos.Value.Range range : resource.getRanges().getRangeList()) {
-                        portRanges.add(new Range((int)range.getBegin(), (int) range.getEnd()));
-                    }
-                }
-            }
-            attributeMap = new HashMap<>();
-            if(offer.getAttributesCount()>0) {
-                for(Protos.Attribute attribute: offer.getAttributesList()) {
-                    attributeMap.put(attribute.getName(), attribute);
-                }
-            }
-        }
-        @Override
-        public String hostname() {
-            return hostname;
-        }
-        @Override
-        public String getVMID() {
-            return vmID;
-        }
-        @Override
-        public double cpuCores() {
-            return cpuCores;
-        }
-        @Override
-        public double memoryMB() {
-            return memoryMB;
-        }
-        @Override
-        public double networkMbps() {
-            return networkMbps;
-        }
-        @Override
-        public double diskMB() {
-            return diskMB;
-        }
-        public Protos.Offer getOffer(){
-            return offer;
-        }
-        @Override
-        public String getId() {
-            return offer.getId().getValue();
-        }
-        @Override
-        public long getOfferedTime() {
-            return offeredTime;
-        }
-        @Override
-        public List<Range> portRanges() {
-            return portRanges;
-        }
-        @Override
-        public Map<String, Protos.Attribute> getAttributeMap() {
-            return attributeMap;
-        }
     }
 
     private final BlockingQueue<TaskRequest> taskQueue;
