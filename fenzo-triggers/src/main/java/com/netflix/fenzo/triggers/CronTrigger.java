@@ -23,6 +23,7 @@ import org.quartz.ScheduleBuilder;
 import rx.functions.Action1;
 
 import java.util.Date;
+import java.util.TimeZone;
 
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 
@@ -31,9 +32,11 @@ import static org.quartz.CronScheduleBuilder.cronSchedule;
  */
 public class CronTrigger<T> extends ScheduledTrigger<T> {
     private String cronExpression;
+    private String timeZoneId = "America/Los_Angeles";
 
     @JsonCreator
     public CronTrigger(@JsonProperty("cronExpression") String cronExpression,
+                       @JsonProperty("timeZoneId") String timeZoneId,
                        @JsonProperty("startAt") Date startAt,
                        @JsonProperty("name") String name,
                        @JsonProperty("data") T data,
@@ -41,6 +44,7 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
                        @JsonProperty("action") Class<? extends Action1<T>> action) {
         super(name, data, dataType, action, startAt, null);
         this.cronExpression = cronExpression;
+        this.timeZoneId = timeZoneId == null || "".equals(timeZoneId) ? "America/Los_Angeles" : timeZoneId;
         TriggerUtils.validateCronExpression(cronExpression);
     }
 
@@ -49,7 +53,7 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
                        T data,
                        Class<T> dataType,
                        Class<? extends Action1<T>> action) {
-        this(cronExpression, new Date(), name, data, dataType, action);
+        this(cronExpression, "America/Los_Angeles", new Date(), name, data, dataType, action);
     }
 
     /**
@@ -73,7 +77,7 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
      */
     @JsonIgnore
     public ScheduleBuilder getScheduleBuilder() {
-        return cronSchedule(cronExpression);
+        return cronSchedule(cronExpression).inTimeZone(TimeZone.getTimeZone(timeZoneId));
     }
 
     /**

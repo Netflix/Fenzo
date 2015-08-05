@@ -29,10 +29,7 @@ import rx.functions.Action1;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.quartz.TriggerBuilder.newTrigger;
