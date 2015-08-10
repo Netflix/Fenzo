@@ -40,8 +40,8 @@ public class HostAttrValueConstraint implements ConstraintEvaluator {
     }
 
     /**
-     * Returns the name of this constraint as a String, in the form of the class name followed by a dash followed
-     * by the value of {@code hostAttributeName} as it was set when this object was constructed.
+     * Returns the name of this constraint as a String, in the form of the class name followed by a dash
+     * followed by the value of {@code hostAttributeName} as it was set when this object was constructed.
      *
      * @return the name of this constraint
      */
@@ -52,11 +52,11 @@ public class HostAttrValueConstraint implements ConstraintEvaluator {
 
     /**
      * Tests a host to determine whether it has an attribute of the required value for this task request.
-     * @warn parameter descriptions missing
      *
-     * @param taskRequest
-     * @param targetVM
-     * @param taskTrackerState
+     * @param taskRequest      describes the task being evaluated for assignment to the host
+     * @param targetVM         describes the host being evaluated as a target for the task
+     * @param taskTrackerState describes the state of tasks already assigned or running on hosts throughout the
+     *                         system
      * @return a successful Result if the host has an attribute with the required value, or an unsuccessful
      *         Result otherwise
      */

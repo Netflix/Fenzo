@@ -17,9 +17,9 @@
 package com.netflix.fenzo;
 
 /**
- * A constraint evaluator inspects a target to decide whether or not its attributes are satisfactory according to
- * some standard. Different constraint evaluators look at different attributes and have different standards for
- * how they make this decision.
+ * A constraint evaluator inspects a target to decide whether or not its attributes are satisfactory according
+ * to some standard given the current state of task assignments in the system at large. Different constraint
+ * evaluators look at different attributes and have different standards for how they make this decision.
  */
 public interface ConstraintEvaluator {
     /**
@@ -37,7 +37,7 @@ public interface ConstraintEvaluator {
         }
 
         /**
-         * Indicates whether the constraint evaluator found the target to satisfy the constraint
+         * Indicates whether the constraint evaluator found the target to satisfy the constraint.
          *
          * @return {@code true} if the target satisfies the constraint, {@code false} otherwise
          */
@@ -65,10 +65,11 @@ public interface ConstraintEvaluator {
     /**
      * Inspects a target to decide whether or not it meets the constraints appropriate to a particular task.
      *
-     * @param taskRequest
-     * @param targetVM
-     * @param taskTrackerState
-     * @return a successful Result if the target meets the constraints, or an unsuccessful Result otherwise
+     * @param taskRequest a description of the task to be assigned
+     * @param targetVM a description of the host that is a potential match for the task
+     * @param taskTrackerState the current status of tasks and task assignments in the system at large
+     * @return a successful Result if the target meets the constraints enforced by this constraint evaluator, or
+     *         an unsuccessful Result otherwise
      */
     public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM,
                            TaskTrackerState taskTrackerState);

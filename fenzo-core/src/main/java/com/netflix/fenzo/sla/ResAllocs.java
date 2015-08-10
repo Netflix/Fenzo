@@ -17,37 +17,43 @@
 package com.netflix.fenzo.sla;
 
 /**
- * Interface that represents resource allocations for a task group name.
- * Limit the sum of resources used by all tasks of the task group name to the amounts provided.
+ * Interface that represents resource allocation limits for a task group. This limits the sum of resources used
+ * by all tasks that have that task group name to the amounts provided.
+ * <p>
+ * You obtain an object that implements this method by means of the {@link ResAllocsBuilder}.
+ *
+ * @see <a href="https://github.com/Netflix/Fenzo/wiki/Resource-Allocation-Limits">Resource Allocation
+ *      Limits</a>
  */
 public interface ResAllocs {
     String getTaskGroupName();
 
     /**
-     * Get the number of cores to limit usage by all tasks of the group name.
+     * Limits the number of cores the task group can use to the number returned from this method.
      *
-     * @return Total number of cores limit.
+     * @return the maximum number of cores
      */
     double getCores();
 
     /**
-     * Get the amount of memory to limit usage by all tasks of the group name.
+     * Limits the amount of memory the task group can use to the number of MB returned from this method
      *
-     * @return Total memory limit.
+     * @return the maximum amount of memory, in MB
      */
     double getMemory();
 
     /**
-     * Get the amount of network bandwidth to limit usage by all tasks of the group name.
+     * Limits the amount of bandwidth the task group can use to the number of megabits per second returned from 
+     * this method.
      *
-     * @return Total network bandwidth limit.
+     * @return the maximum network bandwidth, in Mbps
      */
     double getNetworkMbps();
 
     /**
-     * Get the amount of disk space to limit usage by all tasks of the group name.
+     * Limits the amount of disk space the task group can use to the number of MB returned from this method.
      *
-     * @return Total disk space limit.
+     * @return the maximum disk space, in MB
      */
     double getDisk();
 }

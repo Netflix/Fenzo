@@ -22,10 +22,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A representation of a lease (resource offer).
+ * A representation of a lease (resource offer). You describe each Mesos resource offer by means of an object
+ * that implements the {@code VirtualMachineLease} interface. You can get such an object by passing the
+ * {@link org.apache.mesos.Protos.Offer Offer} object that represents that Mesos offer (and that you received
+ * from Mesos) into the {@link plugins.VMLeaseObject VMLeaseObject} constructor.
  */
 public interface VirtualMachineLease {
 
+    /**
+     * Describes a [beginning, end] range.
+     */
     public static class Range {
         private final int beg;
         private final int end;
@@ -33,9 +39,19 @@ public interface VirtualMachineLease {
             this.beg = beg;
             this.end = end;
         }
+        /**
+         * Get the beginning value of the range.
+         *
+         * @return the beginning value of the range
+         */
         public int getBeg() {
             return beg;
         }
+        /**
+         * Get the end value of the range.
+         *
+         * @return the end value of the range
+         */
         public int getEnd() {
             return end;
         }
@@ -44,77 +60,77 @@ public interface VirtualMachineLease {
     /**
      * Get the ID of the lease (offer ID).
      *
-     * @return Lease ID.
+     * @return the lease ID
      */
     public String getId();
 
     /**
      * Get the time that this lease (offer) was obtained.
      *
-     * @return Time when this lease was obtained, in mSecs since epoch.
+     * @return the time when this lease was obtained, in mSecs since epoch
      */
     public long getOfferedTime();
 
     /**
-     * Get the host name.
+     * Get the name of the host offered in this lease.
      *
-     * @return Host name.
+     * @return the host name
      */
     public String hostname();
 
     /**
      * Get the ID of the host (mesos slave ID).
      *
-     * @return host ID.
+     * @return the host ID
      */
     public String getVMID();
 
     /**
      * Get the number of cores (CPUs) on this host that are available for assigning.
      *
-     * @return The number of CPUs.
+     * @return the number of CPUs
      */
     public double cpuCores();
 
     /**
-     * Get the amount of memory, in MBs, on this host that are available for assigning.
+     * Get the amount of memory, in MBs, on this host that is available for assigning.
      *
-     * @return Amount of memory in MB.
+     * @return the amount of memory, in MB
      */
     public double memoryMB();
 
     /**
      * Get the amount of network bandwidth, in Mbps, on this host that is available for assigning.
      *
-     * @return Network bandwidth, in Mbps.
+     * @return the network bandwidth, in Mbps
      */
     public double networkMbps();
 
     /**
-     * Get the amount of disk, in MB, on this host that is avaialble for assigning.
+     * Get the amount of disk space, in MB, on this host that is avaialble for assigning.
      *
-     * @return The amount of disk, in MB.
+     * @return the amount of available disk space, in MB
      */
     public double diskMB();
 
     /**
      * Get the list of port ranges on this host that are available for assigning.
      *
-     * @return List of port ranges.
+     * @return a List of port ranges
      */
     public List<Range> portRanges();
 
     /**
-     * Get the mesos resource offer associated with this lease.
+     * Get the Mesos resource offer associated with this lease.
      *
-     * @return The offer.
+     * @return the Mesos resource offer
      */
     public Protos.Offer getOffer();
 
     /**
-     * Get the map of mesos attributes associated with this lease (offer).
+     * Get the map of Mesos attributes associated with this lease (offer).
      *
-     * @return Map of attributes.
+     * @return a Map of attribute names to attribute values
      */
     public Map<String, Protos.Attribute> getAttributeMap();
 }

@@ -21,21 +21,21 @@ package com.netflix.fenzo;
  */
 public interface AutoScaleAction {
     /**
-     * Indicates whether the autoscale action was to scale up or to scale down.
+     * Indicates whether the autoscale action is to scale up or to scale down.
      */
     public enum Type {Up, Down};
 
     /**
-     * Get the name of the auto scale rule for which the autoscale action is being triggered.
+     * Get the name of the auto scale rule that is triggering the autoscale action.
      *
-     * @return Name of the autoscale rule.
+     * @return name of the autoscale rule
      */
     public String getRuleName();
 
     /**
-     * Returns an indication of whether the autoscale action was to scale up or to scale down.
+     * Returns an indication of whether the autoscale action is to scale up or to scale down.
      *
-     * @return an enum indicating whether the autoscale action was {@link Type#Up} or {@link Type#Down}
+     * @return an enum indicating whether the autoscale action is {@link Type#Up} or {@link Type#Down}
      */
     public Type getType();
 }

@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Encapsulates the results of attempting to assign a task to a target.
+ * Encapsulates the results of attempting to assign a task to a host.
  */
 public class TaskAssignmentResult {
     @JsonIgnore
@@ -69,10 +69,9 @@ public class TaskAssignmentResult {
     }
 
     /**
-     * Returns the name of the host machine on which resides the target to which this task was attempted to be
-     * assigned.
+     * Returns the name of the host machine to which this task was attempted to be assigned.
      *
-     * @return the hostname of the target
+     * @return the hostname
      */
     public String getHostname() {
         return hostname;
@@ -87,7 +86,7 @@ public class TaskAssignmentResult {
     }
 
     /**
-     * Returns a list of port numbers corresponding to the ports the task was assigned on the target.
+     * Returns a list of port numbers corresponding to the ports the task was assigned on the host.
      *
      * @return a list of port numbers
      */
@@ -106,7 +105,7 @@ public class TaskAssignmentResult {
     }
 
     /**
-     * Indicates whether the assignment of this task to the target succeeded.
+     * Indicates whether the assignment of this task to the host succeeded.
      *
      * @return {@code true} if this assignment succeeded, {@code false} otherwise
      */
@@ -116,28 +115,29 @@ public class TaskAssignmentResult {
 
     /**
      * Get a list of {@link AssignmentFailure}s corresponding to the reasons why the assignment of this task to
-     * the target did not succeed.
+     * the host did not succeed because of insufficient resources.
      *
-     * @return a list of reasons why the task could not be assigned to the target
+     * @return a list of reasons why the task could not be assigned to the host because of insufficient
+     *         resources
      */
     public List<AssignmentFailure> getFailures() {
         return failures;
     }
 
     /**
-     * Get the {@link ConstraintFailure} corresponding to the task constraint that the target failed to meet.
+     * Get the {@link ConstraintFailure} corresponding to the task constraint that the host failed to meet.
      *
-     * @return a constraint that the target failed to satisfy
+     * @return information about the constraint that the host failed to satisfy
      */
     public ConstraintFailure getConstraintFailure() {
         return constraintFailure;
     }
 
     /**
-     * Get the result of the fitness calculation applied to this target for this task.
+     * Get the result of the fitness calculation applied to this host for this task.
      *
-     * @return a number between 0.0 (indicating that the target is completely unfit for this task) to 1.0
-     *         (indicating that the target is a perfect fit for this task)
+     * @return a number between 0.0 (indicating that the host is completely unfit for this task) to 1.0
+     *         (indicating that the host is a perfect fit for this task)
      */
     public double getFitness() {
         return fitness;

@@ -17,8 +17,9 @@
 package com.netflix.fenzo;
 
 /**
- * Interface representing a task fitness calculator. A task may fit on multiple hosts. Use this fitness calculator to
- * determine how well a task fits on a host.
+ * Interface representing a task fitness calculator, or scheduling optimization plugin. A task may fit on
+ * multiple hosts. Use a fitness calculator to determine how well a task fits on a particular host given the
+ * current state of task assignments and running tasks throughout the system.
  */
 public interface VMTaskFitnessCalculator {
     /**
@@ -29,14 +30,14 @@ public interface VMTaskFitnessCalculator {
     public String getName();
 
     /**
-     * This is used in the {@link TaskScheduler} during a scheduling trial, after a task's resource requirements are
-     * met by a host. Use this to calculate how well the task fits on the host.
+     * Calculates how well the task fits on the host. This method does not have to check to see that the
+     * proposed host has sufficient resources for the proposed task. It can assume that this has already been
+     * done.
      *
      * @param taskRequest      the task whose resource requirements can be met by the Virtual Machine
      * @param targetVM         the prospective target host (VM) for given {@code taskRequest}
      * @param taskTrackerState state of the task tracker that contains all tasks currently running and assigned
-     * @return a value between 0.0 and 1.0, with higher values representing better fit of the task on the virtual
-     *         machine
+     * @return a value between 0.0 and 1.0, with higher values representing better fit of the task on the host
      */
     public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM,
                                    TaskTrackerState taskTrackerState);

@@ -19,8 +19,8 @@ package com.netflix.fenzo;
 import java.util.Collection;
 
 /**
- * Represents the current state of the virtual machine that Fenzo is considering for a task assignment. The
- * fitness calculator plugin may use the information from this state object to influence how it optimizes task
+ * Represents the current state of the host (virtual machine) that Fenzo is considering for a task assignment.
+ * A fitness calculator plugin may use the information from this state object to influence how it optimizes task
  * placement decisions.
  */
 public interface VirtualMachineCurrentState {
@@ -33,26 +33,26 @@ public interface VirtualMachineCurrentState {
     public String getHostname();
 
     /**
-     * Returns a VM lease object representing totals of resources from all available leases for the current
-     * scheduling run.
+     * Returns a VM lease object representing totals of resources from all available leases on this host for the
+     * current scheduling run.
      *
-     * @return a lease object that represents resources that are currently available on the VM
+     * @return a lease object that represents resources that are currently available on the host
      */
     public VirtualMachineLease getCurrAvailableResources();
 
     /**
-     * Get list of task assignment results so far in the current scheduling run.
+     * Get list of task assignment results for this host so far in the current scheduling run.
      *
-     * @return a collection of tasks that the current scheduling iteration assigned but that are not
-     *         launched/executing yet
+     * @return a collection of tasks that the current scheduling iteration assigned to this host but that are
+     *         not launched/executing yet
      */
     public Collection<TaskAssignmentResult> getTasksCurrentlyAssigned();
 
     /**
-     * Get a list of those tasks that had already been assigned to this VM before the current scheduling run
+     * Get a list of those tasks that had already been assigned to this host before the current scheduling run
      * started.
      *
-     * @return a collection of the tasks running on this VM
+     * @return a collection of the tasks running on this host
      */
     public Collection<TaskRequest> getRunningTasks();
 }

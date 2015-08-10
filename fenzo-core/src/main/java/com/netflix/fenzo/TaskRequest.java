@@ -19,65 +19,72 @@ package com.netflix.fenzo;
 import java.util.List;
 
 /**
- * A task request needing resource assignment.
+ * Describes a task to be assigned to a host and its requirements.
  */
 public interface TaskRequest {
+    /**
+     * Get an identifier for this task request.
+     *
+     * @return a task identifier
+     */
     public String getId();
 
     /**
-     * Get the name of the group that the task belongs to.
+     * Get the name of the task group that this task request belongs to.
      *
-     * @return Name of the group.
+     * @return the name of the group
      */
     public String taskGroupName();
 
     /**
      * Get the number of CPUs requested by the task.
      *
-     * @return Number of CPUs.
+     * @return how many CPUs the task is requesting
      */
     public double getCPUs();
 
     /**
      * Get the amount of memory in MBs requested by the task.
      *
-     * @return Number of MBs of memory.
+     * @return how many MBs of memory the task is requesting
      */
     public double getMemory();
 
     /**
      * Get the network bandwidth in Mbps requested by the task.
      *
-     * @return Network Mbps requested.
+     * @return how many Mbps of network bandwidth the task is requesting
      */
     public double getNetworkMbps();
 
     /**
-     * Get the disk space in MBs requested by the task
+     * Get the disk space in MBs requested by the task.
      *
-     * @return The disk space in MBs.
+     * @return how much disk space in MBs the task is requesting
      */
     public double getDisk();
 
     /**
      * Get the number of ports requested by the task.
      *
-     * @return The number of ports.
+     * @return how many ports the task is requesting
      */
     public int getPorts();
 
     /**
-     * Get list of hard constraints set by the task. All hard constraints must be met for assignment to succeed.
+     * Get a list of the hard constraints the task requires. All of these hard constraints must be satisfied by
+     * a host for the task scheduler to assign this task to that host.
      *
-     * @return List of hard constraints.
+     * @return a List of hard constraints
      */
     public List<? extends ConstraintEvaluator> getHardConstraints();
 
     /**
-     * Get list of soft constraints set by the task. Soft constraints need not be satisfied for assignment to succeed,
-     * but, generally, hosts that satisfy the constraints are preferred over those that don't.
+     * Get a list of the soft constraints the task requests. Soft constraints need not be satisfied by a host
+     * for the task scheduler to assign this task to that host, but hosts that satisfy the soft constraints are
+     * preferred by the task scheduler over those that do not.
      *
-     * @return List of soft constraints.
+     * @return a List of soft constraints
      */
     public List<? extends VMTaskFitnessCalculator> getSoftConstraints();
 }

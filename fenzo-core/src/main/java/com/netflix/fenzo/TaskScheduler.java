@@ -41,29 +41,27 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A scheduling service for assigning resources to tasks. Call the method {@link #scheduleOnce scheduleOnce()}
- * with a list of task requests and a list of new resource lease offers. The {@code TaskScheduler} stores any
- * unused lease offers and will apply them during future calls to {@code scheduleOnce()} until a time expires,
- * which is defined by the lease offer expiry time that you set when you build the {@code TaskScheduler} (the
- * default is 10 seconds). Upon reaching the expiry time, the {@code TaskScheduler} rejects resource lease offers
- * by invoking the action supplied with the builder.
+ * A scheduling service that you can use to optimize the assignment of tasks to hosts within a Mesos framework.
+ * Call the {@link #scheduleOnce scheduleOnce()} method with a list of task requests and a list of new resource
+ * lease offers, and that method will return a set of task assignments.
  * <p>
- * TaskScheduler can be used in two modes:
- * <ol>
- *  <li><b>Simple mode with no optimizations:</b> In this mode, after you build the {@code TaskScheduler} object,
- *      you only need to call the {@code scheduleOnce()} method.</li>
- *  <li><b>Optimizations mode:</b> In this mode, {@code TaskScheduler} attempts to optimize the placement of
- *      tasks on resources by using optimization functions (to be added). This requires that you not only call
- *      the {@code scheduleOnce()} method but also the task assigner and task un-assigner actions available
- *      from the methods {@link #getTaskAssigner getTaskAssigner()} and
- *      {@link #getTaskUnAssigner getTaskUnAssigner()}. These actions make the {@code TaskScheduler} keep track
- *      of tasks already assigned. The {@code TaskScheduler} then makes these tracked tasks available to
- *      the optimization functions.</li>
+ * The {@code TaskScheduler} stores any unused lease offers and will apply them during future calls to
+ * {@code scheduleOnce()} until a time expires, which is defined by the lease offer expiry time that you set
+ * when you build the {@code TaskScheduler} (the default is 10 seconds). Upon reaching the expiry time, the
+ * {@code TaskScheduler} rejects expired resource lease offers by invoking the action you supplied then you
+ * built the {@code TaskScheduler}.
+ * <p>
+ * Note that when you launch a task that has been scheduled by the {@code TaskScheduler}, you should call
+ * the task assigner action available from the {@link #getTaskAssigner getTaskAssigner()} method. When that
+ * task completes, you should call the task unassigner action available from the
+ * {@link #getTaskUnAssigner getTaskUnAssigner()} method. These actions make the {@code TaskScheduler} keep
+ * track of launched tasks. The {@code TaskScheduler} then makes these tracked tasks available to its
+ * scheduling optimization functions.
  * </ol>
  * Do not call the scheduler concurrently. The scheduler assigns tasks in the order that they are received in a
  * particular list. It checks each task against available resources until it finds a match.
  * <p>
- * You create your {@code TaskScheduler} by means of the {@link TaskScheduler.Builder}. It provide methods with
+ * You create your {@code TaskScheduler} by means of the {@link TaskScheduler.Builder}. It provides methods with
  * which you can adjust the scheduler's autoscaling rules, fitness calculators, and so forth.
  *
  * @see <a href="https://en.wikipedia.org/wiki/Builder_pattern">Wikipedia: Builder pattern</a>
@@ -98,9 +96,12 @@ public class TaskScheduler {
         private Map<String, ResAllocs> resAllocs=null;
 
         /**
-         * Invoke the given action when rejecting a VM lease.
-         * @param leaseRejectAction The single argument action to trigger when rejecting a VM lease, with the lease
-         *                          being rejected as the only argument.
+         * (Required) Call this method to establish a method that your task scheduler will call to notify you
+         * that it has rejected a resource offer. In this method, you should tell Mesos that you are declining
+         * the associated offer.
+         *
+         * @param leaseRejectAction the action to trigger when the task scheduler rejects a VM lease, with the
+         *                          lease being rejected as the only argument
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withLeaseRejectAction(Action1<VirtualMachineLease> leaseRejectAction) {
@@ -109,11 +110,13 @@ public class TaskScheduler {
         }
 
         /**
-         * Set the expiration time for lease offers after they have been received but remain unused by current
-         * task requests.
+         * Call this method to set the expiration time for resource offers. Your task scheduler will reject any
+         * offers that remain unused if this expiration period from the time of the offer expires. This ensures
+         * your scheduler will not hoard unuseful offers. The default is 120 seconds.
          *
          * @param leaseOfferExpirySecs the amount of time the scheduler will keep an unused lease available for
-         *        a later-scheduled task before it considers the lease to have expired, in seconds
+         *                             a later-scheduled task before it considers the lease to have expired, in
+         *                             seconds
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withLeaseOfferExpirySecs(long leaseOfferExpirySecs) {
@@ -122,12 +125,13 @@ public class TaskScheduler {
         }
 
         /**
-         * Adds a fitness calculator that the scheduler will use to compute the suitability of a particular
-         * target for a particular task. You can only add a single fitness calculator to a scheduler; if you
-         * attempt to add a second fitness calculator, it will override the first one.
+         * Call this method to add a fitness calculator that your scheduler will use to compute the suitability
+         * of a particular host for a particular task. You can only add a single fitness calculator to a
+         * scheduler; if you attempt to add a second fitness calculator, it will override the first one.
          *
          * @param fitnessCalculator the fitness calculator you want this scheduler to use in its evaluations
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Scheduling-Optimization-Plugins">Scheduling Optimization Plugins</a>
          */
         public Builder withFitnessCalculator(VMTaskFitnessCalculator fitnessCalculator) {
             this.fitnessCalculator = fitnessCalculator;
@@ -135,11 +139,13 @@ public class TaskScheduler {
         }
 
         /**
-         * Indicate which target attribute you want this scheduler to use in order to identify which targets are
-         * in which autoscaling groups.
+         * Call this method to indicate which host attribute you want your task scheduler to use in order to
+         * distinguish which hosts are in which autoscaling groups. You must call this method before you call
+         * {@link #withAutoScaleRule(AutoScaleRule)}.
          *
-         * @param name the name of the target attribute that defines which autoscaling group it is in
+         * @param name the name of the host attribute that defines which autoscaling group it is in
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
          */
         public Builder withAutoScaleByAttributeName(String name) {
             this.autoScaleByAttributeName = name;
@@ -147,11 +153,18 @@ public class TaskScheduler {
         }
 
         /**
-         * Use the given attribute name to determine alternate hostname of VM to use as argument for autoscaling action
-         * on the VM.
+         * Use the given host attribute name to determine the alternate hostname of virtual machine to use as an
+         * argument for an autoscaling action.
+         * <p>
+         * In some circumstances (for instance with Amazon Web Services), the host name is not the correct
+         * identifier for the host in the context of an autoscaling action (for instance, in AWS, you need the
+         * EC2 instance identifier). If this is the case for your system, you need to implement a function that
+         * maps the host name to the identifier for the host in an autoscaling context so that Fenzo can perform
+         * autoscaling properly. You provide this function to the task manager by means of this builder method.
          *
-         * @param name Attribute name.
+         * @param name the attribute name to use as the alternate host identifier in an autoscaling context
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
          */
         public Builder withAutoScalerMapHostnameAttributeName(String name) {
             this.autoScalerMapHostnameAttributeName = name;
@@ -159,10 +172,13 @@ public class TaskScheduler {
         }
 
         /**
-         * When scaling down cluster, balance the number of VMs across unique values of the given attribute name.
+         * Call this method to tell the autoscaler to try to maintain a balance of host varieties when it scales
+         * down a cluster. Pass the method a host attribute, and the autoscaler will attempt to scale down in
+         * such a way as to maintain a similar number of hosts with each value for that attribute.
          *
-         * @param name Attribute name.
+         * @param name the name of the attribute
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
          */
         public Builder withAutoScaleDownBalancedByAttributeName(String name) {
             this.autoScaleDownBalancedByAttributeName = name;
@@ -170,10 +186,22 @@ public class TaskScheduler {
         }
 
         /**
-         * Use the given function to determine if obtained fitness is good enough. If this is not provided, Fenzo
-         * may use the default function that returns true only when fitness is {@code 1.0} (perfect fit).
+         * Use the given function to determine if the fitness of a host for a task is good enough that the task
+         * scheduler should stop looking for a more fit host. Pass this method a function that takes a value
+         * between 0.0 (completely unfit) and 1.0 (perfectly fit) that describes the fitness of a particular
+         * host for a particular task, and decides, by returning a boolean value, whether that value is a "good
+         * enough" fit such that the task scheduler should go ahead and assign the task to the host. If you
+         * write this function to only return true for values at or near 1.0, the task scheduler will spend more
+         * time searching for a good fit; if you write the function to return true for lower values, the task
+         * scheduler will be able to find a host to assign the task to more quickly.
+         * <p>
+         * By default, if you do not build your task scheduler by passing a function into this method, the
+         * task scheduler will always search all of the available hosts for the best possible fit for every
+         * task.
          *
-         * @param f Single argument function that acceps a double value, the fitness, and returns a {@code Boolean}.
+         * @param f a single-argument function that accepts a double parameter, representing the fitness, and
+         *          returns a {@code Boolean} indicating whether the fitness is good enough to constitute a
+         *          successful match between the host and task
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withFitnessGoodEnoughFunction(Func1<Double, Boolean> f) {
@@ -182,16 +210,17 @@ public class TaskScheduler {
         }
 
         /**
-         * Disable resource shortfall evaluation. The shortfall evaluation is performed when evaluating the autoscaling
-         * needs. This is useful for evaluating the actual resources needed to scale up by, for pending tasks, which may
-         * be greater than the number of resources scaled up by thresholds based scale up.
+         * Disable resource shortfall evaluation. The shortfall evaluation is performed when evaluating the
+         * autoscaling needs. This is useful for evaluating the actual resources needed to scale up by, for
+         * pending tasks, which may be greater than the number of resources scaled up by thresholds based scale
+         * up.
+         * <p>
+         * This evaluation can be computaionally expensive and/or may scale up aggressively, initially, to more
+         * resources than needed. The initial aggressive scale up is corrected later by scale down, which is
+         * triggered by scale down evaluation after a cool down period transpires.
          *
-         * This evaluation can be computaionally expensive and/or may scale up aggressively, initially, to more resources
-         * than needed. The initial aggressive scale up is corrected later by scale down, which is triggered by scale
-         * down evaluation after a cool down period transpires.
-         *
-         * @see AutoScaleRule
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
          */
         public Builder disableShortfallEvaluation() {
             disableShortfallEvaluation = true;
@@ -199,11 +228,13 @@ public class TaskScheduler {
         }
 
         /**
-         * Initialize the scheduler with the given mapping of resource allocation limits.
+         * Call this method to set the initial limitations on how many resources will be available to each task
+         * group.
          *
-         * @param resAllocs Map with task group name as keys and resource allocation limits as values.
-         *                  @see ResAllocs
+         * @param resAllocs a Map with the task group name as keys and resource allocation limits as values
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Resource-Allocation-Limits">Resource Allocation
+         *      Limits</a>
          */
         public Builder withInitialResAllocs(Map<String, ResAllocs> resAllocs) {
             this.resAllocs = resAllocs;
@@ -212,15 +243,18 @@ public class TaskScheduler {
 
         /**
          * Adds an autoscaling rule that governs the behavior by which this scheduler will autoscale hosts of a
-         * certain type. You can chain this method multiple times, adding a new autoscaling rule each time.
+         * certain type. You can chain this method multiple times, adding a new autoscaling rule each time (one
+         * for each autoscale group).
+         * <p>
          * Before you call this method you must first call
-         * {@link #withAutoScaleByAttributeName withAutoScaleByAttributeName()} to indicate which target
-         * attribute you are using to identify which targets are in which autoscaling groups.
+         * {@link #withAutoScaleByAttributeName withAutoScaleByAttributeName()} to indicate which host
+         * attribute you are using to identify which hosts are in which autoscaling groups.
          *
          * @param rule the autoscaling rule to add
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          * @throws IllegalArgumentException if you have not properly initialized autoscaling or if your rule is
-         *         poorly formed
+         *                                  poorly formed
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
          */
         public Builder withAutoScaleRule(AutoScaleRule rule) {
             if(autoScaleByAttributeName==null || autoScaleByAttributeName.isEmpty())
@@ -233,6 +267,13 @@ public class TaskScheduler {
             return this;
         }
 
+        /*
+         * The callback you pass to this method receives an indication when an autoscale action is to be
+         * performed. This indicates which autoscale rule prompted the action and whether the action is to scale
+         * up or scale down the autoscale group. The callback then initiates the appropriate scaling actions.
+         *
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
+         */
         public Builder withAutoScalerCallback(Action1<AutoScaleAction> callback) {
             this.autoscalerCallback = callback;
             return this;
@@ -297,11 +338,14 @@ public class TaskScheduler {
     }
 
     /**
-     * Set the autoscale call back action. The scheduler calls this action when it determines that the cluster
-     * needs to be scaled up or down.
+     * Set the autoscale call back action. The callback you pass to this method receives an indication when an
+     * autoscale action is to be performed, telling it which autoscale rule prompted the action and whether the
+     * action is to scale up or scale down the autoscale group. The callback then initiates the appropriate
+     * scaling actions.
      *
      * @param callback the callback to invoke for autoscale actions
      * @throws IllegalStateException if no autoscaler was established
+     * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
      */
     public void setAutoscalerCallback(Action1<AutoScaleAction> callback) throws IllegalStateException {
         if(autoScaler==null)
@@ -333,6 +377,8 @@ public class TaskScheduler {
      * Get the current mapping of resource allocations registered with the scheduler.
      *
      * @return current mapping of resource allocations
+     * @see <a href="https://github.com/Netflix/Fenzo/wiki/Resource-Allocation-Limits">Resource Allocation
+     *      Limits</a>
      */
     public Map<String, ResAllocs> getResAllocs() {
         return resAllocsEvaluator.getResAllocs();
@@ -342,6 +388,8 @@ public class TaskScheduler {
      * Add a new resource allocation, or replace an existing one of the same name.
      *
      * @param resAllocs the resource allocation to add or replace
+     * @see <a href="https://github.com/Netflix/Fenzo/wiki/Resource-Allocation-Limits">Resource Allocation
+     *      Limits</a>
      */
     public void addOrReplaceResAllocs(ResAllocs resAllocs) {
         resAllocsEvaluator.replaceResAllocs(resAllocs);
@@ -351,6 +399,8 @@ public class TaskScheduler {
      * Remove a resource allocation associated with the specified name.
      *
      * @param groupName the name of the resource allocation to remove
+     * @see <a href="https://github.com/Netflix/Fenzo/wiki/Resource-Allocation-Limits">Resource Allocation
+     *      Limits</a>
      */
     public void removeResAllocs(String groupName) {
         resAllocsEvaluator.remResAllocs(groupName);
@@ -360,6 +410,7 @@ public class TaskScheduler {
      * Get the autoscale rules currently registered with the scheduler.
      *
      * @return a collection of currently registered autoscale rules
+     * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
      */
     public Collection<AutoScaleRule> getAutoScaleRules() {
         if(autoScaler==null)
@@ -372,6 +423,7 @@ public class TaskScheduler {
      * replaced. This autoscale rule will be used the next time the scheduler invokes its autoscale action.
      *
      * @param rule the autoscale rule to add
+     * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
      */
     public void addOrReplaceAutoScaleRule(AutoScaleRule rule) {
         autoScaler.replaceRule(rule);
@@ -381,6 +433,7 @@ public class TaskScheduler {
      * Remove the autoscale rule associated with the given name from those used by the scheduler.
      *
      * @param ruleName name of the autoscale rule to remove
+     * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
      */
     public void removeAutoScaleRule(String ruleName) {
         autoScaler.removeRule(ruleName);
@@ -392,15 +445,16 @@ public class TaskScheduler {
      * requests. Resource leases are associated with a host name. A host can have zero or more leases. Leases
      * that the scheduler does not use in this scheduling run it stores for later use until they expire.
      * <p>
-     * If you attempt to add a lease object with an Id equal to that of a stored lease object is disallowed, and
-     * {@code scheduleOnce()} will throw an {@code IllegalStateException}. Upon throwing this exception, if you
-     * provided multiple leases in the {@code newLeases} argument, the state of internally maintained list of
-     * unused leases will be in an indeterminate state - some of the leases may have been successfully added.
+     * You cannot add a lease object with an Id equal to that of a stored lease object; {@code scheduleOnce()}
+     * will throw an {@code IllegalStateException}. Upon throwing this exception, if you provided multiple
+     * leases in the {@code newLeases} argument, the state of internally maintained list of unused leases will
+     * be in an indeterminate state - some of the leases may have been successfully added.
      * <p>
-     * Any expired leases are rejected before scheduling begins. Then, all leases of a host are combined to
-     * determine total available resources on the host. Each task request, in the order that they appear in
-     * the given list, is then tried for assignment against the available hosts until successful. For each
-     * task, either a successful assignment result, or, the set of assignment failures, is returned.
+     * The task scheduler rejects any expired leases before scheduling begins. Then, it combines all leases of a
+     * host to determine the total available resources on the host. The scheduler then tries each task request,
+     * in the order that they appear in the given list, for assignment against the available hosts until
+     * successful. For each task the scheduler returns either a successful assignment result, or, a set of
+     * assignment failures.
      * <p>
      * After the scheduler evaluates all assignments, it will reject remaining leases if they are unused and
      * their offer time is further in the past than lease expiration interval. This prevents the scheduler from
@@ -412,7 +466,7 @@ public class TaskScheduler {
      *                  ununsed leases
      * @return a {@link SchedulingResult} object that contains a task assignment results map and other summaries
      * @throws IllegalStateException if you call this method concurrently or if you try to readd an existing
-     *         lease
+     *                               lease
      */
     public SchedulingResult scheduleOnce(
             List<? extends TaskRequest> requests,
@@ -537,13 +591,15 @@ public class TaskScheduler {
     }
 
     /**
-     * Returns state of resources on all known hosts. This is expected to be used for debugging or informational
-     * purposes only, and occasionally at that. Calling this obtains and holds a lock for the duration of creating the
-     * state information. Scheduling runs are blocked around the lock.
+     * Returns the state of resources on all known hosts. You can use this for debugging or informational
+     * purposes (occasionally). This method obtains and holds a lock for the duration of creating the state
+     * information. Scheduling runs are blocked around the lock.
      * 
-     * @return Map of state information with hostname as key and a Map of resource state. The resource state Map contains
-     * resource as the key and a two element Double array - first contains used value and the second element contains
-     * available value (available does not include used).
+     * @return a Map of state information with the hostname as the key and a Map of resource state as the value.
+     *         The resource state Map contains a resource as the key and a two element Double array - the first
+     *         element of which contains the amount of the resource used and the second element contains the
+     *         amount still available (available does not include used).
+     * @see <a href="https://github.com/Netflix/Fenzo/wiki/Insights#how-to-learn-which-resources-are-available-on-which-hosts">How to Learn Which Resources Are Available on Which Hosts</a>
      */
     public Map<String, Map<VMResource, Double[]>> getResourceStatus() {
         try (AutoCloseable ac = stateMonitor.enter()) {
@@ -556,12 +612,13 @@ public class TaskScheduler {
 
     /**
      * Returns the current state of all known hosts. You might occasionally use this for debugging or
-     * informational purposes. If you call this method, it will obtain and hold a lock for as long as it takes to
-     * create the state information. Scheduling runs are blocked around the lock.
+     * informational purposes. If you call this method, it will obtain and hold a lock for as long as it takes
+     * to create the state information. Scheduling runs are blocked around the lock.
      * 
      * @return a list containing the current state of all known VMs
      * @throws IllegalStateException if you call this concurrently with the main scheduling method,
-     *         {@link #scheduleOnce}
+     *         {@link #scheduleOnce scheduleOnce()}
+     * @see <a href="https://github.com/Netflix/Fenzo/wiki/Insights#how-to-learn-the-amount-of-resources-currently-available-on-particular-hosts">How to Learn the Amount of Resources Currently Available on Particular Hosts</a>
      */
     public List<VirtualMachineCurrentState> getVmCurrentStates() throws IllegalStateException {
         try (AutoCloseable ac = stateMonitor.enter()) {
@@ -603,7 +660,7 @@ public class TaskScheduler {
     }
 
     /**
-     * Expire a resource lease with the given lease ID.
+     * Call this method to instruct the task scheduler to reject a particular resource offer.
      *
      * @param leaseId the lease ID of the lease to expire
      */
@@ -612,7 +669,8 @@ public class TaskScheduler {
     }
 
     /**
-     * Expire all leases of the host with the name {@code hostname}.
+     * Call this method to instruct the task scheduler to reject all of the unused offers it is currently
+     * holding that concern resources offered by the host with the name {@code hostname}.
      *
      * @param hostname the name of the host whose leases you want to expire
      */
@@ -621,7 +679,8 @@ public class TaskScheduler {
     }
 
     /**
-     * Expire all leases of the host with the ID, {@code vmId}.
+     * Call this method to instruct the task scheduler to reject all of the unused offers it is currently
+     * holding that concern resources offered by the host with the ID, {@code vmId}.
      *
      * @param vmId the ID of the host whose leases you want to expire
      * @return {@code true} if the given ID matches a known host, {@code false} otherwise.
@@ -635,7 +694,8 @@ public class TaskScheduler {
     }
 
     /**
-     * Expire all leases currently stored by the scheduler.
+     * Call this method to instruct the task scheduler to reject all of the unused offers it is currently
+     * holding.
      */
     public void expireAllLeases() {
         logger.info("Expiring all leases");
@@ -643,14 +703,21 @@ public class TaskScheduler {
     }
 
     /**
-     * Get the task assigner action. Tasks are scheduled by {@link #scheduleOnce scheduleOnce()} but are
-     * not tracked by this class. Tracking assigned tasks is useful for optimizing future assignments for such
-     * purposes as task locality with other tasks, and so forth. If you desire such optimization, call the
-     * task assigner returned from this method once for each task assignment actually used. Later, when that task
-     * terminates, call the un-assigner from {@link #getTaskUnAssigner getTaskUnAssigner()} as well.
+     * Get the task assigner action. For each task you assign and launch, you must call your task scheduler's
+     * {@code getTaskAssigner().call()} method in order to notify Fenzo that the task has actually been deployed
+     * on a host.
      * <p>
-     * Note that you may not call the task assigner action concurrently with {@code scheduleOnce()}. If you do
-     * so, the task assigner action will throw an {@code IllegalStateException}.
+     * In addition, in your framework's task completion callback that you supply to Mesos, you must call your
+     * task scheduler's {@link #getTaskUnAssigner() getTaskUnassigner().call()} method to notify Fenzo that the
+     * task is no longer assigned.
+     * <p>
+     * Some scheduling optimizers need to know not only which tasks are waiting to be scheduled and which hosts
+     * have resource offers available, but also which tasks have previously been assigned and are currently
+     * running on hosts. These two methods help Fenzo provide this information to these scheduling optimizers.
+     * <p>
+     * Note that you may not call the task assigner action concurrently with
+     * {@link #scheduleOnce(java.util.List, java.util.List) scheduleOnce()}. If you do so, the task assigner
+     * action will throw an {@code IllegalStateException}.
      * 
      * @return a task assigner action
      */
@@ -671,8 +738,20 @@ public class TaskScheduler {
     /**
      * Get the task unassigner action. Call this object's {@code call()} method to unassign an assignment you
      * have previously set for each task that completes so that internal state is maintained correctly.
+     * <p>
+     * For each task you assign and launch, you must call your task scheduler's
+     * {@link #getTaskAssigner() getTaskAssigner().call()} method in order to notify Fenzo that the task has
+     * actually been deployed on a host.
+     * <p>
+     * In addition, in your framework's task completion callback that you supply to Mesos, you must call your
+     * task scheduler's {@code getTaskUnassigner().call()} method to notify Fenzo that the
+     * task is no longer assigned.
+     * <p>
+     * Some scheduling optimizers need to know not only which tasks are waiting to be scheduled and which hosts
+     * have resource offers available, but also which tasks have previously been assigned and are currently
+     * running on hosts. These two methods help Fenzo provide this information to these scheduling optimizers.
      * 
-     * @return The task un-assigner action.
+     * @return the task un-assigner action
      */
     public Action2<String, String> getTaskUnAssigner() {
         return new Action2<String, String>() {
@@ -684,9 +763,10 @@ public class TaskScheduler {
     }
 
     /**
-     * Disable a VM with the specified hostname. If the scheduler is not aware of the hostname yet, it creates a
-     * new object for it, and therefore your disabling of it will be remembered when offers come in later.
-     * The scheduler will not use disabled hosts for allocating resources to tasks.
+     * Disable the virtual machine with the specified hostname. If the scheduler is not yet aware of the host
+     * with that hostname, it creates a new object for it, and therefore your disabling of it will be remembered
+     * when offers that concern that host come in later. The scheduler will not use disabled hosts for
+     * allocating resources to tasks.
      * 
      * @param hostname the name of the host to disable
      * @param durationMillis the length of time, starting from now, in milliseconds, during which the host will
@@ -697,12 +777,13 @@ public class TaskScheduler {
         assignableVMs.disableUntil(hostname, System.currentTimeMillis()+durationMillis);
     }
 
-
-
     /**
-     * Disable the VM with the specified ID.
+     * Disable the virtual machine with the specified ID. If the scheduler is not yet aware of the host with
+     * that hostname, it creates a new object for it, and therefore your disabling of it will be remembered when
+     * offers that concern that host come in later. The scheduler will not use disabled hosts for allocating
+     * resources to tasks.
      * 
-     * @param vmID the VM ID
+     * @param vmID the ID of the host to disable
      * @param durationMillis the length of time, starting from now, in milliseconds, during which the host will
      *        be disabled
      * @return {@code true} if the ID matches a known VM, {@code false} otherwise.
@@ -716,9 +797,10 @@ public class TaskScheduler {
     }
 
     /**
-     * Enable the VM with the specified host name.
+     * Enable the VM with the specified host name. Hosts start in an enabled state, so you only need to call
+     * this method if you have previously explicitly disabled the host.
      *
-     * @param hostname the name of the host
+     * @param hostname the name of the host to enable
      */
     public void enableVM(String hostname) {
         logger.info("Enabling VM " + hostname);

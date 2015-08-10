@@ -30,6 +30,14 @@ import com.netflix.fenzo.VirtualMachineCurrentState;
  * {@link VMTaskFitnessCalculator} that implements a "soft" constraint. When Fenzo uses such a constraint, it
  * will attempt to place a task with a target that satisfies the constraint, but will place the task with a
  * target that fails the constraint if no other target can be found.
+ * <p>
+ * The resulting "soft" constraint will return evaluate a host/task combination as 0.0 if the underlying hard
+ * constraint would be violated, or 1.0 if the underlying hard constraint would be satisfied.
+ * <p>
+ * Note that some hard constraints may implement their own hard-to-soft conversion methods and that these
+ * methods may return a soft constraint that is more nuanced, returning values between 0.0 and 1.0 and not just
+ * those two values at either extreme (see, for example,
+ * {@link com.netflix.fenzo.plugins.BalancedHostAttrConstraint BalancedHostAttrConstraint}).
  */
 public class AsSoftConstraint {
 

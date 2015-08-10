@@ -30,26 +30,56 @@ public class ResAllocsBuilder {
         this.taskGroupName = taskGroupName;
     }
 
+    /**
+     * Limits the number of cores the task group can use to the number you pass in to this method.
+     *
+     * @param cores the maximum number of CPUs
+     * @return the same {@code ResAllocsBuilder}, modified accordingly
+     */
     public ResAllocsBuilder withCores(double cores) {
         this.cores = cores;
         return this;
     }
 
+    /**
+     * Limits the amount of memory the task group can use to the number of MB you pass in to this method.
+     *
+     * @param memory the maximum amount of memory, in MB
+     * @return the same {@code ResAllocsBuilder}, modified accordingly
+     */
     public ResAllocsBuilder withMemory(double memory) {
         this.memory = memory;
         return this;
     }
 
+    /**
+     * Limits the amount of bandwidth the task group can use to the number of megabits per second you pass in to
+     * this method.
+     *
+     * @param networkMbps the maximum about of bandwidth, in Mbps
+     * @return the same {@code ResAllocsBuilder}, modified accordingly
+     */
     public ResAllocsBuilder withNetworkMbps(double networkMbps) {
         this.networkMbps = networkMbps;
         return this;
     }
 
+    /**
+     * Limits the amount of disk space the task group can use to the number of MB you pass in to this method.
+     *
+     * @param disk the maximum amount of disk space, in MB
+     * @return the same {@code ResAllocsBuilder}, modified accordingly
+     */
     public ResAllocsBuilder withDisk(double disk) {
         this.disk = disk;
         return this;
     }
 
+    /**
+     * Builds a {@link ResAllocs} object based on your builder method instructions.
+     *
+     * @return a {@link ResAllocs} object, built to your specifications
+     */
     public ResAllocs build() {
         final double c = cores;
         final double m = memory;

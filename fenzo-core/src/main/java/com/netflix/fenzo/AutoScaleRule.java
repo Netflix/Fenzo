@@ -17,54 +17,54 @@
 package com.netflix.fenzo;
 
 /**
- * A rule to define the behavior for auto scaling the number of hosts of a certain type. Rules are defined
- * per unique value of host attribute that is used for matching, see
- * {@link com.netflix.fenzo.TaskScheduler.Builder#withAutoScaleByAttributeName(String)}.
+ * A rule that defines when to scale the number of hosts of a certain type. You define one rule for each unique
+ * value of the host attribute that you have designated to differentiate autoscale groups (see the
+ * {@link com.netflix.fenzo.TaskScheduler.Builder#withAutoScaleByAttributeName(String) withAutoScaleByAttributeName()}
+ * task scheduler builder method).
  */
 public interface AutoScaleRule {
     /**
-     * Returns the value of the host attribute for those hosts that this rule applies to (for example, the name
-     * of the autoscaling group).
+     * Returns the value, for the group of hosts that this rule applies to, of the host attribute that you have
+     * designated to differentiate autoscale groups. This acts as the name of the autoscaling group.
      *
-     * @return value of matching host attribute
+     * @return the value of the designated host attribute, which is the name of the autoscaling group this rule
+     *         applies to
      */
     public String getRuleName();
 
     /**
-     * Returns the minimum number of hosts of the type this rule applies to that Fenzo is to aim to keep in idle
-     * readiness. Keeping idle hosts in a standby state like this allows Fenzo to rapidly launch new jobs without
-     * waiting for new instances to spin up.
+     * Returns the minimum number of hosts, in the autoscale group this rule applies to, that Fenzo is to keep
+     * in idle readiness. Keeping idle hosts in a standby state like this allows Fenzo to rapidly launch new
+     * jobs without waiting for new instances to spin up.
      *
-     * @return the minimum number of idle hosts of this type
+     * @return the minimum number of idle hosts to maintain in this autoscale group
      */
     public int getMinIdleHostsToKeep();
 
     /**
-     * Returns the maximum number of hosts of the type this rule applies to that Fenzo is to aim to keep in idle
-     * readiness. Keeping idle hosts in a standby state like this allows Fenzo to rapidly launch new jobs without
-     * waiting for new instances to spin up.
+     * Returns the maximum number of hosts, in the autoscale group this rule applies to, that Fenzo is to keep
+     * in idle readiness. Keeping idle hosts in a standby state like this allows Fenzo to rapidly launch new
+     * jobs without waiting for new instances to spin up.
      *
-     * @return the maximum number of idle hosts of this type
+     * @return the maximum number of idle hosts to maintain in this autoscale group
      */
     public int getMaxIdleHostsToKeep();
 
     /**
      * Returns the amount of time to wait from the beginning of a scale up or scale down operation before
-     * initiating another autoscale operation.
-     * Get the number of seconds for cool down duration. Suppress autoscale actions for this many seconds after a previous
-     * autoscale action.
+     * initiating another autoscale operation (a.k.a the "cool down" time). Suppress autoscale actions for this
+     * many seconds after a previous autoscale action.
      *
      * @return the cool down time, in seconds
      */
     public long getCoolDownSecs();
 
     /**
-     * A predicate with which one can check to see if a technically-idle host has too few resources to be
-     * considered effectively idle. This is used to filter out hosts with too few resources before considering
-     * them to be excess resources. If they are not filtered out, they could prevent a much-needed scale up
-     * action.
+     * Determines whether a host has too few resources to be considered an idle but potentially useful host.
+     * This is used to filter out hosts with too few resources before considering them to be excess resources.
+     * If they are not filtered out, they could prevent a much-needed scale up action.
      *
-     * @param lease the lease object of the VM
+     * @param lease the lease object that representes the host
      * @return {@code true} if the idle machine has too few resources to count as idle, {@code false} otherwise
      */
     public boolean idleMachineTooSmall(VirtualMachineLease lease);

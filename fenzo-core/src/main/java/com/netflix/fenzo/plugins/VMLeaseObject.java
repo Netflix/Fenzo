@@ -11,7 +11,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * An adapter class to transform a Mesos resource offer to Fenzo {@link VirtualMachineLease}.
+ * An adapter class to transform a Mesos resource offer to a Fenzo {@link VirtualMachineLease}. Pass a Mesos
+ * {@link org.apache.mesos.Protos.Offer Offer} to the {@code VMLeaseObject} constructor to transform it into an
+ * object that implements the {@link VirtualMachineLease} interface.
  */
 public class VMLeaseObject implements VirtualMachineLease {
     private static final Logger logger = LoggerFactory.getLogger(VMLeaseObject.class);

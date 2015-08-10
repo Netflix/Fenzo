@@ -20,7 +20,16 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Result of resource assignments for a host (VM).
+ * Result of resource assignments for a host (VM). When you call your task scheduler's
+ * {@link TaskScheduler#scheduleOnce(java.util.List,java.util.List) scheduleOnce()} method to schedule a set of
+ * tasks, that method returns a {@link SchedulingResult}. That object includes the method
+ * {@link SchedulingResult#getResultMap() getResultMap()} which returns a map of host names to
+ * {@code VMAssignmentResult} objects. Those objects in turn have the {@link #getLeasesUsed()} and
+ * {@link #getTasksAssigned()} methods, which return information about the resource offers that participated in
+ * the assignments and which tasks were assigned on those hosts, in the form of {@link VirtualMachineLease}
+ * objects and {@link TaskAssignmentResult} objects respectively. This approach will give you insight into which
+ * tasks have been assigned to which hosts in the current scheduling round (but not about which tasks are
+ * already running on those hosts).
  */
 public class VMAssignmentResult {
     private final String hostname;
@@ -36,16 +45,16 @@ public class VMAssignmentResult {
     /**
      * Get the name of the host whose assignment results are available.
      *
-     * @return Name of te host.
+     * @return the name of the host
      */
     public String getHostname() {
         return hostname;
     }
 
     /**
-     * Get ehe list of leases (offers) used in creating the resource assignments for tasks.
+     * Get the list of leases (resource offers) used in creating the resource assignments for tasks.
      *
-     * @return List of leases.
+     * @return a List of leases
      */
     public List<VirtualMachineLease> getLeasesUsed() {
         return leasesUsed;
@@ -54,7 +63,7 @@ public class VMAssignmentResult {
     /**
      * Get the set of tasks that are assigned resources from this host.
      *
-     * @return Set of tasks.
+     * @return a Set of task assignment results
      */
     public Set<TaskAssignmentResult> getTasksAssigned() {
         return tasksAssigned;

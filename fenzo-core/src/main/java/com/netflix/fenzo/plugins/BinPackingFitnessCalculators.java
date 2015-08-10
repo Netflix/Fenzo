@@ -32,9 +32,8 @@ import java.util.Iterator;
 public class BinPackingFitnessCalculators {
 
     /**
-     * A CPU bin packing fitness calculator.
-     * This fitness calculator has the effect of using a VM that has the least number of available CPUs that can fit a
-     * given task for assignment.
+     * A CPU bin packing fitness calculator. This fitness calculator has the effect of assigning a task to a
+     * host that has the least number of available CPUs that are sufficient to fit the task.
      */
     public final static VMTaskFitnessCalculator cpuBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -58,10 +57,10 @@ public class BinPackingFitnessCalculators {
                     });
         }
     };
+
     /**
-     * A memory bin packing fitness calcualtor.
-     * This fitness calculator has the effect of using a VM that has the least amount of available memory that can fit a
-     * given task for assignment.
+     * A memory bin packing fitness calcualtor. This fitness calculator has the effect of assigning a task to a
+     * host that has the least amount of available memory that is sufficient to fit the task.
      */
     public final static VMTaskFitnessCalculator memoryBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -85,8 +84,10 @@ public class BinPackingFitnessCalculators {
                     });
         }
     };
+
     /**
-     * A bin packing fitness calculator that achieves both CPU and Memory bin packing with equal weights to both goals.
+     * A bin packing fitness calculator that achieves both CPU and Memory bin packing with equal weights to
+     * both goals.
      */
     public final static VMTaskFitnessCalculator cpuMemBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -100,10 +101,10 @@ public class BinPackingFitnessCalculators {
             return (cpuFitness + memoryFitness) / 2.0;
         }
     };
+
     /**
-     * A network bandwidth bin packing fitness calculator.
-     * This fitness calculator has the effect of using a VM that has the least amount of available network bandwidth that
-     * can git a given task for assignment.
+     * A network bandwidth bin packing fitness calculator. This fitness calculator has the effect of assigning a
+     * task to a host that has the least amount of available network bandwidth that is sufficient for the task.
      */
     public final static VMTaskFitnessCalculator networkBinPacker = new VMTaskFitnessCalculator() {
         @Override
@@ -127,9 +128,10 @@ public class BinPackingFitnessCalculators {
                     });
         }
     };
+
     /**
-     * A fitness calculator that achieves CPU, Memory, and network bandwidth bin packing with equal weights to each of
-     * the three goals.
+     * A fitness calculator that achieves CPU, Memory, and network bandwidth bin packing with equal weights to
+     * each of the three goals.
      */
     public final static VMTaskFitnessCalculator cpuMemNetworkBinPacker = new VMTaskFitnessCalculator() {
         @Override

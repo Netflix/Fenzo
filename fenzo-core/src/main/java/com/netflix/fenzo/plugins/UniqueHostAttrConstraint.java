@@ -26,9 +26,9 @@ import com.netflix.fenzo.functions.Func1;
 import java.util.Set;
 
 /**
- * A unique constraint evaluator that constrains tasks according to a given host attribute. Use this evaluator to
- * constrain a given set of tasks (co-tasks) by assigning them to hosts such that each task is assigned to a host
- * that has a different value for the host attribute you specify.
+ * A unique constraint evaluator that constrains tasks according to a given host attribute. Use this evaluator
+ * to constrain a given set of tasks (co-tasks) by assigning them to hosts such that each task is assigned to a
+ * host that has a different value for the host attribute you specify.
  * <p>
  * For example, if you specify the host attribute {@code ZoneAttribute}, the evaluator will place the co-tasks
  * such that each task is in a different zone. Note that because of this, if more tasks are submitted than there
@@ -44,20 +44,24 @@ public class UniqueHostAttrConstraint implements ConstraintEvaluator {
     private final String name;
 
     /**
-     * Create this constraint evaluator with the given co-tasks of a group.
-     * Equivalent to {@code UniqueHostAttrConstraint(coTasksGetter, null)}.
+     * Create this constraint evaluator with the given co-tasks of a group. This is equivalent to
+     * {@code UniqueHostAttrConstraint(coTasksGetter, null)}.
      *
-     * @param coTasksGetter A single argument function that, given a task ID, returns the set of task IDs of its co-tasks.
+     * @param coTasksGetter a single-argument function that, given a task ID, returns the set of task IDs of its
+     *                      co-tasks
      */
     public UniqueHostAttrConstraint(Func1<String, Set<String>> coTasksGetter) {
         this(coTasksGetter, AttributeUtilities.DEFAULT_ATTRIBUTE);
     }
 
     /**
-     * Create this constraint evaluator with the given co-tasks of a group and given VM attribute name.
-     * @param coTasksGetter A single argument function that, given a task ID, returns the set of task IDs of its co-tasks.
-     * @param hostAttributeName The name of the attribute whose value is to be unique for each co-task's VM assignment.
-     *                          If this is null, ensure VM's hostname is unique for each co-task's VM assignment.
+     * Create this constraint evaluator with the given co-tasks of a group and a given host attribute name.
+     *
+     * @param coTasksGetter a single-argument function that, given a task ID, returns the set of task IDs of its
+     *                      co-tasks
+     * @param hostAttributeName the name of the host attribute whose value is to be unique for each co-task's
+     *                          host assignment. If this is {@code null}, this indicates that the host name is
+     *                          to be unique for each co-task's host assignment.
      */
     public UniqueHostAttrConstraint(Func1<String, Set<String>> coTasksGetter, String hostAttributeName) {
         this.coTasksGetter = coTasksGetter;
@@ -80,13 +84,13 @@ public class UniqueHostAttrConstraint implements ConstraintEvaluator {
      * Determines whether a particular target host is appropriate for a particular task request by rejecting any
      * host that has the same value for the unique constraint attribute as another host that is already assigned
      * a co-task of the specified task request.
-     * @warn parameter descriptions missing
      *
-     * @param taskRequest
-     * @param targetVM
-     * @param taskTrackerState
-     * @return a successful Result if the target does not have the same value for its unique constraint attribute
-     *         as another host that has already been assigned a co-task of {@code taskRequest}, or an
+     * @param taskRequest      describes the task being considered for assignment to the host
+     * @param targetVM         describes the host being considered as a target for the task
+     * @param taskTrackerState describes the state of tasks previously assigned or already running throughout
+     *                         the system
+     * @return a successful Result if the target does not have the same value for its unique constraint
+     *         attribute as another host that has already been assigned a co-task of {@code taskRequest}, or an
      *         unsuccessful Result otherwise
      */
     @Override

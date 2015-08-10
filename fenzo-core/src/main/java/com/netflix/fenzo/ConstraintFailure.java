@@ -27,7 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An object that encapsulates the case of a target failing to satisfy a constraint mandated by a task.
+ * An object that encapsulates the case of a target failing to satisfy a constraint mandated by a task and
+ * implemented by a {@link ConstraintEvaluator}.
  */
 public class ConstraintFailure {
     @JsonIgnore
@@ -64,7 +65,8 @@ public class ConstraintFailure {
     }
 
     /**
-     * Returns a textual description of the constraint failure.
+     * Returns a textual description of the constraint failure that combines the name of the constraint and
+     * the reason why it was violated by the target.
      *
      * @return a String representation of this {@code ConstraintFailure}
      */

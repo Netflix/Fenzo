@@ -27,8 +27,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An assignment failure to indicate that a quantifiable resource failed assignment, along with the amount
- * that was requested (asked) by the task, the amount already used, and the amount available on the target.
+ * An assignment failure to indicate that a particular task could not be scheduled because a quantifiable
+ * resource was insufficient, along with the amount of the resource that was requested (asked) by the task, the
+ * amount already used, and the amount available on the target.
+ * <p>
+ * When you call {@link TaskScheduler#scheduleOnce(java.util.List, java.util.List) scheduleOnce()} to
+ * schedule tasks, that method returns a {@link SchedulingResult}. You can use that object's
+ * {@link SchedulingResult#getFailures() getFailures()} method to get a List of
+ * {@link TaskAssignmentResult} objects that represent the status of each task you attempted to assign. Each of
+ * those objects has a {@link TaskAssignmentResult#getFailures() getFailures()} method with which you can get
+ * a list of {@code AssignmentFailure} objects describing any failures of this sort that made the task
+ * scheduler unable to assign the task to a host.
  */
 public class AssignmentFailure {
     @JsonIgnore

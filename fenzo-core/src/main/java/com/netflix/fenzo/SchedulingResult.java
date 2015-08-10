@@ -21,7 +21,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Result of a scheduling trial, returned by {@link TaskScheduler#scheduleOnce(List, List)}.
+ * The result of a scheduling trial, as returned by
+ * {@link TaskScheduler#scheduleOnce(List, List) scheduleOnce()}.
+ * <p>
+ * You can use this object to get a map of which tasks the task scheduler assigned to which virtual machines,
+ * and then you can use this assignment map to launch the assigned tasks via Mesos.
+ * <p>
+ * You can also use the list of task assignment failures that is available through this object to make an
+ * additional attempt to launch those tasks on your next scheduling loop or to modify the state of the system
+ * to make it more amenable to the failed tasks.
  */
 public class SchedulingResult {
     private final Map<String, VMAssignmentResult> resultMap;
@@ -39,10 +47,11 @@ public class SchedulingResult {
     }
 
     /**
-     * Get the result map. The keys are host names on which at least one task has been assigned resources. The values
-     * are the assignment results containing the offers used and assigned tasks.
+     * Get the successful task assignment result map. The map keys are host names on which at least one task has
+     * been assigned resources during the current scheduling round. The map values are the assignment results
+     * that contain the offers used and assigned tasks.
      *
-     * @return Map of results.
+     * @return a Map of the successful task assignments the task scheduler made in this scheduling round
      */
     public Map<String, VMAssignmentResult> getResultMap() {
         return resultMap;
@@ -53,19 +62,20 @@ public class SchedulingResult {
     }
 
     /**
-     * Get assignment failures map incurred during scheduling. The keys are the task requests that failed assignments
-     * and the values are the list of all failures incurred.
+     * Get the unsuccessful task assignment result map. The map keys are the task requests that the task
+     * scheduler was unable to assign. The map values are a List of all of the failures that prevented the
+     * task scheduler from assigning the task.
      *
-     * @return Map of failures for all tasks that failed assignments.
+     * @return a Map of the tasks the task scheduler failed to assign in this scheduling round
      */
     public Map<TaskRequest, List<TaskAssignmentResult>> getFailures() {
         return failures;
     }
 
     /**
-     * Get the number of leases (resource offers) added during the assignment trial.
+     * Get the number of leases (resource offers) added during this scheduling trial.
      *
-     * @return Number of leases added.
+     * @return the number of leases added
      */
     public int getLeasesAdded() {
         return leasesAdded;
@@ -76,9 +86,9 @@ public class SchedulingResult {
     }
 
     /**
-     * Get the number of leases (offers) rejected during the scheduling trial.
+     * Get the number of leases (resource offers) rejected during this scheduling trial.
      *
-     * @return Number of leases rejected.
+     * @return the number of leases rejected
      */
     public int getLeasesRejected() {
         return leasesRejected;
@@ -89,9 +99,9 @@ public class SchedulingResult {
     }
 
     /**
-     * Get the time taken, in milli seconds, for this scheduling trial.
+     * Get the time elapsed, in milliseconds, during this scheduling trial.
      *
-     * @return Time to complete the scheduling trial, in milli seconds.
+     * @return the time taken to complete this scheduling trial, in milliseconds
      */
     public long getRuntime() {
         return runtime;
@@ -102,9 +112,9 @@ public class SchedulingResult {
     }
 
     /**
-     * Get the number of resource allocation trials performed during the scheduling iteration.
+     * Get the number of resource allocations performed during this scheduling trial.
      *
-     * @return The number of resource allocations during this scheduling trial.
+     * @return the number of resource allocations during this scheduling trial
      */
     public int getNumAllocations() {
         return numAllocations;
@@ -115,9 +125,9 @@ public class SchedulingResult {
     }
 
     /**
-     * Get the total number of hosts (VMs) known during this scheduling iteration.
+     * Get the total number of hosts (virtual machines) known during this scheduling trial.
      *
-     * @return The number of hosts (VMs) known.
+     * @return the number of known hosts (VMs)
      */
     public int getTotalVMsCount() {
         return totalVMsCount;
@@ -128,10 +138,10 @@ public class SchedulingResult {
     }
 
     /**
-     * Get the number of hosts (VMs) that are known to be idle at the end of this scheduling trial. This is the number
-     * before any scale down action is triggered.
+     * Get the number of hosts (virtual machines) that are idle at the end of this scheduling trial. This is the
+     * number before any scale down action is triggered.
      *
-     * @return The number of idle hosts.
+     * @return the number of idle hosts
      */
     public int getIdleVMsCount() {
         return idleVMsCount;

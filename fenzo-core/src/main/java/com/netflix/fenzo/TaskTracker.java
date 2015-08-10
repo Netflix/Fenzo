@@ -24,6 +24,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * @warn class description missing
+ */
 public class TaskTracker {
 
     static class TaskGroupUsage implements ResAllocs {
@@ -107,7 +110,8 @@ public class TaskTracker {
 
         /**
          * Get the task request object associated with the active task.
-         * @return The task request object.
+         *
+         * @return the task request object
          */
         public TaskRequest getTaskRequest() {
             return taskRequest;
@@ -115,7 +119,8 @@ public class TaskTracker {
 
         /**
          * Get the totals resource offers associated with the host on which the task is active.
-         * @return The total resource offers for the host.
+         *
+         * @return the total resource offers for the host
          */
         public VirtualMachineLease getTotalLease() {
             return avm.getCurrTotalLease();

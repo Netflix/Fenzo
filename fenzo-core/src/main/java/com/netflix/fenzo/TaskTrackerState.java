@@ -19,23 +19,25 @@ package com.netflix.fenzo;
 import java.util.Map;
 
 /**
- * State of tracked tasks in the scheduler.
+ * The state of the tasks that are tracked by the task scheduler. The task scheduler passes an object that
+ * implements this interface into {@link ConstraintEvaluator}s to enable them to have a bird's-eye view of the
+ * state of tasks that are assigned and running in the system at large.
  */
 public interface TaskTrackerState {
     /**
-     * Get a map of all running tasks. The keys are the task IDs of active tasks. The values are the corresponding
-     * active task objects containing information on the active task.
+     * Get a map of all running tasks. The map keys are the task IDs of active tasks. The map values are the
+     * corresponding active task objects containing information on the active task.
      *
-     * @return Map of all known running tasks.
+     * @return a Map of all known running tasks
      */
     public Map<String, TaskTracker.ActiveTask> getAllRunningTasks();
 
     /**
-     * Get a map of all tasks currently assigned during a scheduling trial, but running yet. The keys are the task IDs
-     * of the assigned tasks. The values are the corresponding active task objects containing information on the
-     * assigned tasks.
+     * Get a map of all tasks currently assigned during a scheduling trial, but not running yet. The map keys
+     * are the task IDs of the assigned tasks. The map values are the corresponding active task objects
+     * containing information on the assigned tasks.
      *
-     * @return Map of all assigned tasks.
+     * @return a Map of all assigned tasks
      */
     public Map<String, TaskTracker.ActiveTask> getAllCurrentlyAssignedTasks();
 }
