@@ -131,7 +131,7 @@ public class TaskScheduler {
          *
          * @param fitnessCalculator the fitness calculator you want this scheduler to use in its evaluations
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
-         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Scheduling-Optimization-Plugins">Scheduling Optimization Plugins</a>
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Fitness-Calculators">Fitness Calculators</a>
          */
         public Builder withFitnessCalculator(VMTaskFitnessCalculator fitnessCalculator) {
             this.fitnessCalculator = fitnessCalculator;
