@@ -2,11 +2,11 @@
 
 ## Overview
 
-Fenzo is a generic task scheduler Java library for Apache Mesos frameworks that supports plugins for scheduling
-optimizations.
+Fenzo is a scheduler Java library for Apache Mesos frameworks that supports plugins for scheduling
+optimizations and facilitates cluster autoscaling.
 
-Apache Mesos frameworks match and assign resources to pending tasks. Fenzo presents a plugin-based, generic  
-Java library that facilitates scheduling resources to tasks by using a variety of possible scheduling objectives,
+Apache Mesos frameworks match and assign resources to pending tasks. Fenzo presents a plugin-based, Java library that 
+facilitates scheduling resources to tasks by using a variety of possible scheduling objectives,
 such as bin packing, balancing across resource abstractions (such as AWS availability zones or data center
 racks), resource affinity, and task locality. 
 
@@ -23,7 +23,7 @@ Fenzo Features:
 - you can assign CPU, memory, network bandwidth, disk, and port resources from resource offers
 - you can group a heterogeneous mix of execution hosts based on their attributes
     - you can have each group autoscaled independently; for example, you may choose to keep a minimum of
-      big-memory hosts idle, but a minimum of eight small-memory hosts
+      five big-memory hosts idle, but a minimum of eight small-memory hosts
 - you can set resource allocation limits on a per job group basis
     - you can define limits on the use of resource amounts on a per job group basis
     - the scale up of the cluster stops when these limits are reached, even if tasks are pending
@@ -36,20 +36,20 @@ balance scheduling speed with optimal task assignment quality based on their nee
 constraint plugins that are built in to Fenzo include:
 
 - Bin packing fitness calculator
-    - CPU, memory, or combined CPU and memory bin packing
-    - packs tasks into as few slaves as possible
-- Slave attribute value constraint
-    - selects a slaves for a task only if it has a specific attribute value
-- Unique slave attribute constraint
-    - ensures co-tasks are placed on slaves that have unique values for a given attribute or host name
-    - for example: one co-task per AWS EC2 availability zone, or one co-task per unique slave
-- Balanced slave attribute constraint
-    - ensure co-tasks are placed on slaves such that there are an equal number of slaves for each unique value of
-      the attribute
+    - CPU, memory, network bandwidth, or a combination of them
+    - packs tasks into as few hosts as possible
+- Host attribute value constraint
+    - selects a host for a task only if it has a specific attribute value
+- Unique host attribute constraint
+    - ensures co-tasks are placed on hosts that have unique values for a given attribute or host name
+    - for example: one co-task per AWS EC2 availability zone, or one co-task per unique host
+- Balanced host attribute constraint
+    - ensure co-tasks are placed on hosts such that there are an equal number of tasks on hosts with unique value 
+      of the attribute
     - for example: balance all co-tasks across AWS EC2 availability zones
-- Exclusive slave constraint
-    - ensure the slave is used solely for the task being assigned, even if additional resources are available on
-      the slave
+- Exclusive host constraint
+    - ensure the host is used solely for the task being assigned, even if additional resources are available on
+      the host
 
 You can specify whether Fenzo applies a constraint in a hard (must satisfy) or soft (satisfy as much as possible)
 manner.
