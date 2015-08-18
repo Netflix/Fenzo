@@ -298,9 +298,11 @@ public class TriggerOperator {
         @Override
         public void execute(JobExecutionContext context) throws JobExecutionException {
             TriggerOperator triggerOperator = (TriggerOperator) context.getMergedJobDataMap().get(TRIGGER_OPERATOR_KEY);
-            Trigger trigger = (Trigger) context.getMergedJobDataMap().get(TRIGGER_KEY);
+            ScheduledTrigger scheduledTrigger = (ScheduledTrigger) context.getMergedJobDataMap().get(TRIGGER_KEY);
             try {
-                triggerOperator.execute(trigger);
+                logger.info("Executing scheduledTrigger: {}, Previous fire time: {}, Next fire time: {}",
+                    scheduledTrigger, scheduledTrigger.getPreviousFireTime(), scheduledTrigger.getNextFireTime());
+                triggerOperator.execute(scheduledTrigger);
             } catch (Exception e) {
                 throw new JobExecutionException(e);
             }

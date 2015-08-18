@@ -74,4 +74,12 @@ public abstract class ScheduledTrigger<T> extends Trigger<T> {
     public Date getEndAt() {
         return endAt;
     }
+
+    public Date getNextFireTime() {
+        return quartzTrigger != null ? quartzTrigger.getNextFireTime() : null;
+    }
+
+    public Date getPreviousFireTime() {
+        return quartzTrigger != null ? quartzTrigger.getPreviousFireTime() : null;
+    }
 }

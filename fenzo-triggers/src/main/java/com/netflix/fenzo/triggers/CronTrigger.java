@@ -77,7 +77,7 @@ public class CronTrigger<T> extends ScheduledTrigger<T> {
      */
     @JsonIgnore
     public ScheduleBuilder getScheduleBuilder() {
-        return cronSchedule(cronExpression).inTimeZone(TimeZone.getTimeZone(timeZoneId));
+        return cronSchedule(cronExpression).withMisfireHandlingInstructionDoNothing().inTimeZone(TimeZone.getTimeZone(timeZoneId));
     }
 
     /**

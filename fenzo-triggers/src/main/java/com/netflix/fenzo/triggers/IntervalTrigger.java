@@ -48,6 +48,7 @@ public class IntervalTrigger<T> extends ScheduledTrigger<T> {
                 return SimpleScheduleBuilder.simpleSchedule()
                         .withRepeatCount(repeatCount)
                         .withIntervalInMilliseconds(repeatInterval)
+                        .withMisfireHandlingInstructionNextWithRemainingCount()
                         .build();
             }
         };
