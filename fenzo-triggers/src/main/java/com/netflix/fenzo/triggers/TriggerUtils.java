@@ -1,5 +1,6 @@
 package com.netflix.fenzo.triggers;
 
+import org.joda.time.Interval;
 import org.quartz.CronExpression;
 
 import java.text.ParseException;
@@ -41,6 +42,23 @@ public class TriggerUtils {
             }
             CronExpression.validateExpression(cronExpression);
         } catch (ParseException e) {
+            throw new IllegalArgumentException(e.getMessage());
+        }
+    }
+
+    public static boolean isValidISO8601Interval(String iso8601Interval) {
+        try {
+            Interval.parse(iso8601Interval);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static void validateISO8601Interval(String iso8601Interval) {
+        try {
+            Interval.parse(iso8601Interval);
+        } catch (Exception e) {
             throw new IllegalArgumentException(e.getMessage());
         }
     }
