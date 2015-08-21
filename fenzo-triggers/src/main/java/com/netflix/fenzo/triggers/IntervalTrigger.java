@@ -16,6 +16,7 @@
 package com.netflix.fenzo.triggers;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.joda.time.Interval;
 import org.quartz.ScheduleBuilder;
@@ -53,6 +54,7 @@ public class IntervalTrigger<T> extends ScheduledTrigger<T> {
     }
 
     @Override
+    @JsonIgnore
     public ScheduleBuilder getScheduleBuilder() {
         return new ScheduleBuilder<SimpleTrigger>() {
             @Override
