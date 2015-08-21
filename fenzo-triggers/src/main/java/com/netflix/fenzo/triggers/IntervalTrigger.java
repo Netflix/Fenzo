@@ -66,4 +66,11 @@ public class IntervalTrigger<T> extends ScheduledTrigger<T> {
         };
     }
 
+    public long getRepeatInterval() {
+        return repeatInterval;
+    }
+
+    public int getRepeatCount() {
+        return repeatCount;
+    }
 }
