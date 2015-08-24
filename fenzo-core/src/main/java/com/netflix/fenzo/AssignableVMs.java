@@ -75,8 +75,10 @@ class AssignableVMs {
     private final ActiveVmGroups activeVmGroups;
     private String activeVmGroupAttributeName=null;
     private final List<String> unknownLeaseIdsToExpire = new ArrayList<>();
+    private final boolean singleLeaseMode;
 
-    AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction, long leaseOfferExpirySecs, String attrNameToGroupMaxResources) {
+    AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction, long leaseOfferExpirySecs,
+                  String attrNameToGroupMaxResources, boolean singleLeaseMode) {
         this.taskTracker = taskTracker;
         virtualMachinesMap = new ConcurrentHashMap<>();
         this.leaseRejectAction = leaseRejectAction;
@@ -85,6 +87,7 @@ class AssignableVMs {
         maxResourcesMap = new HashMap<>();
         vmRejectLimiter = new VMRejectLimiter(4, leaseOfferExpirySecs);  // ToDo make this configurable?
         activeVmGroups = new ActiveVmGroups();
+        this.singleLeaseMode = singleLeaseMode;
     }
 
     Map<String, Map<VMResource, Double[]>> getResourceStatus() {
@@ -128,7 +131,7 @@ class AssignableVMs {
         if(virtualMachinesMap.get(hostname) == null)
             virtualMachinesMap.putIfAbsent(hostname,
                     new AssignableVirtualMachine(vmIdToHostnameMap, leaseIdToHostnameMap, hostname,
-                            leaseRejectAction, leaseOfferExpirySecs, taskTracker));
+                            leaseRejectAction, leaseOfferExpirySecs, taskTracker, singleLeaseMode));
     }
 
     void expireLease(String leaseId) {

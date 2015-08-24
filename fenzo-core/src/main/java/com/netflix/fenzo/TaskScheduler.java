@@ -94,6 +94,7 @@ public class TaskScheduler {
         };
         private boolean disableShortfallEvaluation=false;
         private Map<String, ResAllocs> resAllocs=null;
+        private boolean singleOfferMode=false;
 
         /**
          * (Required) Call this method to establish a method that your task scheduler will call to notify you
@@ -280,6 +281,22 @@ public class TaskScheduler {
         }
 
         /**
+         * Indicate that the cluster receives resource offers only once per VM (host). Normally, Mesos sends resource
+         * offers multiple times, as resources free up on the host upon completion of various tasks. This method
+         * provides an experimental support for a mode where Fenzo can be made aware of the entire set of resources
+         * on hosts once, in a model similar to Amazon ECS. Fenzo internally keeps track of total versus used resources
+         * on the host based on tasks assigned and then later unassigned. No further resource offers are expected after
+         * the initial one.
+         *
+         * @param b True if only one resource offer is expected per host, false by default.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         */
+        public Builder withSingleOfferPerVM(boolean b) {
+            this.singleOfferMode = b;
+            return this;
+        }
+
+        /**
          * Creates a {@link TaskScheduler} based on the various builder methods you have chained.
          *
          * @return a {@code TaskScheduler} built according to the specifications you indicated
@@ -322,7 +339,7 @@ public class TaskScheduler {
         TaskTracker taskTracker = new TaskTracker();
         resAllocsEvaluator = new ResAllocsEvaluater(taskTracker, builder.resAllocs);
         assignableVMs = new AssignableVMs(taskTracker, builder.leaseRejectAction,
-                builder.leaseOfferExpirySecs, builder.autoScaleByAttributeName);
+                builder.leaseOfferExpirySecs, builder.autoScaleByAttributeName, builder.singleOfferMode);
         if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
 
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
