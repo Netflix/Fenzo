@@ -130,11 +130,20 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     // This may have to be configurable, but, for now weight the job's soft constraints more than system wide fitness calculators
     private double softConstraintWeightPercentage=75.0;
     private String exclusiveTaskId =null;
+    private final boolean singleLeaseMode;
+    private boolean firstLeaseAdded=false;
 
     public AssignableVirtualMachine(ConcurrentMap<String, String> vmIdToHostnameMap,
                                     ConcurrentMap<String, String> leaseIdToHostnameMap,
                                     String hostname, Action1<VirtualMachineLease> leaseRejectAction,
                                     long leaseOfferExpirySecs, TaskTracker taskTracker) {
+        this(vmIdToHostnameMap, leaseIdToHostnameMap, hostname, leaseRejectAction, leaseOfferExpirySecs, taskTracker, false);
+    }
+
+    public AssignableVirtualMachine(ConcurrentMap<String, String> vmIdToHostnameMap,
+                                    ConcurrentMap<String, String> leaseIdToHostnameMap,
+                                    String hostname, Action1<VirtualMachineLease> leaseRejectAction,
+                                    long leaseOfferExpirySecs, TaskTracker taskTracker, boolean singleLeaseMode) {
         this.vmIdToHostnameMap = vmIdToHostnameMap;
         this.leaseIdToHostnameMap = leaseIdToHostnameMap;
         this.hostname = hostname;
@@ -155,9 +164,13 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         this.workersToUnAssign = new LinkedBlockingQueue<>();
         this.previouslyAssignedTasksMap = new HashMap<>();
         this.assignmentResults = new HashMap<>();
+        this.singleLeaseMode = singleLeaseMode;
     }
 
     private void addToAvailableResources(VirtualMachineLease l) {
+        if(singleLeaseMode && firstLeaseAdded)
+            return; // ToDo should this be illegal state exception?
+        firstLeaseAdded = true;
         currTotalCpus += l.cpuCores();
         currTotalMemory += l.memoryMB();
         currTotalNetworkMbps += l.networkMbps();
@@ -176,15 +189,18 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     void resetResources() {
-        currTotalCpus=0.0;
+        if(!singleLeaseMode) {
+            currTotalCpus=0.0;
+            currTotalMemory=0.0;
+            currTotalNetworkMbps=0.0;
+            currTotalDisk=0.0;
+            currPortRanges.clear();
+        }
         currUsedCpus=0.0;
-        currTotalMemory=0.0;
         currUsedMemory=0.0;
-        currTotalNetworkMbps=0.0;
         currUsedNetworkMbps=0.0;
-        currTotalDisk=0.0;
         currUsedDisk=0.0;
-        currPortRanges.clear();
+        // ToDo: in single offer mode, need to resolve used ports somehow
         // don't clear attribute map
         for(VirtualMachineLease l: leasesMap.values())
             addToAvailableResources(l);
@@ -260,6 +276,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     int expireLimitedLeases(AssignableVMs.VMRejectLimiter vmRejectLimiter) {
+        if(singleLeaseMode)
+            return 0;
         int rejected=0;
         Iterator<Map.Entry<String,VirtualMachineLease>> iterator = leasesMap.entrySet().iterator();
         long now = System.currentTimeMillis();
@@ -329,10 +347,14 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     void setAssignedTask(TaskRequest request) {
-        if(!taskTracker.addRunningTask(request, this))
+        boolean added = taskTracker.addRunningTask(request, this);
+        if(!added)
             logger.error("Unexpected to add duplicate task id=" + request.getId());
         previouslyAssignedTasksMap.put(request.getId(), request);
         setIfExclusive(request);
+        if(singleLeaseMode && added) {
+            removeResourcesOf(request);
+        }
     }
 
     void expireLease(String leaseId) {
@@ -369,10 +391,28 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         workersToUnAssign.drainTo(tasks);
         for(String t: tasks) {
             taskTracker.removeRunningTask(t);
-            previouslyAssignedTasksMap.remove(t);
+            TaskRequest r = previouslyAssignedTasksMap.remove(t);
+            if(singleLeaseMode && r!=null)
+                addBackResourcesOf(r);
             clearIfExclusive(t);
         }
         assignmentResults.clear();
+    }
+
+    private void removeResourcesOf(TaskRequest request) {
+        currTotalCpus -= request.getCPUs();
+        currTotalMemory -= request.getMemory();
+        currTotalDisk -= request.getDisk();
+        currTotalNetworkMbps -= request.getNetworkMbps();
+        // ToDo need to figure out ports as well
+    }
+
+    private void addBackResourcesOf(TaskRequest r) {
+        currTotalCpus += r.getCPUs();
+        currTotalMemory += r.getMemory();
+        currTotalNetworkMbps += r.getNetworkMbps();
+        currTotalDisk += r.getDisk();
+        // ToDo add back ports
     }
 
     String getAttrValue(String attrName) {
@@ -618,9 +658,11 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         if(result.isEmpty())
             return null;
         VMAssignmentResult vmar = new VMAssignmentResult(hostname, new ArrayList<>(leasesMap.values()), result);
-        for(String l: leasesMap.keySet())
-            leaseIdToHostnameMap.remove(l);
-        leasesMap.clear();
+        if(!singleLeaseMode) {
+            for(String l: leasesMap.keySet())
+                leaseIdToHostnameMap.remove(l);
+            leasesMap.clear();
+        }
         assignmentResults.clear();
         return vmar;
     }
