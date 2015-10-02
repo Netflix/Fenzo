@@ -82,4 +82,51 @@ class TaskRequestProvider {
             }
         };
     }
+
+    static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double disk,
+                                      final double network, final int ports,
+                                      final List<? extends ConstraintEvaluator> hardConstraints,
+                                      final List<? extends VMTaskFitnessCalculator> softConstraints) {
+        final String taskId = ""+id.incrementAndGet();
+        return new TaskRequest() {
+            @Override
+            public String getId() {
+                return taskId;
+            }
+
+            @Override
+            public String taskGroupName() {
+                return grpName;
+            }
+
+            @Override
+            public double getCPUs() {
+                return cpus;
+            }
+            @Override
+            public double getMemory() {
+                return memory;
+            }
+            @Override
+            public double getNetworkMbps() {
+                return network;
+            }
+            @Override
+            public double getDisk() {
+                return disk;
+            }
+            @Override
+            public int getPorts() {
+                return ports;
+            }
+            @Override
+            public List<? extends ConstraintEvaluator> getHardConstraints() {
+                return hardConstraints;
+            }
+            @Override
+            public List<? extends VMTaskFitnessCalculator> getSoftConstraints() {
+                return softConstraints;
+            }
+        };
+    }
 }

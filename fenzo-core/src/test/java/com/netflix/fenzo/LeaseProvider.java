@@ -42,6 +42,58 @@ class LeaseProvider {
         return getLeaseOffer(hostname, cpus, memory, 0.0, portRanges, attributesMap);
     }
 
+    static VirtualMachineLease getLeaseOffer(final String hostname, final double cpus, final double memory, final double disk,
+                                             final double network, final List<VirtualMachineLease.Range> portRanges,
+                                             final Map<String, Protos.Attribute> attributesMap) {
+        final long offeredTime = System.currentTimeMillis();
+        return new VirtualMachineLease() {
+            @Override
+            public String getId() {
+                return UUID.randomUUID().toString();
+            }
+            @Override
+            public long getOfferedTime() {
+                return offeredTime;
+            }
+            @Override
+            public String hostname() {
+                return hostname;
+            }
+            @Override
+            public String getVMID() {
+                return UUID.randomUUID().toString();
+            }
+            @Override
+            public double cpuCores() {
+                return cpus;
+            }
+            @Override
+            public double memoryMB() {
+                return memory;
+            }
+            public double networkMbps() {
+                return network;
+            }
+            @Override
+            public double diskMB() {
+                return disk;
+            }
+            @Override
+            public List<Range> portRanges() {
+                return portRanges;
+            }
+            @Override
+            public Protos.Offer getOffer() {
+                return null;
+            }
+
+            @Override
+            public Map<String, Protos.Attribute> getAttributeMap() {
+                return attributesMap==null? null : attributesMap;
+            }
+        };
+    }
+
     static VirtualMachineLease getLeaseOffer(final String hostname, final double cpus, final double memory,
                                              final double network, final List<VirtualMachineLease.Range> portRanges,
                                              final Map<String, Protos.Attribute> attributesMap) {
