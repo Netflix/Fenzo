@@ -90,7 +90,7 @@ public class TestLotsOfTasks {
         return LeaseProvider.getLeases(numHosts, numCores, memory, 1, 10);
     }
 
-    private static final double GOOD_ENOUGH_FITNESS=1.0;
+    private static final double GOOD_ENOUGH_FITNESS=0.5;
 
     // Results looks like this;
     //
@@ -119,8 +119,8 @@ public class TestLotsOfTasks {
     public static void main(String[] args) {
         TaskScheduler scheduler = getTaskScheduler();
         TestLotsOfTasks tester = new TestLotsOfTasks();
-        tester.numHosts=200;
-        tester.numCores=8;
+        tester.numHosts=10000;
+        tester.numCores=16;
         tester.memory=1000*tester.numCores;
         List<TaskRequest> tasks = tester.getTasks();
         List<VirtualMachineLease> leases = tester.getLeases();

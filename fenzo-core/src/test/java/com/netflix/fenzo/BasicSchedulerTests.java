@@ -356,7 +356,7 @@ public class BasicSchedulerTests {
         taskRequests.add(TaskRequestProvider.getTaskRequest(5, 10, 1)); // make sure task doesn't get assigned
         resultMap = scheduler.scheduleOnce(taskRequests, leases).getResultMap();
         Assert.assertEquals(0, resultMap.size());
-        Assert.assertTrue(rejectCount.get()>0);
+        Assert.assertTrue(rejectCount.get() > 0);
     }
 
     /**
@@ -380,6 +380,7 @@ public class BasicSchedulerTests {
                     public String getName() {
                         return "DummyFitnessCalculator";
                     }
+
                     @Override
                     public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
                         Assert.assertEquals(assignedTasks.get().size(), taskTrackerState.getAllCurrentlyAssignedTasks().size());
@@ -490,5 +491,19 @@ public class BasicSchedulerTests {
         System.out.println("result map #elements: " + schedulingResult.getResultMap().size());
         Assert.assertEquals(0, schedulingResult.getFailures().size());
     }
+
+    @Test
+    public void testInsufficientDisk() throws Exception {
+        List<VirtualMachineLease> leases = Collections.singletonList(LeaseProvider.getLeaseOffer("hostA", 4, 4000, 1000, 10,
+                Collections.singletonList(new VirtualMachineLease.Range(1, 10)), null));
+        List<TaskRequest> taskRequests = new ArrayList<>();
+        taskRequests.add(TaskRequestProvider.getTaskRequest(null, 1, 95, 800, 1, 1, null, null));
+        taskRequests.add(TaskRequestProvider.getTaskRequest(null, 1, 95, 800, 1, 1, null, null));
+        taskRequests.add(TaskRequestProvider.getTaskRequest(null, 1, 95, 800, 1, 1, null, null));
+        Map<String,VMAssignmentResult> resultMap = taskScheduler.scheduleOnce(taskRequests, leases).getResultMap();
+        Assert.assertEquals(1, resultMap.entrySet().size());
+        Assert.assertEquals(1, resultMap.values().iterator().next().getTasksAssigned().size());
+    }
+
 
 }

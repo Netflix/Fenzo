@@ -633,6 +633,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         currUsedCpus += result.getRequest().getCPUs();
         currUsedMemory += result.getRequest().getMemory();
         currUsedNetworkMbps += result.getRequest().getNetworkMbps();
+        currUsedDisk += result.getRequest().getDisk();
         for(int p=0; p<result.getRequest().getPorts(); p++){
             result.addPort(currPortRanges.consumeNextPort());
         }
