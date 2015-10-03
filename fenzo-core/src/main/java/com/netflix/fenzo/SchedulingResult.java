@@ -150,4 +150,18 @@ public class SchedulingResult {
     void setIdleVMsCount(int idleVMsCount) {
         this.idleVMsCount = idleVMsCount;
     }
+
+    @Override
+    public String toString() {
+        return "SchedulingResult{" +
+                "resultMap=" + resultMap +
+                ", failures=" + failures +
+                ", leasesAdded=" + leasesAdded +
+                ", leasesRejected=" + leasesRejected +
+                ", runtime=" + runtime +
+                ", numAllocations=" + numAllocations +
+                ", totalVMsCount=" + totalVMsCount +
+                ", idleVMsCount=" + idleVMsCount +
+                '}';
+    }
 }

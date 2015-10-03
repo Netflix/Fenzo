@@ -104,12 +104,13 @@ public class AssignmentFailure {
      *
      * @return a String representation of this assignment failure
      */
+    @Override
     public String toString() {
-        try {
-            return objectMapper.writeValueAsString(this);
-        } catch (JsonProcessingException e) {
-            logger.info("Unexpected error writing json: " + e.getMessage());
-            return "resource="+resource+", asking="+asking+", used="+used+", available="+available;
-        }
+        return "AssignmentFailure{" +
+                "resource=" + resource +
+                ", asking=" + asking +
+                ", used=" + used +
+                ", available=" + available +
+                '}';
     }
 }

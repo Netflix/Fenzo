@@ -68,4 +68,13 @@ public class VMAssignmentResult {
     public Set<TaskAssignmentResult> getTasksAssigned() {
         return tasksAssigned;
     }
+
+    @Override
+    public String toString() {
+        return "VMAssignmentResult{" +
+                "hostname='" + hostname + '\'' +
+                ", leasesUsed=" + leasesUsed +
+                ", tasksAssigned=" + tasksAssigned +
+                '}';
+    }
 }

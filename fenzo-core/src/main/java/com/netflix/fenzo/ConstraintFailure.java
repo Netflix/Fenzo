@@ -70,12 +70,11 @@ public class ConstraintFailure {
      *
      * @return a String representation of this {@code ConstraintFailure}
      */
+    @Override
     public String toString() {
-        try {
-            return objectMapper.writeValueAsString(this);
-        } catch (JsonProcessingException e) {
-            logger.info("Unexpected error writing json: " + e.getMessage());
-            return "Constraint="+name+", reason="+reason;
-        }
+        return "ConstraintFailure{" +
+                "name='" + name + '\'' +
+                ", reason='" + reason + '\'' +
+                '}';
     }
 }

@@ -143,4 +143,18 @@ public class TaskAssignmentResult {
         return fitness;
     }
 
+    @Override
+    public String toString() {
+        return "TaskAssignmentResult{" +
+                "host=" + avm.getHostname() +
+                ", request=" + request +
+                ", taskId='" + taskId + '\'' +
+                ", hostname='" + hostname + '\'' +
+                ", assignedPorts=" + assignedPorts +
+                ", successful=" + successful +
+                ", failures=" + failures +
+                ", constraintFailure=" + constraintFailure +
+                ", fitness=" + fitness +
+                '}';
+    }
 }
