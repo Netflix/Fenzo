@@ -126,4 +126,20 @@ public class VMLeaseObject implements VirtualMachineLease {
     public Map<String, Protos.Attribute> getAttributeMap() {
         return attributeMap;
     }
+
+    @Override
+    public String toString() {
+        return "VMLeaseObject{" +
+                "offer=" + offer +
+                ", cpuCores=" + cpuCores +
+                ", memoryMB=" + memoryMB +
+                ", networkMbps=" + networkMbps +
+                ", diskMB=" + diskMB +
+                ", hostname='" + hostname + '\'' +
+                ", vmID='" + vmID + '\'' +
+                ", portRanges=" + portRanges +
+                ", attributeMap=" + attributeMap +
+                ", offeredTime=" + offeredTime +
+                '}';
+    }
 }
