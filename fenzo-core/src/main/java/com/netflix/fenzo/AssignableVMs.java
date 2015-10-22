@@ -38,7 +38,7 @@ class AssignableVMs {
 
         VMRejectLimiter(int limit, long leaseOfferExpirySecs) {
             this.limit = limit;
-            this.rejectDelay = leaseOfferExpirySecs;
+            this.rejectDelay = leaseOfferExpirySecs*1000L;
         }
         synchronized boolean reject() {
             if(rejectedCount==limit)
@@ -77,7 +77,8 @@ class AssignableVMs {
     private final List<String> unknownLeaseIdsToExpire = new ArrayList<>();
     private final boolean singleLeaseMode;
 
-    AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction, long leaseOfferExpirySecs,
+    AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction,
+                  long leaseOfferExpirySecs, int maxOffersToReject,
                   String attrNameToGroupMaxResources, boolean singleLeaseMode) {
         this.taskTracker = taskTracker;
         virtualMachinesMap = new ConcurrentHashMap<>();
@@ -85,7 +86,7 @@ class AssignableVMs {
         this.leaseOfferExpirySecs = leaseOfferExpirySecs;
         this.attrNameToGroupMaxResources = attrNameToGroupMaxResources;
         maxResourcesMap = new HashMap<>();
-        vmRejectLimiter = new VMRejectLimiter(4, leaseOfferExpirySecs);  // ToDo make this configurable?
+        vmRejectLimiter = new VMRejectLimiter(maxOffersToReject, leaseOfferExpirySecs);  // ToDo make this configurable?
         activeVmGroups = new ActiveVmGroups();
         this.singleLeaseMode = singleLeaseMode;
     }
