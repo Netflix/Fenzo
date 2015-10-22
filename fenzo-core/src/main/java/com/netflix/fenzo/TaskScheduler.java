@@ -80,6 +80,7 @@ public class TaskScheduler {
 
         private Action1<VirtualMachineLease> leaseRejectAction=null;
         private long leaseOfferExpirySecs=120;
+        private int maxOffersToReject=4;
         private VMTaskFitnessCalculator fitnessCalculator = new DefaultFitnessCalculator();
         private String autoScaleByAttributeName=null;
         private String autoScalerMapHostnameAttributeName=null;
@@ -122,6 +123,17 @@ public class TaskScheduler {
          */
         public Builder withLeaseOfferExpirySecs(long leaseOfferExpirySecs) {
             this.leaseOfferExpirySecs = leaseOfferExpirySecs;
+            return this;
+        }
+
+        /**
+         * Call this method to set the maximum number of offers to reject within a time period equal to lease expiry
+         * seconds, set with {@code leaseOfferExpirySecs()}.
+         * @param maxOffersToReject
+         * @return
+         */
+        public Builder withMaxOffersToReject(int maxOffersToReject) {
+            this.maxOffersToReject = maxOffersToReject;
             return this;
         }
 
@@ -339,7 +351,8 @@ public class TaskScheduler {
         TaskTracker taskTracker = new TaskTracker();
         resAllocsEvaluator = new ResAllocsEvaluater(taskTracker, builder.resAllocs);
         assignableVMs = new AssignableVMs(taskTracker, builder.leaseRejectAction,
-                builder.leaseOfferExpirySecs, builder.autoScaleByAttributeName, builder.singleOfferMode);
+                builder.leaseOfferExpirySecs, builder.maxOffersToReject, builder.autoScaleByAttributeName,
+                builder.singleOfferMode);
         if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
 
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
