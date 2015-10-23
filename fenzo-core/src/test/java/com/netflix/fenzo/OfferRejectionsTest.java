@@ -21,9 +21,7 @@ import com.netflix.fenzo.functions.Func1;
 import junit.framework.Assert;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -118,5 +116,50 @@ public class OfferRejectionsTest {
             Thread.sleep(500);
         }
         Assert.assertTrue("Never rejected any offers", offersGenerated.get()>0);
+    }
+
+    // Test that an offer that is on a host that has another task running form before is considered for expiring.
+    @Test
+    public void testPartialOfferReject() throws Exception {
+        long offerExpirySecs=3;
+        long leaseReOfferDelaySecs=2;
+        int maxOffersToReject=3;
+        int numHosts=3;
+        final ConcurrentMap<String, String> hostsRejectedFrom = new ConcurrentHashMap<>();
+        final TaskScheduler scheduler = new TaskScheduler.Builder()
+                .withLeaseRejectAction(
+                        new Action1<VirtualMachineLease>() {
+                            @Override
+                            public void call(final VirtualMachineLease virtualMachineLease) {
+                                hostsRejectedFrom.putIfAbsent(virtualMachineLease.hostname(), virtualMachineLease.hostname());
+                            }
+                        }
+                )
+                .withLeaseOfferExpirySecs(offerExpirySecs)
+                .withMaxOffersToReject(maxOffersToReject)
+                .build();
+        final SchedulingResult result = scheduler.scheduleOnce(
+                Collections.singletonList(TaskRequestProvider.getTaskRequest(1, 1000, 1)),
+                Collections.singletonList(LeaseProvider.getLeaseOffer("host0", 4, 4000, 1, 10))
+        );
+        final Map<String, VMAssignmentResult> resultMap = result.getResultMap();
+        Assert.assertEquals(1, resultMap.size());
+        final TaskRequest taskRequest = resultMap.values().iterator().next().getTasksAssigned().iterator().next().getRequest();
+        scheduler.getTaskAssigner().call(taskRequest, "host0");
+        final String assignedHost = result.getResultMap().keySet().iterator().next();
+        final VirtualMachineLease consumedLease = LeaseProvider.getConsumedLease(result.getResultMap().values().iterator().next());
+        List<VirtualMachineLease> leases = new ArrayList<>();
+        // add back offer with remaining resources on first host
+        leases.add(consumedLease);
+        // add new offers from rest of the hosts
+        for(int i=1; i<numHosts; i++)
+            leases.add(LeaseProvider.getLeaseOffer("host" + i, 4, 4000, 1, 10));
+        for(int i=0; i<(offerExpirySecs+leaseReOfferDelaySecs); i++) {
+            scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), leases);
+            leases.clear();
+            Thread.sleep(1000L);
+        }
+        System.out.println("assigned hosts: " + assignedHost + ", rejectedFrom: " + hostsRejectedFrom);
+        Assert.assertTrue(hostsRejectedFrom.containsKey(assignedHost));
     }
 }

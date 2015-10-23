@@ -598,17 +598,19 @@ public class TaskScheduler {
             }
         }
         List<VirtualMachineLease> idleResourcesList = new ArrayList<>();
+        List<VirtualMachineLease> expirableLeases = new ArrayList<>();
         for(AssignableVirtualMachine avm: avms) {
             VMAssignmentResult assignmentResult = avm.resetAndGetSuccessfullyAssignedRequests();
             if(assignmentResult==null) {
                 if(!avm.hasPreviouslyAssignedTasks())
                     idleResourcesList.add(avm.getCurrTotalLease());
+                expirableLeases.add(avm.getCurrTotalLease());
             }
             else {
                 resultMap.put(avm.getHostname(), assignmentResult);
             }
         }
-        rejectedCount.addAndGet(assignableVMs.removeLimitedLeases(idleResourcesList));
+        rejectedCount.addAndGet(assignableVMs.removeLimitedLeases(expirableLeases));
         final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, failedTasksForAutoScaler);
         if(autoScaler!=null)
             autoScaler.scheduleAutoscale(autoScalerInput);
