@@ -162,4 +162,27 @@ public class OfferRejectionsTest {
         System.out.println("assigned hosts: " + assignedHost + ", rejectedFrom: " + hostsRejectedFrom);
         Assert.assertTrue(hostsRejectedFrom.containsKey(assignedHost));
     }
+
+    // test that an expired lease doesn't get used for allocation to a task
+    @Test
+    public void testExpiryOfLease() throws Exception {
+        final AtomicInteger expireCount = new AtomicInteger();
+        final TaskScheduler scheduler = new TaskScheduler.Builder()
+                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
+                    @Override
+                    public void call(VirtualMachineLease virtualMachineLease) {
+                        expireCount.incrementAndGet();
+                    }
+                })
+                .withLeaseOfferExpirySecs(1000000)
+                .build();
+        final VirtualMachineLease lease1 = LeaseProvider.getLeaseOffer("host1", 2, 2000, 1, 10);
+        scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), Collections.singletonList(lease1));
+        Thread.sleep(100);
+        scheduler.expireLease(lease1.getId());
+        List<TaskRequest> tasks = new ArrayList<>();
+        tasks.add(TaskRequestProvider.getTaskRequest(2, 1000, 1));
+        final SchedulingResult result = scheduler.scheduleOnce(tasks, Collections.<VirtualMachineLease>emptyList());
+        Assert.assertEquals(0, result.getResultMap().size());
+    }
 }
