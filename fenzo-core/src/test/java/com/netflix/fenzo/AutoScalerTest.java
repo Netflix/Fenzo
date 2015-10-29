@@ -234,6 +234,7 @@ public class AutoScalerTest {
         do {
             Thread.sleep(1000);
             scheduler.scheduleOnce(requests, leases);
+            leases.clear();
         } while (i++<coolDownSecs+2 && latch.getCount()>0);
         if(latch.getCount()<1)
             Assert.fail("Scale up action received for " + rule2.getRuleName() + " rule, was expecting only on "
