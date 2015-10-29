@@ -141,7 +141,7 @@ class AssignableVMs {
             unknownLeaseIdsToExpire.add(leaseId);
             return;
         }
-        internalExpireLease(hostname, leaseId);
+        internalExpireLease(leaseId, hostname);
     }
 
     private void internalExpireLease(String leaseId, String hostname) {

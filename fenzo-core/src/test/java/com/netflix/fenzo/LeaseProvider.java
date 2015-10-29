@@ -46,10 +46,11 @@ class LeaseProvider {
                                              final double network, final List<VirtualMachineLease.Range> portRanges,
                                              final Map<String, Protos.Attribute> attributesMap) {
         final long offeredTime = System.currentTimeMillis();
+        final String id = UUID.randomUUID().toString();
         return new VirtualMachineLease() {
             @Override
             public String getId() {
-                return UUID.randomUUID().toString();
+                return id;
             }
             @Override
             public long getOfferedTime() {
