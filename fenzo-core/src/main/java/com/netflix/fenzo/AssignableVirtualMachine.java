@@ -298,6 +298,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     boolean addLease(VirtualMachineLease lease) {
+        if(singleLeaseMode && firstLeaseAdded)
+            return false;
         if(!Objects.equals(currVMId, lease.getVMID())) {
             currVMId = lease.getVMID();
             vmIdToHostnameMap.put(lease.getVMID(), hostname);

@@ -22,9 +22,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class SingleOfferModelTests {
     private TaskScheduler taskScheduler;
@@ -99,5 +97,18 @@ public class SingleOfferModelTests {
         taskRequests.add(TaskRequestProvider.getTaskRequest(1, 10, 1));
         resultMap = taskScheduler.scheduleOnce(taskRequests, leases).getResultMap();
         Assert.assertEquals(0, resultMap.size());
+    }
+
+    @Test
+    public void testMultipleOffers() throws Exception {
+        VirtualMachineLease host1 = LeaseProvider.getLeaseOffer("host1", 4, 4000, 1, 10);
+        final TaskRequest taskRequest = TaskRequestProvider.getTaskRequest(1, 1000, 1);
+        taskScheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), Collections.singletonList(host1));
+        host1 = LeaseProvider.getLeaseOffer("host1", 4, 4000, 1, 10);
+        SchedulingResult result = taskScheduler.scheduleOnce(Collections.singletonList(taskRequest), Collections.singletonList(host1));
+        final Map<String, VMAssignmentResult> resultMap = result.getResultMap();
+        for(Map.Entry<String, VMAssignmentResult> e: resultMap.entrySet()) {
+            Assert.assertEquals(1, e.getValue().getLeasesUsed().size());
+        }
     }
 }
