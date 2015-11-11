@@ -81,6 +81,7 @@ public class TaskScheduler {
         private Action1<VirtualMachineLease> leaseRejectAction=null;
         private long leaseOfferExpirySecs=120;
         private int maxOffersToReject=4;
+        private boolean rejectAllExpiredOffers=false;
         private VMTaskFitnessCalculator fitnessCalculator = new DefaultFitnessCalculator();
         private String autoScaleByAttributeName=null;
         private String autoScalerMapHostnameAttributeName=null;
@@ -96,6 +97,7 @@ public class TaskScheduler {
         private boolean disableShortfallEvaluation=false;
         private Map<String, ResAllocs> resAllocs=null;
         private boolean singleOfferMode=false;
+        private boolean debugEnabled=false;
 
         /**
          * (Required) Call this method to establish a method that your task scheduler will call to notify you
@@ -128,12 +130,25 @@ public class TaskScheduler {
 
         /**
          * Call this method to set the maximum number of offers to reject within a time period equal to lease expiry
-         * seconds, set with {@code leaseOfferExpirySecs()}.
+         * seconds, set with {@code leaseOfferExpirySecs()}. Default is 4.
          * @param maxOffersToReject
          * @return
          */
         public Builder withMaxOffersToReject(int maxOffersToReject) {
-            this.maxOffersToReject = maxOffersToReject;
+            if(!rejectAllExpiredOffers)
+                this.maxOffersToReject = maxOffersToReject;
+            return this;
+        }
+
+        /**
+         * Indicate that all offers older than the set expiry time must be rejected. By default this is set to false.
+         * If false, Fenzo rejects a maximum number of offers set using {@link #withMaxOffersToReject(int)} per each
+         * time period spanning the expiry time, set by {@link #withLeaseOfferExpirySecs(long)}.
+         * @return
+         */
+        public Builder withRejectAllExpiredOffers() {
+            this.rejectAllExpiredOffers = true;
+            this.maxOffersToReject = Integer.MAX_VALUE;
             return this;
         }
 
@@ -309,6 +324,19 @@ public class TaskScheduler {
         }
 
         /**
+         * Indicate that additional debug information must be turned on. By default Fenzo provides information for
+         * debugging by setting values in assignment result from a call to {@link #scheduleOnce(List, List)}. Note that
+         * turning this on can print numerous log messages per invocation of {@link #scheduleOnce(List, List)} as well
+         * as have a performance overhead.
+         *
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         */
+        public Builder withDebugEnabled() {
+            this.debugEnabled = true;
+            return this;
+        }
+
+        /**
          * Creates a {@link TaskScheduler} based on the various builder methods you have chained.
          *
          * @return a {@code TaskScheduler} built according to the specifications you indicated
@@ -352,7 +380,7 @@ public class TaskScheduler {
         resAllocsEvaluator = new ResAllocsEvaluater(taskTracker, builder.resAllocs);
         assignableVMs = new AssignableVMs(taskTracker, builder.leaseRejectAction,
                 builder.leaseOfferExpirySecs, builder.maxOffersToReject, builder.autoScaleByAttributeName,
-                builder.singleOfferMode);
+                builder.singleOfferMode, builder.debugEnabled);
         if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
 
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
@@ -528,6 +556,8 @@ public class TaskScheduler {
             List<VirtualMachineLease> newLeases) {
         AtomicInteger rejectedCount = new AtomicInteger(assignableVMs.addLeases(newLeases));
         List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs();
+        if(builder.debugEnabled)
+            logger.info("Found " + avms.size() + " VMs with non-zero offers to assign from");
         final boolean hasResAllocs = resAllocsEvaluator.prepare();
         //logger.info("Got " + avms.size() + " AVMs to schedule on");
         int totalNumAllocations=0;
@@ -537,14 +567,19 @@ public class TaskScheduler {
         if(!avms.isEmpty()) {
             for(final TaskRequest task: requests) {
                 if(hasResAllocs) {
-                    if(resAllocsEvaluator.taskGroupFailed(task.taskGroupName()))
+                    if(resAllocsEvaluator.taskGroupFailed(task.taskGroupName())) {
+                        if(builder.debugEnabled)
+                            logger.info("Resource allocation limits reached for task: " + task.getId());
                         continue;
+                    }
                     final AssignmentFailure resAllocsFailure = resAllocsEvaluator.hasResAllocs(task);
                     if(resAllocsFailure != null) {
                         final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(),
                                 task, false, Collections.singletonList(resAllocsFailure), null, 0.0));
                         schedulingResult.addFailures(task, failures);
                         failedTasksForAutoScaler.remove(task); // don't scale up for resAllocs failures
+                        if(builder.debugEnabled)
+                            logger.info("Resource allocation limit reached for task " + task.getId() + ": " + resAllocsFailure);
                         continue;
                     }
                 }
@@ -553,12 +588,16 @@ public class TaskScheduler {
                     final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(), task, false,
                             Collections.singletonList(maxResourceFailure), null, 0.0));
                     schedulingResult.addFailures(task, failures);
+                    if(builder.debugEnabled)
+                        logger.info("Task " + task.getId() + ": maxResource failure: " + maxResourceFailure);
                     continue;
                 }
                 // create batches of VMs to evaluate assignments concurrently across the batches
                 final BlockingQueue<AssignableVirtualMachine> virtualMachines = new ArrayBlockingQueue<>(avms.size(), false, avms);
                 int nThreads = (int)Math.ceil((double)avms.size()/ PARALLEL_SCHED_EVAL_MIN_BATCH_SIZE);
                 List<Future<EvalResult>> futures = new ArrayList<>();
+                if(builder.debugEnabled)
+                    logger.info("Launching " + nThreads + " threads for evaluating assignments for task " + task.getId());
                 for(int b=0; b<nThreads && b<EXEC_SVC_THREADS; b++) {
                     futures.add(executorService.submit(new Callable<EvalResult>() {
                         @Override
@@ -578,6 +617,8 @@ public class TaskScheduler {
                         else {
                             results.add(evalResult);
                             bestResults.add(evalResult.result);
+                            if(builder.debugEnabled)
+                                logger.info("Task " + task.getId() + ": best result so far: " + evalResult.result);
                             totalNumAllocations += evalResult.numAllocationTrials;
                         }
                     } catch (InterruptedException|ExecutionException e) {
@@ -587,11 +628,15 @@ public class TaskScheduler {
                 TaskAssignmentResult successfulResult = getSuccessfulResult(bestResults);
                 List<TaskAssignmentResult> failures = new ArrayList<>();
                 if(successfulResult == null) {
+                    if(builder.debugEnabled)
+                        logger.info("Task " + task.getId() + ": no successful results");
                     for(EvalResult er: results)
                         failures.addAll(er.assignmentResults);
                     schedulingResult.addFailures(task, failures);
                 }
                 else {
+                    if(builder.debugEnabled)
+                        logger.info("Task " + task.getId() + ": found successful assignment on host " + successfulResult.getHostname());
                     successfulResult.assignResult();
                     failedTasksForAutoScaler.remove(task);
                 }
@@ -676,6 +721,8 @@ public class TaskScheduler {
                 if(n == 0)
                     return new EvalResult(results, getSuccessfulResult(results), results.size(), null);
                 for(int m=0; m<n; m++) {
+                    if(builder.debugEnabled)
+                        logger.info("Evaluting task assignment on host " + buf.get(m).getHostname());
                     TaskAssignmentResult result = buf.get(m).tryRequest(task, builder.fitnessCalculator);
                     results.add(result);
                     if(result.isSuccessful() && builder.isFitnessGoodEnoughFunction.call(result.getFitness())) {

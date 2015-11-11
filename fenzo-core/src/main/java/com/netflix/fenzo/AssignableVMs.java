@@ -76,10 +76,11 @@ class AssignableVMs {
     private String activeVmGroupAttributeName=null;
     private final List<String> unknownLeaseIdsToExpire = new ArrayList<>();
     private final boolean singleLeaseMode;
+    private final boolean debugEnabled;
 
     AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction,
                   long leaseOfferExpirySecs, int maxOffersToReject,
-                  String attrNameToGroupMaxResources, boolean singleLeaseMode) {
+                  String attrNameToGroupMaxResources, boolean singleLeaseMode, boolean debugEnabled) {
         this.taskTracker = taskTracker;
         virtualMachinesMap = new ConcurrentHashMap<>();
         this.leaseRejectAction = leaseRejectAction;
@@ -89,6 +90,7 @@ class AssignableVMs {
         vmRejectLimiter = new VMRejectLimiter(maxOffersToReject, leaseOfferExpirySecs);  // ToDo make this configurable?
         activeVmGroups = new ActiveVmGroups();
         this.singleLeaseMode = singleLeaseMode;
+        this.debugEnabled = debugEnabled;
     }
 
     Map<String, Map<VMResource, Double[]>> getResourceStatus() {
@@ -132,7 +134,7 @@ class AssignableVMs {
         if(virtualMachinesMap.get(hostname) == null)
             virtualMachinesMap.putIfAbsent(hostname,
                     new AssignableVirtualMachine(vmIdToHostnameMap, leaseIdToHostnameMap, hostname,
-                            leaseRejectAction, leaseOfferExpirySecs, taskTracker, singleLeaseMode));
+                            leaseRejectAction, leaseOfferExpirySecs, taskTracker, singleLeaseMode, debugEnabled));
     }
 
     void expireLease(String leaseId) {
@@ -146,8 +148,11 @@ class AssignableVMs {
 
     private void internalExpireLease(String leaseId, String hostname) {
         AssignableVirtualMachine avm = virtualMachinesMap.get(hostname);
-        if(avm != null)
+        if(avm != null) {
+            if(debugEnabled)
+                logger.info("Expiring lease offer id " + leaseId + " on host " + hostname);
             avm.expireLease(leaseId);
+        }
     }
 
     void expireAllLeases(String hostname) {
@@ -215,8 +220,12 @@ class AssignableVMs {
             avm.prepareForScheduling();
             if(isInActiveVmGroup(entry.getValue()) && entry.getValue().isAssignableNow()) {
                 // for now, only add it if it is available right now
+                if(debugEnabled)
+                    logger.info("Host " + avm.getHostname() + " available for assignments");
                 vms.add(avm);
             }
+            else if(debugEnabled)
+                logger.info("Host " + avm.getHostname() + " not available for assignments");
             saveMaxResources(avm);
         }
         //Collections.sort(vms);

@@ -20,6 +20,8 @@ import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.functions.Func1;
 import junit.framework.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -184,5 +186,42 @@ public class OfferRejectionsTest {
         tasks.add(TaskRequestProvider.getTaskRequest(2, 1000, 1));
         final SchedulingResult result = scheduler.scheduleOnce(tasks, Collections.<VirtualMachineLease>emptyList());
         Assert.assertEquals(0, result.getResultMap().size());
+    }
+
+    // test that offers are rejected based on time irrespective of how many offers are outstanding.
+    @Test
+    public void testTimedOfferRejects() throws Exception {
+        final AtomicInteger expireCount = new AtomicInteger();
+        final int leaseExpirySecs=3;
+        final TaskScheduler scheduler = new TaskScheduler.Builder()
+                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
+                    @Override
+                    public void call(VirtualMachineLease virtualMachineLease) {
+                        expireCount.incrementAndGet();
+                    }
+                })
+                .withLeaseOfferExpirySecs(leaseExpirySecs)
+                .withRejectAllExpiredOffers()
+                .build();
+        final int nLeases=100;
+        List<VirtualMachineLease> leases = LeaseProvider.getLeases(nLeases, 4, 4000, 1, 10);
+        for(int i=0; i<leaseExpirySecs; i++) {
+            scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), leases);
+            leases.clear();
+            Thread.sleep(1000);
+        }
+        leases = LeaseProvider.getLeases(nLeases, 4, 4000, 1, 10);
+        for(int i=0; i<leaseExpirySecs-1; i++) {
+            scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), leases);
+            leases.clear();
+            Thread.sleep(1000);
+        }
+        Assert.assertEquals(nLeases, expireCount.get());
+        for(int i=0; i<2; i++) {
+            scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), leases);
+            leases.clear();
+            Thread.sleep(1000);
+        }
+        Assert.assertEquals(nLeases*2, expireCount.get());
     }
 }
