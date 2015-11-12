@@ -518,6 +518,12 @@ public class TaskScheduler {
      * their offer time is further in the past than lease expiration interval. This prevents the scheduler from
      * hoarding leases. If you provided an autoscaler, the scheduler then launches autoscale evaluation to run
      * asynchronously, which runs each registered autoscale rule based on its policy.
+     * <p>
+     * The successful assignments contain hosts to which tasks have been successfully assigned and the offers for that
+     * host that were used for the assignments. Fenzo removes those offers from its internal state. Normally, you
+     * would use those offers to launch the tasks. For any reason if you do not launch those tasks, you must either
+     * reject the offers to Mesos, or, re-add them to Fenzo with the next call to {@link #scheduleOnce(List, List)}.
+     * Otherwise, those offers would be "leaked out".
      * 
      * @param requests a list of task requests to match with resources, in their given order
      * @param newLeases new resource leases from hosts that the scheduler can use along with any previously
