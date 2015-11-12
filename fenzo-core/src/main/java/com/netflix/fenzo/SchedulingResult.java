@@ -50,6 +50,11 @@ public class SchedulingResult {
      * Get the successful task assignment result map. The map keys are host names on which at least one task has
      * been assigned resources during the current scheduling round. The map values are the assignment results
      * that contain the offers used and assigned tasks.
+     * <p>
+     * Fenzo removes these offers from its internal state when you get this result. Normally, you would use these offers
+     * immediately to launch the tasks. For any reason if you do not use the offers to launch those tasks, you must either
+     * reject the offers to Mesos, or, re-add them to Fenzo with the next call to
+     * {@link TaskScheduler#scheduleOnce(List, List)}. Otherwise, those offers would be "leaked out".
      *
      * @return a Map of the successful task assignments the task scheduler made in this scheduling round
      */
