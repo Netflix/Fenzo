@@ -776,7 +776,9 @@ public class TaskScheduler {
     /**
      * Get the task assigner action. For each task you assign and launch, you must call your task scheduler's
      * {@code getTaskAssigner().call()} method in order to notify Fenzo that the task has actually been deployed
-     * on a host.
+     * on a host. Pass two arguments to this call method: the {@link TaskRequest} object for the task assigned and
+     * the hostname.
+
      * <p>
      * In addition, in your framework's task completion callback that you supply to Mesos, you must call your
      * task scheduler's {@link #getTaskUnAssigner() getTaskUnassigner().call()} method to notify Fenzo that the
@@ -808,7 +810,8 @@ public class TaskScheduler {
 
     /**
      * Get the task unassigner action. Call this object's {@code call()} method to unassign an assignment you
-     * have previously set for each task that completes so that internal state is maintained correctly.
+     * have previously set for each task that completes so that internal state is maintained correctly. Pass two
+     * String arguments to this call method: the taskId and the hostname.
      * <p>
      * For each task you assign and launch, you must call your task scheduler's
      * {@link #getTaskAssigner() getTaskAssigner().call()} method in order to notify Fenzo that the task has
@@ -821,7 +824,11 @@ public class TaskScheduler {
      * Some scheduling optimizers need to know not only which tasks are waiting to be scheduled and which hosts
      * have resource offers available, but also which tasks have previously been assigned and are currently
      * running on hosts. These two methods help Fenzo provide this information to these scheduling optimizers.
-     * 
+     * <p>
+     * This method is safe to be called concurrently with other calls to {@code TaskScheduler}. The tasks to be
+     * unassigned are stored internally and actually unassigned at the beginning of the next scheduling iteration,
+     * that is, the next time {@link #scheduleOnce(List, List)} is called.
+     *
      * @return the task un-assigner action
      */
     public Action2<String, String> getTaskUnAssigner() {
