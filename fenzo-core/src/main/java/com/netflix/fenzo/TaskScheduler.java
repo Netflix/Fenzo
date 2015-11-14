@@ -841,8 +841,8 @@ public class TaskScheduler {
      * <p>
      * This method is safe to be called concurrently with other calls to {@code TaskScheduler}. The tasks to be
      * unassigned are stored internally and actually unassigned at the beginning of the next scheduling iteration,
-     * is, the next time {@link #scheduleOnce(List, List)} is called.
-     * 
+     * that is, the next time {@link #scheduleOnce(List, List)} is called.
+     *
      * @return the task un-assigner action
      */
     public Action2<String, String> getTaskUnAssigner() {
