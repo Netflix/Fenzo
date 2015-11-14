@@ -132,7 +132,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private String exclusiveTaskId =null;
     private final boolean singleLeaseMode;
     private boolean firstLeaseAdded=false;
-    private final boolean debugEnabled;
 
     public AssignableVirtualMachine(ConcurrentMap<String, String> vmIdToHostnameMap,
                                     ConcurrentMap<String, String> leaseIdToHostnameMap,
@@ -145,14 +144,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                                     ConcurrentMap<String, String> leaseIdToHostnameMap,
                                     String hostname, Action1<VirtualMachineLease> leaseRejectAction,
                                     long leaseOfferExpirySecs, TaskTracker taskTracker, boolean singleLeaseMode) {
-        this(vmIdToHostnameMap, leaseIdToHostnameMap, hostname, leaseRejectAction, leaseOfferExpirySecs, taskTracker, false, false);
-    }
-
-    public AssignableVirtualMachine(ConcurrentMap<String, String> vmIdToHostnameMap,
-                                    ConcurrentMap<String, String> leaseIdToHostnameMap,
-                                    String hostname, Action1<VirtualMachineLease> leaseRejectAction,
-                                    long leaseOfferExpirySecs, TaskTracker taskTracker, boolean singleLeaseMode,
-                                    boolean debugEnabled) {
         this.vmIdToHostnameMap = vmIdToHostnameMap;
         this.leaseIdToHostnameMap = leaseIdToHostnameMap;
         this.hostname = hostname;
@@ -174,7 +165,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         this.previouslyAssignedTasksMap = new HashMap<>();
         this.assignmentResults = new HashMap<>();
         this.singleLeaseMode = singleLeaseMode;
-        this.debugEnabled = debugEnabled;
     }
 
     private void addToAvailableResources(VirtualMachineLease l) {
@@ -279,8 +269,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             if(expireAll || leasesToExpireIds.contains(l.getId())) {
                 leaseIdToHostnameMap.remove(l.getId());
                 if(expireAll) {
-                    if(debugEnabled)
-                        logger.info(hostname + ": expiring lease offer id " + l.getId());
+                    if(logger.isDebugEnabled())
+                        logger.debug(hostname + ": expiring lease offer id " + l.getId());
                     leaseRejectAction.call(l);
                 }
                 iterator.remove();
@@ -298,8 +288,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             VirtualMachineLease l = iterator.next().getValue();
             if(l.getOfferedTime() < (now - leaseOfferExpirySecs*1000) && vmRejectLimiter.reject()) {
                 leaseIdToHostnameMap.remove(l.getId());
-                if(debugEnabled)
-                    logger.info(getHostname() + ": expiring lease offer id " + l.getId());
+                if(logger.isDebugEnabled())
+                    logger.debug(getHostname() + ": expiring lease offer id " + l.getId());
                 leaseRejectAction.call(l);
                 iterator.remove();
                 rejected++;
@@ -327,8 +317,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             throw new IllegalStateException("Attempt to add duplicate lease with id=" + lease.getId());
         if(leaseIdToHostnameMap.putIfAbsent(lease.getId(), hostname) != null)
             logger.warn("Unexpected to add a lease that already exists for host " + hostname + ", lease ID: " + lease.getId());
-        if(debugEnabled)
-            logger.info(getHostname() + ": adding lease offer id " + lease.getId());
+        if(logger.isDebugEnabled())
+            logger.debug(getHostname() + ": adding lease offer id " + lease.getId());
         leasesMap.put(lease.getId(), lease);
         addToAvailableResources(lease);
         return true;
@@ -336,8 +326,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
 
     void setDisabledUntil(long disabledUntil) {
         this.disabledUntil = disabledUntil;
-        if(debugEnabled)
-            logger.info(getHostname() + ": disabling for " + (disabledUntil - System.currentTimeMillis()) + " mSecs");
+        if(logger.isDebugEnabled())
+            logger.debug(getHostname() + ": disabling for " + (disabledUntil - System.currentTimeMillis()) + " mSecs");
         Iterator<Map.Entry<String, VirtualMachineLease>> entriesIterator = leasesMap.entrySet().iterator();
         while(entriesIterator.hasNext()) {
             Map.Entry<String, VirtualMachineLease> entry = entriesIterator.next();
@@ -368,8 +358,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     void setAssignedTask(TaskRequest request) {
-        if(debugEnabled)
-            logger.info(getHostname() + ": setting assigned task " + request.getId());
+        if(logger.isDebugEnabled())
+            logger.debug(getHostname() + ": setting assigned task " + request.getId());
         boolean added = taskTracker.addRunningTask(request, this);
         if(!added)
             logger.error("Unexpected to add duplicate task id=" + request.getId());
@@ -413,8 +403,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") List<String> tasks = new ArrayList<>();
         workersToUnAssign.drainTo(tasks);
         for(String t: tasks) {
-            if(debugEnabled)
-                logger.info(getHostname() + ": removing previously assigned task " + t);
+            if(logger.isDebugEnabled())
+                logger.debug(getHostname() + ": removing previously assigned task " + t);
             taskTracker.removeRunningTask(t);
             TaskRequest r = previouslyAssignedTasksMap.remove(t);
             if(singleLeaseMode && r!=null)
@@ -491,14 +481,14 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
      * @return Assignment result.
      */
     TaskAssignmentResult tryRequest(TaskRequest request, VMTaskFitnessCalculator fitnessCalculator) {
-        if(debugEnabled)
-            logger.info("Host " + getHostname() + " task " + request.getId() + ": #leases=" + leasesMap.size());
+        if(logger.isDebugEnabled())
+            logger.debug("Host " + getHostname() + " task " + request.getId() + ": #leases=" + leasesMap.size());
         if(leasesMap.isEmpty())
             return null;
         if(exclusiveTaskId!=null) {
-            if(debugEnabled)
-                logger.info("Host " + getHostname() + ": can't assign task " + request.getId() + ", already have task " +
-                    exclusiveTaskId + " assigned with exclusive host constraint");
+            if(logger.isDebugEnabled())
+                logger.debug("Host " + getHostname() + ": can't assign task " + request.getId() + ", already have task " +
+                        exclusiveTaskId + " assigned with exclusive host constraint");
             ConstraintFailure failure = new ConstraintFailure(ExclusiveHostConstraint.class.getName(),
                     "Already has task " + exclusiveTaskId + " with exclusive host constraint");
             return new TaskAssignmentResult(this, request, false, null, failure, 0.0);
@@ -507,24 +497,24 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         TaskTrackerState taskTrackerState = taskTrackerState();
         ConstraintFailure failedHardConstraint = findFailedHardConstraints(request, vmCurrentState, taskTrackerState);
         if(failedHardConstraint!=null) {
-            if(debugEnabled)
-                logger.info("Host " + getHostname() + ": task " + request.getId() + " failed hard constraint: " + failedHardConstraint);
+            if(logger.isDebugEnabled())
+                logger.debug("Host " + getHostname() + ": task " + request.getId() + " failed hard constraint: " + failedHardConstraint);
             return new TaskAssignmentResult(this, request, false, null, failedHardConstraint, 0.0);
         }
         List<AssignmentFailure> failures = evalAndGetResourceAssignmentFailures(request);
         if(!failures.isEmpty()) {
-            if(debugEnabled) {
+            if(logger.isDebugEnabled()) {
                 StringBuilder b = new StringBuilder();
                 for(AssignmentFailure f: failures)
                     b.append(f.toString()).append(" ; ");
-                logger.info(getHostname() + ": task " + request.getId() + " failed assignment: " + b.toString());
+                logger.debug(getHostname() + ": task " + request.getId() + " failed assignment: " + b.toString());
             }
             return new TaskAssignmentResult(this, request, false, failures, null, 0.0);
         }
         double fitness = fitnessCalculator.calculateFitness(request, vmCurrentState, taskTrackerState);
         if(fitness == 0.0) {
-            if(debugEnabled)
-                logger.info(getHostname() + ": task " + request.getId() + " fitness calculator returned 0.0");
+            if(logger.isDebugEnabled())
+                logger.debug(getHostname() + ": task " + request.getId() + " fitness calculator returned 0.0");
             failures.add(new AssignmentFailure(VMResource.Fitness, 1.0, 1.0, 0.0));
             return new TaskAssignmentResult(this, request, false, failures, null, fitness);
         }

@@ -44,6 +44,5 @@ subprojects {
 
     dependencies {
         compile ("org.slf4j:slf4j-api:latest.release")
-        compile ("org.slf4j:slf4j-simple:latest.release")
     }
 }
