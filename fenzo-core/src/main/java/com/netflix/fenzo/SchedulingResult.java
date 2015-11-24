@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import java.util.Map;
 public class SchedulingResult {
     private final Map<String, VMAssignmentResult> resultMap;
     private final Map<TaskRequest, List<TaskAssignmentResult>> failures;
+    private final List<Exception> exceptions;
     private int leasesAdded;
     private int leasesRejected;
     private long runtime;
@@ -44,6 +46,7 @@ public class SchedulingResult {
     SchedulingResult(Map<String, VMAssignmentResult> resultMap) {
         this.resultMap = resultMap;
         failures = new HashMap<>();
+        exceptions = new ArrayList<>();
     }
 
     /**
@@ -64,6 +67,14 @@ public class SchedulingResult {
 
     void addFailures(TaskRequest request, List<TaskAssignmentResult> f) {
         failures.put(request, f);
+    }
+
+    void addException(Exception e) {
+        exceptions.add(e);
+    }
+
+    public List<Exception> getExceptions() {
+        return exceptions;
     }
 
     /**

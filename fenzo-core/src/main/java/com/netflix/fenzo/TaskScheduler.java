@@ -510,13 +510,24 @@ public class TaskScheduler {
      * would use those offers to launch the tasks. For any reason if you do not launch those tasks, you must either
      * reject the offers to Mesos, or, re-add them to Fenzo with the next call to {@link #scheduleOnce(List, List)}.
      * Otherwise, those offers would be "leaked out".
+     * <p>
+     * Unexpected exceptions may arise during scheduling, for example, due to uncaught exceptions in user provided
+     * plugins. The scheduling routine stops upon catching any unexpected exceptions. These exceptions are surfaced to
+     * you in one or both of two ways.
+     * <UL>
+     *     <li>The returned result object will contain the exceptions encountered in
+     *     {@link SchedulingResult#getExceptions()}. In this case, no assignments would have been made.</li>
+     *     <li>This method may throw {@code IllegalStateException} with its cause set to the uncaught exception. In this
+     *     case the internal state of Fenzo will be undefined.</li>
+     * </UL>
      * 
      * @param requests a list of task requests to match with resources, in their given order
      * @param newLeases new resource leases from hosts that the scheduler can use along with any previously
      *                  ununsed leases
      * @return a {@link SchedulingResult} object that contains a task assignment results map and other summaries
-     * @throws IllegalStateException if you call this method concurrently or if you try to readd an existing
-     *                               lease
+     * @throws IllegalStateException if you call this method concurrently, or, if you try to add an existing lease
+     * again, or, if there was unexpected exception during the scheduling iteration. For example, unexpected exceptions
+     * can arise from uncaught exceptions in user defined plugins.
      */
     public SchedulingResult scheduleOnce(
             List<? extends TaskRequest> requests,
@@ -538,7 +549,7 @@ public class TaskScheduler {
                 throw (IllegalStateException)e;
             else {
                 logger.warn("Unexpected exception: " + e.getMessage());
-                return null;
+                throw new IllegalStateException("Unexpected exception during scheduling run: " + e.getMessage(), e);
             }
         }
     }
@@ -603,9 +614,11 @@ public class TaskScheduler {
                 for(Future<EvalResult> f: futures) {
                     try {
                         EvalResult evalResult = f.get();
-                        if(evalResult.exception!=null)
-                            logger.error("Error during concurrent task assignment eval - " + evalResult.exception.getMessage(),
+                        if(evalResult.exception!=null) {
+                            logger.warn("Error during concurrent task assignment eval - " + evalResult.exception.getMessage(),
                                     evalResult.exception);
+                            schedulingResult.addException(evalResult.exception);
+                        }
                         else {
                             results.add(evalResult);
                             bestResults.add(evalResult.result);
@@ -617,6 +630,8 @@ public class TaskScheduler {
                         logger.error("Unexpected during concurrent task assignment eval - " + e.getMessage(), e);
                     }
                 }
+                if(!schedulingResult.getExceptions().isEmpty())
+                    break;
                 TaskAssignmentResult successfulResult = getSuccessfulResult(bestResults);
                 List<TaskAssignmentResult> failures = new ArrayList<>();
                 if(successfulResult == null) {
@@ -635,22 +650,23 @@ public class TaskScheduler {
             }
         }
         List<VirtualMachineLease> idleResourcesList = new ArrayList<>();
-        List<VirtualMachineLease> expirableLeases = new ArrayList<>();
-        for(AssignableVirtualMachine avm: avms) {
-            VMAssignmentResult assignmentResult = avm.resetAndGetSuccessfullyAssignedRequests();
-            if(assignmentResult==null) {
-                if(!avm.hasPreviouslyAssignedTasks())
-                    idleResourcesList.add(avm.getCurrTotalLease());
-                expirableLeases.add(avm.getCurrTotalLease());
+        if(schedulingResult.getExceptions().isEmpty()) {
+            List<VirtualMachineLease> expirableLeases = new ArrayList<>();
+            for (AssignableVirtualMachine avm : avms) {
+                VMAssignmentResult assignmentResult = avm.resetAndGetSuccessfullyAssignedRequests();
+                if (assignmentResult == null) {
+                    if (!avm.hasPreviouslyAssignedTasks())
+                        idleResourcesList.add(avm.getCurrTotalLease());
+                    expirableLeases.add(avm.getCurrTotalLease());
+                } else {
+                    resultMap.put(avm.getHostname(), assignmentResult);
+                }
             }
-            else {
-                resultMap.put(avm.getHostname(), assignmentResult);
-            }
+            rejectedCount.addAndGet(assignableVMs.removeLimitedLeases(expirableLeases));
+            final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, failedTasksForAutoScaler);
+            if (autoScaler != null)
+                autoScaler.scheduleAutoscale(autoScalerInput);
         }
-        rejectedCount.addAndGet(assignableVMs.removeLimitedLeases(expirableLeases));
-        final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, failedTasksForAutoScaler);
-        if(autoScaler!=null)
-            autoScaler.scheduleAutoscale(autoScalerInput);
         schedulingResult.setLeasesAdded(newLeases.size());
         schedulingResult.setLeasesRejected(rejectedCount.get());
         schedulingResult.setNumAllocations(totalNumAllocations);
