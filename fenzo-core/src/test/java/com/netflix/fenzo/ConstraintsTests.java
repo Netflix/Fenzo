@@ -29,13 +29,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class ConstraintsTests {
 
@@ -368,7 +362,7 @@ public class ConstraintsTests {
         tasks.add(tForPickedZone);
         resultMap = taskScheduler.scheduleOnce(tasks, remainingLeases).getResultMap();
         Assert.assertNotNull(resultMap);
-        Assert.assertTrue("Couldn't confirm test, all tasks landed on same machine", resultMap.size()>1);
+        Assert.assertTrue("Couldn't confirm test, all tasks landed on same machine", resultMap.size() > 1);
         boolean found=false;
         for(VMAssignmentResult result: resultMap.values()) {
             for(TaskAssignmentResult assigned: result.getTasksAssigned()) {
@@ -471,5 +465,30 @@ public class ConstraintsTests {
                 coTasks.add(i.getId());
         }
         return tasks;
+    }
+
+    @Test
+    public void testExceptionInConstraints() throws Exception {
+        final List<VirtualMachineLease> threeVMs = getThreeVMs();
+        List<TaskRequest> tasks = new ArrayList<>();
+        tasks.add(TaskRequestProvider.getTaskRequest(1, 1000, 1));
+        HostAttrValueConstraint c1 = new HostAttrValueConstraint(null, new Func1<String, String>() {
+            @Override
+            public String call(String s) {
+                throw new NullPointerException("Test exception");
+            }
+        });
+        tasks.add(TaskRequestProvider.getTaskRequest(1, 100, 1));
+        tasks.add(TaskRequestProvider.getTaskRequest(1, 1000, 1, Collections.singletonList(c1), null));
+        tasks.add(TaskRequestProvider.getTaskRequest(1, 100, 1));
+        try {
+            final SchedulingResult result = getTaskScheduler().scheduleOnce(tasks, threeVMs);
+            // expect to see 1 result for the first task before encountering exception with the 2nd task
+            Assert.assertEquals(0, result.getResultMap().size());
+            Assert.assertEquals(1, result.getExceptions().size());
+        }
+        catch (IllegalStateException e) {
+            Assert.fail("Unexpected exception: " + e.getMessage());
+        }
     }
 }
