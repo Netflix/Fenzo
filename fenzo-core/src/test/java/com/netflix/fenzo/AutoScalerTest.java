@@ -67,9 +67,14 @@ public class AutoScalerTest {
         return getScheduler(false, rules);
     }
     private TaskScheduler getScheduler(final boolean expectLeaseRejection, AutoScaleRule... rules) {
-        return getScheduler(expectLeaseRejection, null, rules);
+        return getScheduler(expectLeaseRejection, null, 0, 0, rules);
     }
     private TaskScheduler getScheduler(final boolean expectLeaseRejection, final Action1<AutoScaleAction> callback,
+                                       AutoScaleRule... rules) {
+        return getScheduler(expectLeaseRejection, callback, 0, 0, rules);
+    }
+    private TaskScheduler getScheduler(final boolean expectLeaseRejection, final Action1<AutoScaleAction> callback,
+                                       long delayScaleUpBySecs, long delayScaleDownByDecs,
                                        AutoScaleRule... rules) {
         TaskScheduler.Builder builder = new TaskScheduler.Builder()
                 .withAutoScaleByAttributeName(hostAttrName);
@@ -78,6 +83,8 @@ public class AutoScalerTest {
         if(callback != null)
             builder.withAutoScalerCallback(callback);
         return builder
+                .withDelayAutoscaleDownBySecs(delayScaleDownByDecs)
+                .withDelayAutoscaleUpBySecs(delayScaleUpBySecs)
                 .withFitnessCalculator(BinPackingFitnessCalculators.cpuMemBinPacker)
                 .withLeaseOfferExpirySecs(3600)
                 .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
@@ -358,7 +365,7 @@ public class AutoScalerTest {
         final List<TaskRequest> requests = new ArrayList<>();
         // add enough jobs to fill two machines of zone 0
         List<ConstraintEvaluator> hardConstraints = new ArrayList<>();
-        hardConstraints.add(ConstraintsProvider.getHostAttributeHardConstraint(zoneAttrName, ""+1));
+        hardConstraints.add(ConstraintsProvider.getHostAttributeHardConstraint(zoneAttrName, "" + 1));
         for(int j=0; j<cpus1*2; j++) {
             requests.add(TaskRequestProvider.getTaskRequest(1, memory1/cpus1, 1, hardConstraints, null));
         }
@@ -534,7 +541,7 @@ public class AutoScalerTest {
         });
         SchedulingResult schedulingResult = scheduler.scheduleOnce(requests.subList(0, leases.size()), leases);
         Assert.assertNotNull(schedulingResult);
-        Thread.sleep(coolDownSecs*1000+1000);
+        Thread.sleep(coolDownSecs * 1000 + 1000);
         schedulingResult = scheduler.scheduleOnce(requests.subList(leases.size(), requests.size()), new ArrayList<VirtualMachineLease>());
         Assert.assertNotNull(schedulingResult);
         boolean waitSuccessful = latchRef.get().await(coolDownSecs, TimeUnit.SECONDS);
@@ -691,7 +698,7 @@ public class AutoScalerTest {
         scheduler.setAutoscalerCallback(new Action1<AutoScaleAction>() {
             @Override
             public void call(AutoScaleAction action) {
-                if(action.getType() == AutoScaleAction.Type.Up) {
+                if (action.getType() == AutoScaleAction.Type.Up) {
                     latch.countDown();
                     keepGoing.set(false);
                 }
@@ -748,5 +755,160 @@ public class AutoScalerTest {
             if(h.equals(host))
                 return true;
         return false;
+    }
+
+    // Test that s scale up action doesn't kick in for a very short duration breach of minIdle
+    @Test
+    public void testDelayedAutoscaleUp() throws Exception {
+        testScaleUpDelay(1);
+    }
+
+    // Test that the scale up request delay does expire after a while, and next scale up is delayed again
+    @Test
+    public void testScaleUpDelayReset() throws Exception {
+        testScaleUpDelay(2);
+    }
+
+    private void testScaleUpDelay(int N) throws Exception {
+        final AtomicBoolean scaleUpReceived = new AtomicBoolean();
+        final AtomicBoolean scaleDownReceived = new AtomicBoolean();
+        final Action1<AutoScaleAction> callback = new Action1<AutoScaleAction>() {
+            @Override
+            public void call(AutoScaleAction autoScaleAction) {
+                switch (autoScaleAction.getType()) {
+                    case Down:
+                        scaleDownReceived.set(true);
+                        break;
+                    case Up:
+                        scaleUpReceived.set(true);
+                        break;
+                }
+            }
+        };
+        long scaleupDelaySecs = 2L;
+        TaskScheduler scheduler = getScheduler(false, callback, scaleupDelaySecs, 0, rule1);
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        Map<String, Protos.Attribute> attributes = new HashMap<>();
+        Protos.Attribute attribute = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue(hostAttrVal1)).build();
+        attributes.put(hostAttrName, attribute);
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        for(int l=0; l<minIdle; l++)
+            leases.add(LeaseProvider.getLeaseOffer("host"+l, cpus1, memory1, ports, attributes));
+        for(int i=0; i<coolDownSecs+1; i++) {
+            if(i>0)
+                leases.clear();
+            final SchedulingResult result = scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), leases);
+            Thread.sleep(1000);
+        }
+        Assert.assertFalse("Unexpected to scale DOWN", scaleDownReceived.get());
+        Assert.assertFalse("Unexpected to scale UP", scaleUpReceived.get());
+        for(int o=0; o<N; o++) {
+            if(o==1)
+                Thread.sleep((long)(2.5 * scaleupDelaySecs)*1000L); // delay next round by a while to reset previous delay
+            for(int i=0; i<scaleupDelaySecs+2; i++) {
+                List<TaskRequest> tasks = new ArrayList<>();
+                if(i==0) {
+                    tasks.add(TaskRequestProvider.getTaskRequest(1, 1000, 1));
+                }
+                final SchedulingResult result = scheduler.scheduleOnce(tasks, leases);
+                final Map<String, VMAssignmentResult> resultMap = result.getResultMap();
+                if(!tasks.isEmpty()) {
+                    Assert.assertTrue(resultMap.size() == 1);
+                    leases.add(LeaseProvider.getConsumedLease(resultMap.values().iterator().next()));
+                }
+                else
+                    leases.clear();
+                Thread.sleep(1000);
+            }
+            Assert.assertFalse("Unexpected to scale DOWN", scaleDownReceived.get());
+            Assert.assertFalse("Unexpected to scale UP", scaleUpReceived.get());
+        }
+        scheduler.scheduleOnce(Collections.singletonList(TaskRequestProvider.getTaskRequest(1, 1000, 1)),
+                Collections.<VirtualMachineLease>emptyList());
+        Thread.sleep(1000);
+        Assert.assertTrue("Expected to scale UP", scaleUpReceived.get());
+    }
+
+    // Test that a scale down action doesn't kick in for a very short duration breach of maxIdle
+    @Test
+    public void testDelayedAutoscaleDown() throws Exception {
+        testScaleDownDelay(1);
+    }
+
+    @Test
+    public void testScaleDownDelayReset() throws Exception {
+        testScaleDownDelay(2);
+    }
+
+    private void testScaleDownDelay(int N) throws Exception {
+        final AtomicBoolean scaleUpReceived = new AtomicBoolean();
+        final AtomicBoolean scaleDownReceived = new AtomicBoolean();
+        final Action1<AutoScaleAction> callback = new Action1<AutoScaleAction>() {
+            @Override
+            public void call(AutoScaleAction autoScaleAction) {
+                switch (autoScaleAction.getType()) {
+                    case Down:
+                        scaleDownReceived.set(true);
+                        break;
+                    case Up:
+                        scaleUpReceived.set(true);
+                        break;
+                }
+            }
+        };
+        long scaleDownDelay=3;
+        TaskScheduler scheduler = getScheduler(true, callback, 0, scaleDownDelay, rule1);
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        Map<String, Protos.Attribute> attributes = new HashMap<>();
+        Protos.Attribute attribute = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue(hostAttrVal1)).build();
+        attributes.put(hostAttrName, attribute);
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        for(int l=0; l<maxIdle+2; l++)
+            leases.add(LeaseProvider.getLeaseOffer("host"+l, cpus1, memory1, ports, attributes));
+        List<TaskRequest> tasks = new ArrayList<>();
+        for(int t=0; t<2; t++)
+            tasks.add(TaskRequestProvider.getTaskRequest(cpus1, memory1, 1));
+        final SchedulingResult result = scheduler.scheduleOnce(tasks, leases);
+        final Map<String, VMAssignmentResult> resultMap = result.getResultMap();
+        Assert.assertEquals(tasks.size(), resultMap.size());
+        tasks.clear();
+        leases.clear();
+        Thread.sleep(coolDownSecs * 1000L + 500L);
+        // mark completion of 1 task; add back one of the leases
+        leases.add(resultMap.values().iterator().next().getLeasesUsed().iterator().next());
+        // run scheduler for (scaleDownDelay-1) secs and ensure we didn't get scale down request
+        for(int i=0; i<scaleDownDelay-1; i++) {
+            scheduler.scheduleOnce(tasks, leases);
+            if(i==0)
+                leases.clear();
+            Thread.sleep(1000);
+        }
+        Assert.assertFalse("Scale down not expected", scaleDownReceived.get());
+        Assert.assertFalse("Scale up not expected", scaleUpReceived.get());
+        for(int o=0; o<N; o++) {
+            if(o==1)
+                Thread.sleep((long)(2.5 * scaleDownDelay));
+            tasks.add(TaskRequestProvider.getTaskRequest(cpus1, memory1, 1));
+            for (int i = 0; i < scaleDownDelay; i++) {
+                final SchedulingResult result1 = scheduler.scheduleOnce(tasks, leases);
+                if (!tasks.isEmpty()) {
+                    Assert.assertEquals(tasks.size(), result1.getResultMap().size());
+                    tasks.clear();
+                }
+                Thread.sleep(1000);
+            }
+            Assert.assertFalse("Scale down not expected", scaleDownReceived.get());
+            Assert.assertFalse("Scale up not expected", scaleUpReceived.get());
+        }
+        final SchedulingResult result1 = scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(),
+                Collections.singletonList(LeaseProvider.getLeaseOffer("host", cpus1, memory1, ports, attributes)));
+        Thread.sleep(1000);
+        Assert.assertTrue("Scale down expected", scaleDownReceived.get());
     }
 }

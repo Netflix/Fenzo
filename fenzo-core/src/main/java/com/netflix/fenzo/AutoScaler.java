@@ -52,14 +52,18 @@ class AutoScaler {
 
     private static class ScalingActivity {
         private long scaleUpAt;
+        private long scaleUpRequestedAt;
         private long scaleDownAt;
+        private long scaleDownRequestedAt;
         private int shortfall;
         private int scaledNumInstances;
         private AutoScaleAction.Type type;
 
         private ScalingActivity(long scaleUpAt, long scaleDownAt, int shortfall, int scaledNumInstances, AutoScaleAction.Type type) {
             this.scaleUpAt = scaleUpAt;
+            scaleUpRequestedAt = 0L;
             this.scaleDownAt = scaleDownAt;
+            scaleDownRequestedAt = 0L;
             this.shortfall = shortfall;
             this.scaledNumInstances = scaledNumInstances;
             this.type = type;
@@ -76,6 +80,8 @@ class AutoScaler {
     private final boolean disableShortfallEvaluation;
     private final String attributeName;
     private final AssignableVMs assignableVMs;
+    private long delayScaleUpBySecs =0L;
+    private long delayScaleDownBySecs =0L;
     private final ThreadPoolExecutor executor =
             new ThreadPoolExecutor(1, 1, Long.MAX_VALUE, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(100),
                      new ThreadPoolExecutor.DiscardOldestPolicy());
@@ -92,42 +98,6 @@ class AutoScaler {
         this.autoScaleRules = new AutoScaleRules(autoScaleRules);
         this.assignableVMs = assignableVMs;
         this.disableShortfallEvaluation = disableShortfallEvaluation;
-//        autoScalerInputObservable
-//                .onErrorResumeNext(new Func1<Throwable, Observable<? extends AutoScalerInput>>() {
-//                    @Override
-//                    public Observable<? extends AutoScalerInput> call(Throwable throwable) {
-//                        logger.warn("Error in auto scaler handler: " + throwable.getMessage(), throwable);
-//                        return Observable.empty();
-//                    }
-//                })
-//                .flatMap(new Func1<AutoScalerInput, Observable<HostAttributeGroup>>() {
-//                    @Override
-//                    public Observable<HostAttributeGroup> call(AutoScalerInput autoScalerInput) {
-//                        Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
-//                        if(!disableShortfallEvaluation) {
-//                            Map<String, Integer> shortfall = shortfallEvaluator.getShortfall(hostAttributeGroupMap.keySet(), autoScalerInput.getFailures());
-//                            for (Map.Entry<String, Integer> entry : shortfall.entrySet()) {
-//                                hostAttributeGroupMap.get(entry.getKey()).shortFall = entry.getValue() == null ? 0 : entry.getValue();
-//                            }
-//                        }
-//                        populateIdleResources(autoScalerInput.getIdleResourcesList(), hostAttributeGroupMap, attributeName);
-//                        return Observable.from(hostAttributeGroupMap.values());
-//                    }
-//                })
-//                .onErrorResumeNext(new Func1<Throwable, Observable<? extends HostAttributeGroup>>() {
-//                    @Override
-//                    public Observable<? extends HostAttributeGroup> call(Throwable throwable) {
-//                        logger.warn("Error in autoscaler: " + throwable.getMessage(), throwable);
-//                        return Observable.empty();
-//                    }
-//                })
-//                .doOnNext(new Action1<HostAttributeGroup>() {
-//                    @Override
-//                    public void call(HostAttributeGroup hostAttributeGroup) {
-//                        processScalingNeeds(hostAttributeGroup, scalingActivityMap, assignableVMs);
-//                    }
-//                })
-//                .subscribe();
         this.activeVmGroups = activeVmGroups;
     }
 
@@ -144,6 +114,14 @@ class AutoScaler {
     void removeRule(String ruleName) {
         if(ruleName != null)
             autoScaleRules.remRule(ruleName);
+    }
+
+    void setDelayScaleUpBySecs(long secs) {
+        delayScaleUpBySecs = secs;
+    }
+
+    void setDelayScaleDownBySecs(long secs) {
+        delayScaleDownBySecs = secs;
     }
 
     void scheduleAutoscale(final AutoScalerInput autoScalerInput) {
@@ -192,40 +170,54 @@ class AutoScaler {
         ScalingActivity prevScalingActivity= scalingActivityMap.get(rule.getRuleName());
         int excess = hostAttributeGroup.shortFall>0? 0 : hostAttributeGroup.idleHosts.size() - rule.getMaxIdleHostsToKeep();
         if (excess > 0 && shouldScaleDown(now, prevScalingActivity, rule)) {
-            Map<String, String> hostsToTerminate = getHostsToTerminate(hostAttributeGroup.idleHosts, excess);
             ScalingActivity scalingActivity = scalingActivityMap.get(rule.getRuleName());
-            scalingActivity.scaleDownAt = now;
-            scalingActivity.shortfall = hostAttributeGroup.shortFall;
-            scalingActivity.scaledNumInstances = hostsToTerminate.size();
-            scalingActivity.type = AutoScaleAction.Type.Down;
-            StringBuilder sBuilder = new StringBuilder();
-            for (String host : hostsToTerminate.keySet()) {
-                sBuilder.append(host).append(", ");
-                assignableVMs.disableUntil(host, now+rule.getCoolDownSecs()*1000);
+            long lastReqstAge = (now - scalingActivity.scaleDownRequestedAt) / 1000L;
+            if(delayScaleDownBySecs>0L && lastReqstAge > 2 * delayScaleDownBySecs) { // reset the request at time
+                scalingActivity.scaleDownRequestedAt = now;
             }
-            logger.info("Scaling down " + rule.getRuleName() + " by "
-                    + excess + " hosts (" + sBuilder.toString() + ")");
-            callback.call(
-                    new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values())
-            );
+            else if(delayScaleDownBySecs == 0L || lastReqstAge > delayScaleDownBySecs) {
+                scalingActivity.scaleDownRequestedAt = 0L;
+                scalingActivity.scaleDownAt = now;
+                scalingActivity.shortfall = hostAttributeGroup.shortFall;
+                Map<String, String> hostsToTerminate = getHostsToTerminate(hostAttributeGroup.idleHosts, excess);
+                scalingActivity.scaledNumInstances = hostsToTerminate.size();
+                scalingActivity.type = AutoScaleAction.Type.Down;
+                StringBuilder sBuilder = new StringBuilder();
+                for (String host : hostsToTerminate.keySet()) {
+                    sBuilder.append(host).append(", ");
+                    assignableVMs.disableUntil(host, now + rule.getCoolDownSecs() * 1000);
+                }
+                logger.info("Scaling down " + rule.getRuleName() + " by "
+                        + excess + " hosts (" + sBuilder.toString() + ")");
+                callback.call(
+                        new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values())
+                );
+            }
         } else if(hostAttributeGroup.shortFall>0 || (excess<=0 && shouldScaleUp(now, prevScalingActivity, rule))) {
             if (hostAttributeGroup.shortFall>0 || rule.getMinIdleHostsToKeep() > hostAttributeGroup.idleHosts.size()) {
                 // scale up to rule.getMaxIdleHostsToKeep() instead of just until rule.getMinIdleHostsToKeep()
                 // but, if not shouldScaleUp(), then, scale up due to shortfall
-                int shortage = (excess<=0 && shouldScaleUp(now, prevScalingActivity, rule))?
-                        rule.getMaxIdleHostsToKeep() - hostAttributeGroup.idleHosts.size() :
-                        0;
-                shortage = Math.max(shortage, hostAttributeGroup.shortFall);
                 ScalingActivity scalingActivity = scalingActivityMap.get(rule.getRuleName());
-                scalingActivity.scaleUpAt = now;
-                scalingActivity.shortfall = hostAttributeGroup.shortFall;
-                scalingActivity.scaledNumInstances = shortage;
-                scalingActivity.type = AutoScaleAction.Type.Up;
-                logger.info("Scaling up " + rule.getRuleName() + " by "
-                        + shortage + " hosts");
-                callback.call(
-                        new ScaleUpAction(rule.getRuleName(), getEffectiveShortage(shortage, scalingActivity.shortfall))
-                );
+                long lastReqstAge = (now - scalingActivity.scaleUpRequestedAt) / 1000L;
+                if(delayScaleUpBySecs >0L && lastReqstAge > 2 * delayScaleUpBySecs) { // reset the request at time
+                    scalingActivity.scaleUpRequestedAt = now;
+                }
+                else if(delayScaleUpBySecs ==0L || lastReqstAge > delayScaleUpBySecs) {
+                    scalingActivity.scaleUpRequestedAt = 0L;
+                    int shortage = (excess<=0 && shouldScaleUp(now, prevScalingActivity, rule))?
+                            rule.getMaxIdleHostsToKeep() - hostAttributeGroup.idleHosts.size() :
+                            0;
+                    shortage = Math.max(shortage, hostAttributeGroup.shortFall);
+                    scalingActivity.scaleUpAt = now;
+                    scalingActivity.shortfall = hostAttributeGroup.shortFall;
+                    scalingActivity.scaledNumInstances = shortage;
+                    scalingActivity.type = AutoScaleAction.Type.Up;
+                    logger.info("Scaling up " + rule.getRuleName() + " by "
+                            + shortage + " hosts");
+                    callback.call(
+                            new ScaleUpAction(rule.getRuleName(), getEffectiveShortage(shortage, scalingActivity.shortfall))
+                    );
+                }
             }
         }
     }
