@@ -826,6 +826,7 @@ public class AutoScalerTest {
             Assert.assertFalse("Unexpected to scale DOWN", scaleDownReceived.get());
             Assert.assertFalse("Unexpected to scale UP", scaleUpReceived.get());
         }
+        // ensure normal scale up request happens after the delay
         scheduler.scheduleOnce(Collections.singletonList(TaskRequestProvider.getTaskRequest(1, 1000, 1)),
                 Collections.<VirtualMachineLease>emptyList());
         Thread.sleep(1000);
@@ -892,11 +893,15 @@ public class AutoScalerTest {
         Assert.assertFalse("Scale down not expected", scaleDownReceived.get());
         Assert.assertFalse("Scale up not expected", scaleUpReceived.get());
         for(int o=0; o<N; o++) {
-            if(o==1)
-                Thread.sleep((long)(2.5 * scaleDownDelay));
-            tasks.add(TaskRequestProvider.getTaskRequest(cpus1, memory1, 1));
-            for (int i = 0; i < scaleDownDelay; i++) {
+            if(o==1) {
+                Thread.sleep((long) (2.5 * scaleDownDelay) * 1000L);
+                leases.add(LeaseProvider.getLeaseOffer("hostFoo", cpus1, memory1, ports, attributes));
+            }
+            else
+                tasks.add(TaskRequestProvider.getTaskRequest(cpus1, memory1, 1));
+            for (int i = 0; i < scaleDownDelay+1; i++) {
                 final SchedulingResult result1 = scheduler.scheduleOnce(tasks, leases);
+                leases.clear();
                 if (!tasks.isEmpty()) {
                     Assert.assertEquals(tasks.size(), result1.getResultMap().size());
                     tasks.clear();
@@ -906,9 +911,13 @@ public class AutoScalerTest {
             Assert.assertFalse("Scale down not expected", scaleDownReceived.get());
             Assert.assertFalse("Scale up not expected", scaleUpReceived.get());
         }
-        final SchedulingResult result1 = scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(),
-                Collections.singletonList(LeaseProvider.getLeaseOffer("host", cpus1, memory1, ports, attributes)));
+        // ensure normal scale down request happens after the delay
+        for(int l=0; l<N; l++)
+            leases.add(LeaseProvider.getLeaseOffer("host"+(100+l), cpus1, memory1, ports, attributes));
+        SchedulingResult result1 = scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), leases);
+        leases.clear();
         Thread.sleep(1000);
+        Assert.assertFalse("Scale up not expected", scaleUpReceived.get());
         Assert.assertTrue("Scale down expected", scaleDownReceived.get());
     }
 }
