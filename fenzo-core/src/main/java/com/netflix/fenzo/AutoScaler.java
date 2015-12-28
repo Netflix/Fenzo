@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class AutoScaler {
 
@@ -85,6 +86,7 @@ class AutoScaler {
     private final ThreadPoolExecutor executor =
             new ThreadPoolExecutor(1, 1, Long.MAX_VALUE, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(100),
                      new ThreadPoolExecutor.DiscardOldestPolicy());
+    private final AtomicBoolean isShutdown = new AtomicBoolean();
     final ConcurrentMap<String, ScalingActivity> scalingActivityMap = new ConcurrentHashMap<>();
 
     AutoScaler(final String attributeName, String mapHostnameAttributeName, String scaleDownBalancedByAttributeName,
@@ -125,10 +127,14 @@ class AutoScaler {
     }
 
     void scheduleAutoscale(final AutoScalerInput autoScalerInput) {
+        if(isShutdown.get())
+            return;
         try {
             executor.submit(new Runnable() {
                 @Override
                 public void run() {
+                    if(isShutdown.get())
+                        return;
                     autoScaleRules.prepare();
                     Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
                     if (!disableShortfallEvaluation) {
@@ -301,5 +307,10 @@ class AutoScaler {
 
     public void setCallback(Action1<AutoScaleAction> callback) {
         this.callback = callback;
+    }
+
+    void shutdown() {
+        if(isShutdown.compareAndSet(false, true))
+            executor.shutdown();
     }
 }

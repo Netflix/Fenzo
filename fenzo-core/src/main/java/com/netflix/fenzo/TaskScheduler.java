@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -403,6 +404,7 @@ public class TaskScheduler {
     private final AutoScaler autoScaler;
     private final int EXEC_SVC_THREADS=Runtime.getRuntime().availableProcessors();
     private final ExecutorService executorService = Executors.newFixedThreadPool(EXEC_SVC_THREADS);
+    private final AtomicBoolean isShutdown = new AtomicBoolean();
     private final ResAllocsEvaluater resAllocsEvaluator;
 
     private TaskScheduler(Builder builder) {
@@ -433,6 +435,11 @@ public class TaskScheduler {
         }
     }
 
+    private void checkIfShutdown() throws IllegalStateException {
+        if(isShutdown.get())
+            throw new IllegalStateException("TaskScheduler already shutdown");
+    }
+
     /**
      * Set the autoscale call back action. The callback you pass to this method receives an indication when an
      * autoscale action is to be performed, telling it which autoscale rule prompted the action and whether the
@@ -444,6 +451,7 @@ public class TaskScheduler {
      * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
      */
     public void setAutoscalerCallback(Action1<AutoScaleAction> callback) throws IllegalStateException {
+        checkIfShutdown();
         if(autoScaler==null)
             throw new IllegalStateException("No autoScaler setup");
         autoScaler.setCallback(callback);
@@ -579,11 +587,13 @@ public class TaskScheduler {
      * @return a {@link SchedulingResult} object that contains a task assignment results map and other summaries
      * @throws IllegalStateException if you call this method concurrently, or, if you try to add an existing lease
      * again, or, if there was unexpected exception during the scheduling iteration. For example, unexpected exceptions
-     * can arise from uncaught exceptions in user defined plugins.
+     * can arise from uncaught exceptions in user defined plugins. It is also thrown if the scheduler has been shutdown
+     * via the {@link #shutdown()} method.
      */
     public SchedulingResult scheduleOnce(
             List<? extends TaskRequest> requests,
             List<VirtualMachineLease> newLeases) throws IllegalStateException {
+        checkIfShutdown();
         try (AutoCloseable
                      ac = stateMonitor.enter()) {
             long start = System.currentTimeMillis();
@@ -802,8 +812,9 @@ public class TaskScheduler {
      * Call this method to instruct the task scheduler to reject a particular resource offer.
      *
      * @param leaseId the lease ID of the lease to expire
+     * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
-    public void expireLease(String leaseId) {
+    public void expireLease(String leaseId) throws IllegalStateException {
         assignableVMs.expireLease(leaseId);
     }
 
@@ -812,8 +823,9 @@ public class TaskScheduler {
      * holding that concern resources offered by the host with the name {@code hostname}.
      *
      * @param hostname the name of the host whose leases you want to expire
+     * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
-    public void expireAllLeases(String hostname) {
+    public void expireAllLeases(String hostname) throws IllegalStateException {
         assignableVMs.expireAllLeases(hostname);
     }
 
@@ -823,8 +835,9 @@ public class TaskScheduler {
      *
      * @param vmId the ID of the host whose leases you want to expire
      * @return {@code true} if the given ID matches a known host, {@code false} otherwise.
+     * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
-    public boolean expireAllLeasesByVMId(String vmId) {
+    public boolean expireAllLeasesByVMId(String vmId) throws IllegalStateException {
         final String hostname = assignableVMs.getHostnameFromVMId(vmId);
         if(hostname == null)
             return false;
@@ -835,8 +848,9 @@ public class TaskScheduler {
     /**
      * Call this method to instruct the task scheduler to reject all of the unused offers it is currently
      * holding.
+     * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
-    public void expireAllLeases() {
+    public void expireAllLeases() throws IllegalStateException {
         logger.info("Expiring all leases");
         assignableVMs.expireAllLeases();
     }
@@ -861,8 +875,9 @@ public class TaskScheduler {
      * action will throw an {@code IllegalStateException}.
      * 
      * @return a task assigner action
+     * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
-    public Action2<TaskRequest, String> getTaskAssigner() {
+    public Action2<TaskRequest, String> getTaskAssigner() throws IllegalStateException {
         return new Action2<TaskRequest, String>() {
             @Override
             public void call(TaskRequest request, String hostname) {
@@ -898,8 +913,9 @@ public class TaskScheduler {
      * that is, the next time {@link #scheduleOnce(List, List)} is called.
      *
      * @return the task un-assigner action
+     * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
-    public Action2<String, String> getTaskUnAssigner() {
+    public Action2<String, String> getTaskUnAssigner() throws IllegalStateException {
         return new Action2<String, String>() {
             @Override
             public void call(String taskId, String hostname) {
@@ -917,8 +933,9 @@ public class TaskScheduler {
      * @param hostname the name of the host to disable
      * @param durationMillis the length of time, starting from now, in milliseconds, during which the host will
      *        be disabled
+     * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
-    public void disableVM(String hostname, long durationMillis) {
+    public void disableVM(String hostname, long durationMillis) throws IllegalStateException {
         logger.info("Disable VM " + hostname + " for " + durationMillis + " millis");
         assignableVMs.disableUntil(hostname, System.currentTimeMillis()+durationMillis);
     }
@@ -933,8 +950,9 @@ public class TaskScheduler {
      * @param durationMillis the length of time, starting from now, in milliseconds, during which the host will
      *        be disabled
      * @return {@code true} if the ID matches a known VM, {@code false} otherwise.
+     * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
-    public boolean disableVMByVMId(String vmID, long durationMillis) {
+    public boolean disableVMByVMId(String vmID, long durationMillis) throws IllegalStateException {
         final String hostname = assignableVMs.getHostnameFromVMId(vmID);
         if(hostname == null)
             return false;
@@ -947,8 +965,9 @@ public class TaskScheduler {
      * this method if you have previously explicitly disabled the host.
      *
      * @param hostname the name of the host to enable
+     * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
-    public void enableVM(String hostname) {
+    public void enableVM(String hostname) throws IllegalStateException {
         logger.info("Enabling VM " + hostname);
         assignableVMs.enableVM(hostname);
     }
@@ -977,4 +996,14 @@ public class TaskScheduler {
         assignableVMs.setActiveVmGroups(vmGroups);
     }
 
+    /**
+     * Mark task scheduler as shutdown and shutdown any thread pool executors created.
+     */
+    public void shutdown() {
+        if(isShutdown.compareAndSet(false, true)) {
+            executorService.shutdown();
+            if(autoScaler != null)
+                autoScaler.shutdown();
+        }
+    }
 }
