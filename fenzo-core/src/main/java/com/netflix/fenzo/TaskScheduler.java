@@ -87,6 +87,8 @@ public class TaskScheduler {
         private String autoScalerMapHostnameAttributeName=null;
         private String autoScaleDownBalancedByAttributeName=null;
         private Action1<AutoScaleAction> autoscalerCallback=null;
+        private long delayAutoscaleUpBySecs=0L;
+        private long delayAutoscaleDownBySecs=0L;
         private List<AutoScaleRule> autoScaleRules=new ArrayList<>();
         private Func1<Double, Boolean> isFitnessGoodEnoughFunction = new Func1<Double, Boolean>() {
             @Override
@@ -307,6 +309,52 @@ public class TaskScheduler {
         }
 
         /**
+         * Delay the autoscale up actions to reduce unnecessary actions due to short periods of breach of scale up
+         * policy rules. Such scale ups can be caused by, for example, the periodic offer rejections that result in
+         * offers coming back shortly. They can also be caused by certain environments where tasks are first scheduled
+         * to replace existing tasks.
+         * <P>
+         * The autoscaler takes the scale up action based on the latest scale up request value after the delay.
+         * <P>
+         * The default is 0 secs. Ideally, you should set this to be at least two times the larger of the two values:
+         * <UL>
+         *     <LI>Delay between successive calls to {@link TaskScheduler#scheduleOnce(List, List)}.</LI>
+         *     <LI>Delay in get a rejected offer back from Mesos.</LI>
+         * </UL>
+         * @param delayAutoscaleUpBySecs Delay autoscale up actions by this many seconds.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @throws IllegalArgumentException if you give negative number for {@code delayAutoscalerbySecs}.
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
+         */
+        public Builder withDelayAutoscaleUpBySecs(long delayAutoscaleUpBySecs) {
+            if(delayAutoscaleUpBySecs < 0L)
+                throw new IllegalArgumentException("Delay secs can't be negative: " + delayAutoscaleUpBySecs);
+            this.delayAutoscaleUpBySecs = delayAutoscaleUpBySecs;
+            return this;
+        }
+
+        /**
+         * Delay the autoscale down actions to reduce unnecessary actions due to short periods of breach of scale down
+         * policy rules. Such scale downs can be caused by, for example, certain environments where existing tasks are
+         * removed before replacing them with new tasks.
+         * <P>
+         * The autoscaler takes the scale down action based on the latest scale down request value after the delay.
+         * <P>
+         * The default is 0 secs. Ideally, you should set this to be at least two times the delay before terminated
+         * tasks are replaced successfully.
+         * @param delayAutoscaleDownBySecs Delay autoscale down actions by this many seconds.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @throws IllegalArgumentException if you give negative number for {@code delayAutoscalerbySecs}.
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
+         */
+        public Builder withDelayAutoscaleDownBySecs(long delayAutoscaleDownBySecs) {
+            if(delayAutoscaleDownBySecs < 0L)
+                throw new IllegalArgumentException("Delay secs can't be negative: " + delayAutoscaleDownBySecs);
+            this.delayAutoscaleDownBySecs = delayAutoscaleDownBySecs;
+            return this;
+        }
+
+        /**
          * Indicate that the cluster receives resource offers only once per VM (host). Normally, Mesos sends resource
          * offers multiple times, as resources free up on the host upon completion of various tasks. This method
          * provides an experimental support for a mode where Fenzo can be made aware of the entire set of resources
@@ -375,6 +423,10 @@ public class TaskScheduler {
                     builder.disableShortfallEvaluation, assignableVMs.getActiveVmGroups());
             if(builder.autoscalerCallback != null)
                 autoScaler.setCallback(builder.autoscalerCallback);
+            if(builder.delayAutoscaleDownBySecs > 0L)
+                autoScaler.setDelayScaleDownBySecs(builder.delayAutoscaleDownBySecs);
+            if(builder.delayAutoscaleUpBySecs > 0L)
+                autoScaler.setDelayScaleUpBySecs(builder.delayAutoscaleUpBySecs);
         }
         else {
             autoScaler=null;
