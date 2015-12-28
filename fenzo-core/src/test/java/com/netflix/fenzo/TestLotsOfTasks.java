@@ -119,13 +119,14 @@ public class TestLotsOfTasks {
     public static void main(String[] args) {
         TaskScheduler scheduler = getTaskScheduler();
         TestLotsOfTasks tester = new TestLotsOfTasks();
-        tester.numHosts=10000;
+        tester.numHosts=2000;
         tester.numCores=16;
         tester.memory=1000*tester.numCores;
         List<TaskRequest> tasks = tester.getTasks();
         List<VirtualMachineLease> leases = tester.getLeases();
         test2(tester, scheduler, tasks, leases);
-        System.exit(0);
+        scheduler.shutdown();
+        System.out.println("ALL DONE");
     }
 
     private static void addToAsgmtMap(Map<String, List<TaskRequest>> theMap, String hostname, TaskRequest request) {
