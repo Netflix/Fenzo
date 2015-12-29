@@ -30,7 +30,7 @@ allprojects {
     
     group = 'com.netflix.fenzo'
     sourceCompatibility = 1.7
-	targetCompatibility = 1.7
+    targetCompatibility = 1.7
 }
 
 subprojects {
