@@ -27,5 +27,6 @@ public enum VMResource {
     Network,
     Ports,
     Disk,
+    ResourceSet,
     Fitness
 }

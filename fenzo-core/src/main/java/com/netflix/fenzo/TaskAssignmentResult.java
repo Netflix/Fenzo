@@ -35,6 +35,7 @@ public class TaskAssignmentResult {
     final private String taskId;
     final private String hostname;
     final private List<Integer> assignedPorts;
+    final private List<PreferentialNamedConsumableResourceSet.ConsumeResult> rSets;
     final private boolean successful;
     final private List<AssignmentFailure> failures;
     final private ConstraintFailure constraintFailure;
@@ -57,6 +58,7 @@ public class TaskAssignmentResult {
         this.constraintFailure = constraintFailure;
         this.fitness = fitness;
         assignedPorts = new ArrayList<>();
+        rSets = new ArrayList<>();
     }
 
     /**
@@ -85,6 +87,10 @@ public class TaskAssignmentResult {
         assignedPorts.add(port);
     }
 
+    void addResourceSet(PreferentialNamedConsumableResourceSet.ConsumeResult rSet) {
+        rSets.add(rSet);
+    }
+
     /**
      * Returns a list of port numbers corresponding to the ports the task was assigned on the host.
      *
@@ -92,6 +98,10 @@ public class TaskAssignmentResult {
      */
     public List<Integer> getAssignedPorts() {
         return assignedPorts;
+    }
+
+    public List<PreferentialNamedConsumableResourceSet.ConsumeResult> getrSets() {
+        return rSets;
     }
 
     /**

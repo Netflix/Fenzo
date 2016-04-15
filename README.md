@@ -41,7 +41,7 @@ constraint plugins that are built in to Fenzo include:
 - Host attribute value constraint
     - selects a host for a task only if it has a specific attribute value
 - Unique host attribute constraint
-    - ensures co-tasks are placed on hosts that have unique values for a given attribute or host name
+    - ensures co-tasks are placed on hosts that have unique values for a given attribute or host attrName
     - for example: one co-task per AWS EC2 availability zone, or one co-task per unique host
 - Balanced host attribute constraint
     - ensure co-tasks are placed on hosts such that there are an equal number of tasks on hosts with unique value 

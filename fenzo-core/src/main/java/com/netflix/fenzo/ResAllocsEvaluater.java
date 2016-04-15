@@ -96,26 +96,29 @@ class ResAllocsEvaluater {
         if(resAllocs.isEmpty())
             return null;
         if(failedTaskGroups.contains(task.taskGroupName()))
-            return new AssignmentFailure(VMResource.ResAllocs, 1.0, 0.0, 0.0);
+            return new AssignmentFailure(VMResource.ResAllocs, 1.0, 0.0, 0.0, "");
         final TaskTracker.TaskGroupUsage usage = taskTracker.getUsage(task.taskGroupName());
         final ResAllocs resAllocs = this.resAllocs.get(task.taskGroupName());
         if(resAllocs == null)
-            return new AssignmentFailure(VMResource.ResAllocs, 1.0, 0.0, 0.0);
+            return new AssignmentFailure(VMResource.ResAllocs, 1.0, 0.0, 0.0, "");
         if(usage==null) {
             final boolean success = hasZeroUsageAllowance(resAllocs);
             if(!success)
                 failedTaskGroups.add(task.taskGroupName());
-            return success? null : new AssignmentFailure(VMResource.ResAllocs, 1.0, 0.0, 0.0);
+            return success? null : new AssignmentFailure(VMResource.ResAllocs, 1.0, 0.0, 0.0, "");
         }
         // currently, no way to indicate which of resAllocs's resources limited us
         if((usage.getCores()+task.getCPUs()) > resAllocs.getCores())
-            return new AssignmentFailure(VMResource.ResAllocs, task.getCPUs(), usage.getCores(), resAllocs.getCores());
+            return new AssignmentFailure(VMResource.ResAllocs, task.getCPUs(), usage.getCores(), resAllocs.getCores(),
+                    "");
         if((usage.getMemory() + task.getMemory()) > resAllocs.getMemory())
-            return new AssignmentFailure(VMResource.ResAllocs, task.getMemory(), usage.getMemory(), resAllocs.getMemory());
+            return new AssignmentFailure(VMResource.ResAllocs, task.getMemory(), usage.getMemory(), resAllocs.getMemory(),
+                    "");
         if((usage.getNetworkMbps()+task.getNetworkMbps()) > resAllocs.getNetworkMbps())
-            return new AssignmentFailure(VMResource.ResAllocs, task.getNetworkMbps(), usage.getNetworkMbps(), resAllocs.getNetworkMbps());
+            return new AssignmentFailure(
+                    VMResource.ResAllocs, task.getNetworkMbps(), usage.getNetworkMbps(), resAllocs.getNetworkMbps(), "");
         if((usage.getDisk()+task.getDisk()) > resAllocs.getDisk())
-            return new AssignmentFailure(VMResource.ResAllocs, task.getDisk(), usage.getDisk(), resAllocs.getDisk());
+            return new AssignmentFailure(VMResource.ResAllocs, task.getDisk(), usage.getDisk(), resAllocs.getDisk(), "");
         return null;
     }
 

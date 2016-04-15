@@ -619,8 +619,8 @@ public class TaskScheduler {
     private SchedulingResult doSchedule(
             List<? extends TaskRequest> requests,
             List<VirtualMachineLease> newLeases) {
-        AtomicInteger rejectedCount = new AtomicInteger(assignableVMs.addLeases(newLeases));
-        List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs();
+        AtomicInteger rejectedCount = new AtomicInteger();
+        List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs(newLeases, rejectedCount);
         if(logger.isDebugEnabled())
             logger.debug("Found " + avms.size() + " VMs with non-zero offers to assign from");
         final boolean hasResAllocs = resAllocsEvaluator.prepare();

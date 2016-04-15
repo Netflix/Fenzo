@@ -41,25 +41,26 @@ import org.slf4j.LoggerFactory;
  */
 public class AssignmentFailure {
     @JsonIgnore
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    @JsonIgnore
     private static final Logger logger = LoggerFactory.getLogger(AssignmentFailure.class);
     private VMResource resource;
     private double asking;
     private double used;
     private double available;
+    private String message="";
 
     @JsonCreator
     @JsonIgnoreProperties(ignoreUnknown=true)
     public AssignmentFailure(@JsonProperty("resource") VMResource resource,
                              @JsonProperty("asking") double asking,
                              @JsonProperty("used") double used,
-                             @JsonProperty("available") double available) {
+                             @JsonProperty("available") double available,
+                             @JsonProperty("message") String message
+    ) {
         this.resource = resource;
         this.asking = asking;
         this.used = used;
         this.available = available;
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this.message = message;
     }
 
     /**
@@ -111,6 +112,7 @@ public class AssignmentFailure {
                 ", asking=" + asking +
                 ", used=" + used +
                 ", available=" + available +
+                ", message=" + message +
                 '}';
     }
 }
