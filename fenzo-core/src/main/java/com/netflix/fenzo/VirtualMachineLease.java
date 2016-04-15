@@ -25,7 +25,7 @@ import java.util.Map;
  * A representation of a lease (resource offer). You describe each Mesos resource offer by means of an object
  * that implements the {@code VirtualMachineLease} interface. You can get such an object by passing the
  * {@link org.apache.mesos.Protos.Offer Offer} object that represents that Mesos offer (and that you received
- * from Mesos) into the {@link plugins.VMLeaseObject VMLeaseObject} constructor.
+ * from Mesos) into the {@link com.netflix.fenzo.plugins.VMLeaseObject VMLeaseObject} constructor.
  */
 public interface VirtualMachineLease {
 

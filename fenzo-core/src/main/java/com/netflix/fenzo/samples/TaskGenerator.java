@@ -22,7 +22,9 @@ import com.netflix.fenzo.VMTaskFitnessCalculator;
 import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.functions.Func1;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -107,6 +109,11 @@ public class TaskGenerator implements Runnable {
             @Override
             public List<? extends VMTaskFitnessCalculator> getSoftConstraints() {
                 return null;
+            }
+
+            @Override
+            public Map<String, NamedResourceSetRequest> getCustomNamedResources() {
+                return Collections.emptyMap();
             }
         };
     }

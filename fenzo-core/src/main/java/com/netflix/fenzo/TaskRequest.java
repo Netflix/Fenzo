@@ -17,11 +17,43 @@
 package com.netflix.fenzo;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Describes a task to be assigned to a host and its requirements.
  */
 public interface TaskRequest {
+
+    public class NamedResourceSetRequest {
+        private final String resName;
+        private final String resValue;
+        private final int numSets;
+        private final int numSubResources;
+
+        public NamedResourceSetRequest(String resName, String resValue, int numSets, int numSubResources) {
+            this.resName = resName;
+            this.resValue = resValue;
+            this.numSets = numSets;
+            this.numSubResources = numSubResources;
+        }
+
+        public String getResName() {
+            return resName;
+        }
+
+        public String getResValue() {
+            return resValue;
+        }
+
+        public int getNumSets() {
+            return numSets;
+        }
+
+        public int getNumSubResources() {
+            return numSubResources;
+        }
+    }
+
     /**
      * Get an identifier for this task request.
      *
@@ -70,6 +102,13 @@ public interface TaskRequest {
      * @return how many ports the task is requesting
      */
     public int getPorts();
+
+    /**
+     * Get the list of custom named resource sets requested by the task.
+     *
+     * @return List of named resource set requests, or null.
+     */
+    Map<String, NamedResourceSetRequest> getCustomNamedResources();
 
     /**
      * Get a list of the hard constraints the task requires. All of these hard constraints must be satisfied by

@@ -23,16 +23,7 @@ import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -96,6 +87,16 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         }
     }
 
+    private static class ResAsgmntResult {
+        private final List<AssignmentFailure> failures;
+        private final double fitness;
+
+        public ResAsgmntResult(List<AssignmentFailure> failures, double fitness) {
+            this.failures = failures;
+            this.fitness = fitness;
+        }
+    }
+
     private final Map<String, VirtualMachineLease> leasesMap;
     private final BlockingQueue<String> workersToUnAssign;
     private final BlockingQueue<String> leasesToExpire;
@@ -115,6 +116,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private VirtualMachineLease currTotalLease=null;
     private PortRanges currPortRanges = new PortRanges();
     private Map<String, Protos.Attribute> currAttributesMap = new HashMap<>();
+    private final Map<String, PreferentialNamedConsumableResourceSet> resourceSets = new HashMap<>();
     // previouslyAssignedTasksMap contains tasks on this VM before current scheduling iteration started. This is
     // available for optimization of scheduling assignments for such things as locality with other similar tasks, etc.
     private final Map<String, TaskRequest> previouslyAssignedTasksMap;
@@ -128,7 +130,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private final TaskTracker taskTracker;
     private volatile long disabledUntil=0L;
     // This may have to be configurable, but, for now weight the job's soft constraints more than system wide fitness calculators
-    private double softConstraintWeightPercentage=75.0;
+    private static double softConstraintFitnessWeightPercentage =50.0;
+    private static double rSetsFitnessWeightPercentage=15.0;
     private String exclusiveTaskId =null;
     private final boolean singleLeaseMode;
     private boolean firstLeaseAdded=false;
@@ -181,6 +184,40 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             // always replace attributes map with the latest
             currAttributesMap.clear();
             currAttributesMap.putAll(l.getAttributeMap());
+        }
+        for(Map.Entry<String, Protos.Attribute> entry: currAttributesMap.entrySet()) {
+            switch (entry.getKey()) {
+                case "res":
+                    String val = entry.getValue().getText().getValue();
+                    if(val!=null) {
+                        StringTokenizer tokenizer = new StringTokenizer(val, "-");
+                        String resName = tokenizer.nextToken();
+                        switch (resName) {
+                            case PreferentialNamedConsumableResourceSet.attributeName:
+                                if(tokenizer.countTokens() == 3) {
+                                    String name = tokenizer.nextToken();
+                                    String val0Str = tokenizer.nextToken();
+                                    String val1Str = tokenizer.nextToken();
+                                    if(!resourceSets.containsKey(name)) {
+                                        try {
+                                            int val0 = Integer.parseInt(val0Str);
+                                            int val1 = Integer.parseInt(val1Str);
+                                            resourceSets.put(name, new PreferentialNamedConsumableResourceSet(name, val0, val1));
+                                        }
+                                        catch (NumberFormatException e) {
+                                            logger.warn(hostname + ": invalid resource spec (" + val + ") in attributes, ignoring: " + e.getMessage());
+                                        }
+                                    }
+                                }
+                                else
+                                    logger.warn("Invalid res spec (expected 4 tokens with delimiter '-', ignoring: " + val);
+                                break;
+                            default:
+                                logger.warn("Unknown resource in attributes, ignoring: " + val);
+                        }
+                    }
+                    break;
+            }
         }
     }
 
@@ -276,6 +313,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                 iterator.remove();
             }
         }
+        if(expireAll && !hasPreviouslyAssignedTasks())
+            resourceSets.clear();
     }
 
     int expireLimitedLeases(AssignableVMs.VMRejectLimiter vmRejectLimiter) {
@@ -409,9 +448,22 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             TaskRequest r = previouslyAssignedTasksMap.remove(t);
             if(singleLeaseMode && r!=null)
                 addBackResourcesOf(r);
+            releaseResourceSets(r);
             clearIfExclusive(t);
         }
         assignmentResults.clear();
+    }
+
+    private void releaseResourceSets(TaskRequest r) {
+        if(r==null) {
+            logger.warn("Can't release resource sets for null task");
+            return;
+        }
+        // unassign resource sets if any
+        final Map<String, TaskRequest.NamedResourceSetRequest> customNamedResources = r.getCustomNamedResources();
+        for (Map.Entry<String, PreferentialNamedConsumableResourceSet> entry : resourceSets.entrySet()) {
+            entry.getValue().release(r);
+        }
     }
 
     private void removeResourcesOf(TaskRequest request) {
@@ -501,31 +553,40 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                 logger.debug("Host " + getHostname() + ": task " + request.getId() + " failed hard constraint: " + failedHardConstraint);
             return new TaskAssignmentResult(this, request, false, null, failedHardConstraint, 0.0);
         }
-        List<AssignmentFailure> failures = evalAndGetResourceAssignmentFailures(request);
-        if(!failures.isEmpty()) {
+        final ResAsgmntResult resAsgmntResult = evalAndGetResourceAssignmentFailures(request);
+        if(!resAsgmntResult.failures.isEmpty()) {
             if(logger.isDebugEnabled()) {
                 StringBuilder b = new StringBuilder();
-                for(AssignmentFailure f: failures)
+                for(AssignmentFailure f: resAsgmntResult.failures)
                     b.append(f.toString()).append(" ; ");
                 logger.debug(getHostname() + ": task " + request.getId() + " failed assignment: " + b.toString());
             }
-            return new TaskAssignmentResult(this, request, false, failures, null, 0.0);
+            return new TaskAssignmentResult(this, request, false, resAsgmntResult.failures, null, 0.0);
         }
+        final double resAsgmntFitness = resAsgmntResult.fitness;
         double fitness = fitnessCalculator.calculateFitness(request, vmCurrentState, taskTrackerState);
         if(fitness == 0.0) {
             if(logger.isDebugEnabled())
                 logger.debug(getHostname() + ": task " + request.getId() + " fitness calculator returned 0.0");
-            failures.add(new AssignmentFailure(VMResource.Fitness, 1.0, 1.0, 0.0));
+            List<AssignmentFailure> failures = Collections.singletonList(
+                    new AssignmentFailure(VMResource.Fitness, 0.0, 0.0, 0.0, "fitnessCalculator: 0.0"));
             return new TaskAssignmentResult(this, request, false, failures, null, fitness);
         }
         List<? extends VMTaskFitnessCalculator> softConstraints = request.getSoftConstraints();
         // we don't fail on soft constraints
+        double softConstraintFitness=1.0;
         if(softConstraints!=null && !softConstraints.isEmpty()) {
-            double softConstraintFitness = getSoftConstraintsFitness(request, vmCurrentState, taskTrackerState);
-            fitness = ((softConstraintFitness*softConstraintWeightPercentage) + (fitness*(100.0-softConstraintWeightPercentage)))
-                    / 100.0;
+            softConstraintFitness = getSoftConstraintsFitness(request, vmCurrentState, taskTrackerState);
         }
+        fitness = combineFitnessValues(resAsgmntFitness, fitness, softConstraintFitness);
         return new TaskAssignmentResult(this, request, true, null, null, fitness);
+    }
+
+    private double combineFitnessValues(double resAsgmntFitness, double fitness, double softConstraintFitness) {
+        return ( resAsgmntFitness * rSetsFitnessWeightPercentage +
+                softConstraintFitness * softConstraintFitnessWeightPercentage +
+                fitness * (100.0 - rSetsFitnessWeightPercentage - softConstraintFitnessWeightPercentage) )
+                / 100.0;
     }
 
     private double getSoftConstraintsFitness(TaskRequest request, VirtualMachineCurrentState vmCurrentState, TaskTrackerState taskTrackerState) {
@@ -539,41 +600,75 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return sum/n;
     }
 
-    private List<AssignmentFailure> evalAndGetResourceAssignmentFailures(TaskRequest request) {
+    private ResAsgmntResult evalAndGetResourceAssignmentFailures(TaskRequest request) {
         List<AssignmentFailure> failures = new ArrayList<>();
         if((currUsedCpus+request.getCPUs()) > currTotalCpus) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.CPU, request.getCPUs(), currUsedCpus,
-                    currTotalCpus);
+                    currTotalCpus, "");
             //logger.info(hostname+":"+request.getId()+" Insufficient cpus: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedMemory+request.getMemory()) > currTotalMemory) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.Memory, request.getMemory(), currUsedMemory,
-                    currTotalMemory);
+                    currTotalMemory, "");
             //logger.info(hostname+":"+request.getId()+" Insufficient memory: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedNetworkMbps+request.getNetworkMbps()) > currTotalNetworkMbps) {
             AssignmentFailure failure = new AssignmentFailure(
-                    VMResource.Network, request.getNetworkMbps(), currUsedNetworkMbps, currTotalNetworkMbps);
+                    VMResource.Network, request.getNetworkMbps(), currUsedNetworkMbps, currTotalNetworkMbps, "");
             //logger.info(hostname+":"+request.getId()+" Insufficient network: " + failure.toString());
             failures.add(failure);
         }
         if((currUsedDisk+request.getDisk()) > currTotalDisk) {
-            AssignmentFailure failure = new AssignmentFailure(VMResource.Disk, request.getDisk(), currUsedDisk, currTotalDisk);
+            AssignmentFailure failure =
+                    new AssignmentFailure(VMResource.Disk, request.getDisk(), currUsedDisk, currTotalDisk, "");
             //logger.info(hostname+":"+request.getId()+" Insufficient disk: " + failure.toString());
             failures.add(failure);
         }
         if(!currPortRanges.hasPorts(request.getPorts())) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.Ports, request.getPorts(), currPortRanges.currUsedPorts,
-                    currPortRanges.totalPorts);
+                    currPortRanges.totalPorts, "");
             //logger.info(hostname+":"+request.getId()+" Insufficient ports: " + failure.toString());
             failures.add(failure);
         }
-        return failures;
+        double rSetFitness=0.0;
+        int numRSets=0;
+        final Set<String> requestedNamedResNames = new HashSet<>(request.getCustomNamedResources()==null? Collections.<String>emptySet() :
+                request.getCustomNamedResources().keySet());
+        if(failures.isEmpty()) {
+            // perform resource set checks only if no other assignment failures so far
+            for (Map.Entry<String, PreferentialNamedConsumableResourceSet> entry : resourceSets.entrySet()) {
+                if (!requestedNamedResNames.isEmpty())
+                    requestedNamedResNames.remove(entry.getKey());
+                final double fitness = entry.getValue().getFitness(request);
+                if (fitness == 0.0) {
+                    AssignmentFailure failure = new AssignmentFailure(VMResource.ResourceSet, 0.0, 0.0, 0.0,
+                            "ResourceSet " + entry.getValue().getName() + " unavailable"
+                    );
+                    failures.add(failure);
+                } else {
+                    rSetFitness += fitness;
+                    numRSets++;
+                }
+            }
+            if (!requestedNamedResNames.isEmpty()) {
+                // task requested resourceSets that aren't available on this host
+                AssignmentFailure failure = new AssignmentFailure(VMResource.ResourceSet, 0.0, 0.0, 0.0,
+                        "UnavailableResourceSets: " + requestedNamedResNames
+                );
+                failures.add(failure);
+            } else {
+                if (!failures.isEmpty()) {
+                    rSetFitness = 0.0;
+                } else if (numRSets > 1)
+                    rSetFitness /= numRSets;
+            }
+        }
+        return new ResAsgmntResult(failures, rSetFitness);
     }
 
     private TaskTrackerState taskTrackerState() {
@@ -597,6 +692,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                 return hostname;
             }
             @Override
+            public Map<String, PreferentialNamedConsumableResourceSet> getResourceSets() {
+                return resourceSets;
+            }
+            @Override
             public VirtualMachineLease getCurrAvailableResources() {
                 return currTotalLease;
             }
@@ -616,6 +715,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             @Override
             public String getHostname() {
                 return hostname;
+            }
+            @Override
+            public Map<String, PreferentialNamedConsumableResourceSet> getResourceSets() {
+                return resourceSets;
             }
             @Override
             public VirtualMachineLease getCurrAvailableResources() {
@@ -665,6 +768,9 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         currUsedDisk += result.getRequest().getDisk();
         for(int p=0; p<result.getRequest().getPorts(); p++){
             result.addPort(currPortRanges.consumeNextPort());
+        }
+        for(Map.Entry<String, PreferentialNamedConsumableResourceSet> entry: resourceSets.entrySet()) {
+            result.addResourceSet(entry.getValue().consume(result.getRequest()));
         }
         if(!taskTracker.addAssignedTask(result.getRequest(), this))
             logger.error("Unexpected to re-add task to assigned state, id=" + result.getRequest().getId());
@@ -743,6 +849,17 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         resourceMap.put(VMResource.Memory, new Double[]{memUsed, memAvail});
         resourceMap.put(VMResource.Ports, new Double[]{portsUsed, portsAvail});
         resourceMap.put(VMResource.Network, new Double[]{networkUsed, networkAvail});
+        // put resource sets
+        for(PreferentialNamedConsumableResourceSet rSet: resourceSets.values()) {
+            final String name = rSet.getName();
+            final List<Double> usedCounts = rSet.getUsedCounts();
+            int used=0;
+            for(Double c: usedCounts) {
+                if(c>=0)
+                    used++;
+            }
+            resourceMap.put(VMResource.ResourceSet, new Double[]{(double)used, (double)(usedCounts.size()-used)});
+        }
         return resourceMap;
     }
 }

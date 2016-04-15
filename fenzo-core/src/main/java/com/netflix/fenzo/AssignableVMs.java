@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class AssignableVMs {
 
@@ -113,9 +114,9 @@ class AssignableVMs {
             logger.warn("No VM for host " + host + " to unassign task " + taskId);
     }
 
-    int addLeases(List<VirtualMachineLease> leases) {
+    private int addLeases(List<VirtualMachineLease> leases) {
         for(AssignableVirtualMachine avm: virtualMachinesMap.values())
-        avm.resetResources();
+            avm.resetResources();
         int rejected=0;
         for(VirtualMachineLease l: leases) {
             String host = l.hostname();
@@ -206,9 +207,10 @@ class AssignableVMs {
         }
     }
 
-    List<AssignableVirtualMachine> prepareAndGetOrderedVMs() {
+    List<AssignableVirtualMachine> prepareAndGetOrderedVMs(List<VirtualMachineLease> newLeases, AtomicInteger rejectedCount) {
         expireAnyUnknownLeaseIds();
         removeExpiredLeases();
+        rejectedCount.addAndGet(addLeases(newLeases));
         List<AssignableVirtualMachine> vms = new ArrayList<>();
         taskTracker.clearAssignedTasks();
         vmRejectLimiter.reset();
@@ -307,28 +309,34 @@ class AssignableVMs {
                 switch (res) {
                     case CPU:
                         if(maxResources.get(VMResource.CPU) < task.getCPUs()) {
-                            failure = new AssignmentFailure(VMResource.CPU, task.getCPUs(), 0.0, maxResources.get(VMResource.CPU));
+                            failure = new AssignmentFailure(
+                                    VMResource.CPU, task.getCPUs(), 0.0, maxResources.get(VMResource.CPU), "");
                         }
                         break;
                     case Memory:
                         if(maxResources.get(VMResource.Memory) < task.getMemory())
-                            failure = new AssignmentFailure(VMResource.Memory, task.getMemory(), 0.0, maxResources.get(VMResource.Memory));
+                            failure = new AssignmentFailure(
+                                    VMResource.Memory, task.getMemory(), 0.0, maxResources.get(VMResource.Memory), "");
                         break;
                     case Disk:
                         if(maxResources.get(VMResource.Disk) < task.getDisk())
-                            failure = new AssignmentFailure(VMResource.Disk, task.getDisk(), 0.0, maxResources.get(VMResource.Disk));
+                            failure = new AssignmentFailure(
+                                    VMResource.Disk, task.getDisk(), 0.0, maxResources.get(VMResource.Disk), "");
                         break;
                     case Ports:
                         if(maxResources.get(VMResource.Ports) < task.getPorts())
-                            failure = new AssignmentFailure(VMResource.Ports, task.getPorts(), 0.0, maxResources.get(VMResource.Ports));
+                            failure = new AssignmentFailure(
+                                    VMResource.Ports, task.getPorts(), 0.0, maxResources.get(VMResource.Ports), "");
                         break;
                     case Network:
                         if(maxResources.get(VMResource.Network) < task.getNetworkMbps())
-                            failure = new AssignmentFailure(VMResource.Network, task.getNetworkMbps(), 0.0, maxResources.get(VMResource.Network));
+                            failure = new AssignmentFailure(
+                                    VMResource.Network, task.getNetworkMbps(), 0.0, maxResources.get(VMResource.Network), "");
                         break;
                     case VirtualMachine:
                     case Fitness:
                     case ResAllocs:
+                    case ResourceSet:
                         break;
                     default:
                         logger.error("Unknown resource type: " + res);

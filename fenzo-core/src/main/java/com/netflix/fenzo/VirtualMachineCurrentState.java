@@ -17,6 +17,7 @@
 package com.netflix.fenzo;
 
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * Represents the current state of the host (virtual machine) that Fenzo is considering for a task assignment.
@@ -30,7 +31,14 @@ public interface VirtualMachineCurrentState {
      *
      * @return the hostname
      */
-    public String getHostname();
+    String getHostname();
+
+    /**
+     * Get a map of resource sets of the virtual machine.
+     *
+     * @return The map of resource sets
+     */
+    Map<String, PreferentialNamedConsumableResourceSet> getResourceSets();
 
     /**
      * Returns a VM lease object representing totals of resources from all available leases on this host for the
@@ -38,7 +46,7 @@ public interface VirtualMachineCurrentState {
      *
      * @return a lease object that represents resources that are currently available on the host
      */
-    public VirtualMachineLease getCurrAvailableResources();
+    VirtualMachineLease getCurrAvailableResources();
 
     /**
      * Get list of task assignment results for this host so far in the current scheduling run.
@@ -46,7 +54,7 @@ public interface VirtualMachineCurrentState {
      * @return a collection of tasks that the current scheduling iteration assigned to this host but that are
      *         not launched/executing yet
      */
-    public Collection<TaskAssignmentResult> getTasksCurrentlyAssigned();
+    Collection<TaskAssignmentResult> getTasksCurrentlyAssigned();
 
     /**
      * Get a list of those tasks that had already been assigned to this host before the current scheduling run
@@ -54,5 +62,5 @@ public interface VirtualMachineCurrentState {
      *
      * @return a collection of the tasks running on this host
      */
-    public Collection<TaskRequest> getRunningTasks();
+    Collection<TaskRequest> getRunningTasks();
 }
