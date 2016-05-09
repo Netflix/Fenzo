@@ -19,7 +19,7 @@ ext.githubProjectName = 'Fenzo'
 buildscript {
     repositories { jcenter() }
     dependencies {
-        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:2.2.8'
+        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:3.2.3'
     }
 }
 
@@ -38,7 +38,7 @@ subprojects {
 
     repositories { jcenter() }
 
-    apply plugin: 'dependency-lock'
+    apply plugin: 'nebula.dependency-lock'
     apply plugin: 'java'
     apply plugin: 'groovy'
 
