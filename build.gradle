@@ -45,4 +45,8 @@ subprojects {
     dependencies {
         compile ("org.slf4j:slf4j-api:latest.release")
     }
+
+    javadoc {
+        failOnError = false
+    }
 }
