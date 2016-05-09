@@ -148,10 +148,17 @@ public class PreferentialNamedConsumableResourceSet {
 
         void consume(TaskRequest request) {
             String r = getResNameVal(attrName, request);
-            if(resName != null && !resName.equals(r))
-                throw new RuntimeException(this.getClass().getName() + " already consumed by " + resName + ", can't consumed for " + r);
+            consume(r, request);
+        }
+
+        void consume(String assignedResName, TaskRequest request) {
+            if(usageBy.get(request.getId()) != null)
+                return; // already consumed
+            if(resName!=null && !resName.equals(assignedResName))
+                throw new IllegalStateException(this.getClass().getName() + " already consumed by " + resName +
+                        ", can't consume for " + assignedResName);
             if(resName == null) {
-                resName = r;
+                resName = assignedResName;
                 usageBy.clear();
             }
             final TaskRequest.NamedResourceSetRequest setRequest = request.getCustomNamedResources()==null?
@@ -204,6 +211,25 @@ public class PreferentialNamedConsumableResourceSet {
 
     ConsumeResult consume(TaskRequest request) {
         return consumeIntl(request, false);
+    }
+
+    void assign(TaskRequest request) {
+        final TaskRequest.AssignedResources assignedResources = request.getAssignedResources();
+        if(assignedResources != null) {
+            final List<ConsumeResult> consumedNamedResources = assignedResources.getConsumedNamedResources();
+            if(consumedNamedResources!=null && !consumedNamedResources.isEmpty()) {
+                for(PreferentialNamedConsumableResourceSet.ConsumeResult consumeResult: consumedNamedResources) {
+                    if(name.equals(consumeResult.getAttrName())) {
+                        final int index = consumeResult.getIndex();
+                        if(index < 0 || index > usageBy.size())
+                            throw new IllegalStateException("Illegal assignment of namedResource " + name +
+                                    ": has " + usageBy.size() + " resource sets, can't assign to index " + index
+                            );
+                        usageBy.get(index).consume(consumeResult.getResName(), request);
+                    }
+                }
+            }
+        }
     }
 
     // returns 0.0 for no fitness at all, or <=1.0 for fitness

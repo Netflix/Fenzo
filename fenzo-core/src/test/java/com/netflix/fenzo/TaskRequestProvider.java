@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 class TaskRequestProvider {
 
@@ -60,6 +61,7 @@ class TaskRequestProvider {
                                       final Map<String, TaskRequest.NamedResourceSetRequest> resourceSets
     ) {
         final String taskId = ""+id.incrementAndGet();
+        final AtomicReference<TaskRequest.AssignedResources> arRef = new AtomicReference<>();
         return new TaskRequest() {
             @Override
             public String getId() {
@@ -98,6 +100,14 @@ class TaskRequestProvider {
             @Override
             public List<? extends VMTaskFitnessCalculator> getSoftConstraints() {
                 return softConstraints;
+            }
+            @Override
+            public void setAssignedResources(AssignedResources assignedResources) {
+                arRef.set(assignedResources);
+            }
+            @Override
+            public AssignedResources getAssignedResources() {
+                return arRef.get();
             }
             @Override
             public Map<String, NamedResourceSetRequest> getCustomNamedResources() {

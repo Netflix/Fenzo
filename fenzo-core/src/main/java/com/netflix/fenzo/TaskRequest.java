@@ -24,7 +24,7 @@ import java.util.Map;
  */
 public interface TaskRequest {
 
-    public class NamedResourceSetRequest {
+    class NamedResourceSetRequest {
         private final String resName;
         private final String resValue;
         private final int numSets;
@@ -54,54 +54,66 @@ public interface TaskRequest {
         }
     }
 
+    class AssignedResources {
+        private List<PreferentialNamedConsumableResourceSet.ConsumeResult> consumedNamedResources;
+
+        public List<PreferentialNamedConsumableResourceSet.ConsumeResult> getConsumedNamedResources() {
+            return consumedNamedResources;
+        }
+
+        public void setConsumedNamedResources(List<PreferentialNamedConsumableResourceSet.ConsumeResult> consumedNamedResources) {
+            this.consumedNamedResources = consumedNamedResources;
+        }
+    }
+
     /**
      * Get an identifier for this task request.
      *
      * @return a task identifier
      */
-    public String getId();
+    String getId();
 
     /**
      * Get the name of the task group that this task request belongs to.
      *
      * @return the name of the group
      */
-    public String taskGroupName();
+    String taskGroupName();
 
     /**
      * Get the number of CPUs requested by the task.
      *
      * @return how many CPUs the task is requesting
      */
-    public double getCPUs();
+    double getCPUs();
 
     /**
      * Get the amount of memory in MBs requested by the task.
      *
      * @return how many MBs of memory the task is requesting
      */
-    public double getMemory();
+    double getMemory();
 
     /**
      * Get the network bandwidth in Mbps requested by the task.
      *
      * @return how many Mbps of network bandwidth the task is requesting
      */
-    public double getNetworkMbps();
+    double getNetworkMbps();
 
     /**
      * Get the disk space in MBs requested by the task.
      *
      * @return how much disk space in MBs the task is requesting
      */
-    public double getDisk();
+    double getDisk();
 
     /**
      * Get the number of ports requested by the task.
      *
      * @return how many ports the task is requesting
      */
-    public int getPorts();
+    int getPorts();
 
     /**
      * Get the list of custom named resource sets requested by the task.
@@ -116,7 +128,7 @@ public interface TaskRequest {
      *
      * @return a List of hard constraints
      */
-    public List<? extends ConstraintEvaluator> getHardConstraints();
+    List<? extends ConstraintEvaluator> getHardConstraints();
 
     /**
      * Get a list of the soft constraints the task requests. Soft constraints need not be satisfied by a host
@@ -125,5 +137,9 @@ public interface TaskRequest {
      *
      * @return a List of soft constraints
      */
-    public List<? extends VMTaskFitnessCalculator> getSoftConstraints();
+    List<? extends VMTaskFitnessCalculator> getSoftConstraints();
+
+    void setAssignedResources(AssignedResources assignedResources);
+
+    AssignedResources getAssignedResources();
 }

@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A simple task generator to use with {@link SampleFramework}.
@@ -65,6 +66,7 @@ public class TaskGenerator implements Runnable {
 
     private TaskRequest getTaskRequest(final int id) {
         final String taskId = "" + id;
+        final AtomicReference<TaskRequest.AssignedResources> assgndResRef = new AtomicReference<>();
         return new TaskRequest() {
             @Override
             public String getId() {
@@ -109,6 +111,16 @@ public class TaskGenerator implements Runnable {
             @Override
             public List<? extends VMTaskFitnessCalculator> getSoftConstraints() {
                 return null;
+            }
+
+            @Override
+            public void setAssignedResources(AssignedResources assignedResources) {
+                assgndResRef.set(assignedResources);
+            }
+
+            @Override
+            public AssignedResources getAssignedResources() {
+                return assgndResRef.get();
             }
 
             @Override

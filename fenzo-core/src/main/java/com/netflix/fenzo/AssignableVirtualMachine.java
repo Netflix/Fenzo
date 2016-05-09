@@ -135,6 +135,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private String exclusiveTaskId =null;
     private final boolean singleLeaseMode;
     private boolean firstLeaseAdded=false;
+    private final List<TaskRequest> consumedResourcesToAssign = new ArrayList<>();
 
     public AssignableVirtualMachine(ConcurrentMap<String, String> vmIdToHostnameMap,
                                     ConcurrentMap<String, String> leaseIdToHostnameMap,
@@ -202,7 +203,15 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                                         try {
                                             int val0 = Integer.parseInt(val0Str);
                                             int val1 = Integer.parseInt(val1Str);
-                                            resourceSets.put(name, new PreferentialNamedConsumableResourceSet(name, val0, val1));
+                                            final PreferentialNamedConsumableResourceSet crs =
+                                                    new PreferentialNamedConsumableResourceSet(name, val0, val1);
+                                            final Iterator<TaskRequest> iterator = consumedResourcesToAssign.iterator();
+                                            while(iterator.hasNext()) {
+                                                TaskRequest request = iterator.next();
+                                                crs.assign(request);
+                                                iterator.remove();
+                                            }
+                                            resourceSets.put(name, crs);
                                         }
                                         catch (NumberFormatException e) {
                                             logger.warn(hostname + ": invalid resource spec (" + val + ") in attributes, ignoring: " + e.getMessage());
@@ -218,6 +227,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                     }
                     break;
             }
+        }
+        if(!consumedResourcesToAssign.isEmpty()) {
+            throw new IllegalStateException(hostname + ": Some assigned tasks have no resource sets in offers: " +
+                    consumedResourcesToAssign);
         }
     }
 
@@ -400,12 +413,30 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         if(logger.isDebugEnabled())
             logger.debug(getHostname() + ": setting assigned task " + request.getId());
         boolean added = taskTracker.addRunningTask(request, this);
-        if(!added)
+        if(added) {
+            assignResourceSets(request);
+        }
+        else
             logger.error("Unexpected to add duplicate task id=" + request.getId());
         previouslyAssignedTasksMap.put(request.getId(), request);
         setIfExclusive(request);
         if(singleLeaseMode && added) {
             removeResourcesOf(request);
+        }
+    }
+
+    private void assignResourceSets(TaskRequest request) {
+        if(request.getAssignedResources() != null) {
+            final List<PreferentialNamedConsumableResourceSet.ConsumeResult> consumedNamedResources =
+                    request.getAssignedResources().getConsumedNamedResources();
+            if(consumedNamedResources != null && !consumedNamedResources.isEmpty()) {
+                for(PreferentialNamedConsumableResourceSet.ConsumeResult cr: consumedNamedResources) {
+                    if(resourceSets.get(cr.getAttrName()) == null)
+                        consumedResourcesToAssign.add(request); // resource set not available yet
+                    else
+                        resourceSets.get(cr.getAttrName()).assign(request);
+                }
+            }
         }
     }
 
