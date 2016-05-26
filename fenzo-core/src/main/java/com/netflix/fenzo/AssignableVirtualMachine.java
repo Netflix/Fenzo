@@ -738,6 +738,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             public Collection<TaskRequest> getRunningTasks() {
                 return Collections.unmodifiableCollection(previouslyAssignedTasksMap.values());
             }
+            @Override
+            public long getDisabledUntil() {
+                return disabledUntil;
+            }
         };
     }
 
@@ -762,6 +766,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             @Override
             public Collection<TaskRequest> getRunningTasks() {
                 return Collections.unmodifiableCollection(previouslyAssignedTasksMap.values());
+            }
+            @Override
+            public long getDisabledUntil() {
+                return disabledUntil;
             }
         };
     }

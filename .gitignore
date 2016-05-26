@@ -44,6 +44,7 @@ Thumbs.db
 # Build output directies
 target/
 build/
+classes/
 
 # IntelliJ specific files/directories
 out
