@@ -63,4 +63,11 @@ public interface VirtualMachineCurrentState {
      * @return a collection of the tasks running on this host
      */
     Collection<TaskRequest> getRunningTasks();
+
+    /**
+     * Returns the time until which the given host remains disabled.
+     *
+     * @return time until which the host will remain disabled or 0 if the host is enabled
+     */
+    long getDisabledUntil();
 }
