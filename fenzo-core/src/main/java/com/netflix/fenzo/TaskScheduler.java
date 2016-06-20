@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * {@link #getTaskUnAssigner getTaskUnAssigner()} method. These actions make the {@code TaskScheduler} keep
  * track of launched tasks. The {@code TaskScheduler} then makes these tracked tasks available to its
  * scheduling optimization functions.
- * </ol>
+ *
  * Do not call the scheduler concurrently. The scheduler assigns tasks in the order that they are received in a
  * particular list. It checks each task against available resources until it finds a match.
  * <p>
@@ -133,8 +133,8 @@ public class TaskScheduler {
         /**
          * Call this method to set the maximum number of offers to reject within a time period equal to lease expiry
          * seconds, set with {@code leaseOfferExpirySecs()}. Default is 4.
-         * @param maxOffersToReject
-         * @return
+         * @param maxOffersToReject Maximum number of offers to reject.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withMaxOffersToReject(int maxOffersToReject) {
             if(!rejectAllExpiredOffers)
@@ -146,7 +146,7 @@ public class TaskScheduler {
          * Indicate that all offers older than the set expiry time must be rejected. By default this is set to false.
          * If false, Fenzo rejects a maximum number of offers set using {@link #withMaxOffersToReject(int)} per each
          * time period spanning the expiry time, set by {@link #withLeaseOfferExpirySecs(long)}.
-         * @return
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
         public Builder withRejectAllExpiredOffers() {
             this.rejectAllExpiredOffers = true;

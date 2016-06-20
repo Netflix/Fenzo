@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * @warn class description missing
+ * Class to keep track of task assignments.
  */
 public class TaskTracker {
 
