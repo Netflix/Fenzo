@@ -99,6 +99,12 @@ public class RandomTaskGenerator {
         public int getPorts() {
             return taskRequest.getPorts();
         }
+
+        @Override
+        public Map<String, Double> getScalarRequests() {
+            return null;
+        }
+
         @Override
         public List<? extends ConstraintEvaluator> getHardConstraints() {
             return taskRequest.getHardConstraints();

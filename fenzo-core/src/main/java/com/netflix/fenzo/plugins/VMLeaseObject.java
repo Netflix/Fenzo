@@ -21,10 +21,7 @@ import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * An adapter class to transform a Mesos resource offer to a Fenzo {@link VirtualMachineLease}. Pass a Mesos
@@ -34,14 +31,11 @@ import java.util.Map;
 public class VMLeaseObject implements VirtualMachineLease {
     private static final Logger logger = LoggerFactory.getLogger(VMLeaseObject.class);
     private final Protos.Offer offer;
-    private double cpuCores;
-    private double memoryMB;
-    private double networkMbps=0.0;
-    private double diskMB;
     private final String hostname;
     private final String vmID;
-    private List<Range> portRanges;
     private final Map<String, Protos.Attribute> attributeMap;
+    private final Map<String, Double> scalarResources;
+    private final Map<String, List<Range>> rangeResources;
     private final long offeredTime;
 
     public VMLeaseObject(Protos.Offer offer) {
@@ -49,31 +43,25 @@ public class VMLeaseObject implements VirtualMachineLease {
         hostname = offer.getHostname();
         this.vmID = offer.getSlaveId().getValue();
         offeredTime = System.currentTimeMillis();
+        scalarResources = new HashMap<>();
+        rangeResources = new HashMap<>();
         // parse out resources from offer
         // expects network bandwidth to come in as consumable scalar resource named "network"
         for (Protos.Resource resource : offer.getResourcesList()) {
-            switch (resource.getName()) {
-                case "cpus":
-                    cpuCores = resource.getScalar().getValue();
+            switch (resource.getType()) {
+                case SCALAR:
+                    scalarResources.put(resource.getName(), resource.getScalar().getValue());
                     break;
-                case "mem":
-                    memoryMB = resource.getScalar().getValue();
-                    break;
-                case "network":
-                    networkMbps = resource.getScalar().getValue();
-                    break;
-                case "disk":
-                    diskMB = resource.getScalar().getValue();
-                    break;
-                case "ports":
-                    portRanges = new ArrayList<>();
+                case RANGES:
+                    List<Range> ranges = new ArrayList<>();
                     for (Protos.Value.Range range : resource.getRanges().getRangeList()) {
-                        portRanges.add(new Range((int)range.getBegin(), (int) range.getEnd()));
+                        ranges.add(new Range((int)range.getBegin(), (int) range.getEnd()));
                     }
+                    rangeResources.put(resource.getName(), ranges);
                     break;
                 default:
-                    logger.debug("Unknown resource " + resource.getName() + " in offer, hostname=" + hostname +
-                            ", offerId=" + offer.getId());
+                    logger.debug("Unknown resource type " + resource.getType() + " for resource " + resource.getName() +
+                            " in offer, hostname=" + hostname + ", offerId=" + offer.getId());
             }
         }
         attributeMap = new HashMap<>();
@@ -93,19 +81,19 @@ public class VMLeaseObject implements VirtualMachineLease {
     }
     @Override
     public double cpuCores() {
-        return cpuCores;
+        return scalarResources.get("cpus")==null? 0.0 : scalarResources.get("cpus");
     }
     @Override
     public double memoryMB() {
-        return memoryMB;
+        return scalarResources.get("mem")==null? 0.0 : scalarResources.get("mem");
     }
     @Override
     public double networkMbps() {
-        return networkMbps;
+        return scalarResources.get("network")==null? 0.0 : scalarResources.get("network");
     }
     @Override
     public double diskMB() {
-        return diskMB;
+        return scalarResources.get("disk")==null? 0.0 : scalarResources.get("disk");
     }
     public Protos.Offer getOffer(){
         return offer;
@@ -120,7 +108,7 @@ public class VMLeaseObject implements VirtualMachineLease {
     }
     @Override
     public List<Range> portRanges() {
-        return portRanges;
+        return rangeResources.get("ports")==null? Collections.<Range>emptyList() : rangeResources.get("ports");
     }
     @Override
     public Map<String, Protos.Attribute> getAttributeMap() {
@@ -128,16 +116,23 @@ public class VMLeaseObject implements VirtualMachineLease {
     }
 
     @Override
+    public Double getScalarValue(String name) {
+        return scalarResources.get(name);
+    }
+
+    @Override
+    public Map<String, Double> getScalarValues() {
+        return Collections.unmodifiableMap(scalarResources);
+    }
+
+    @Override
     public String toString() {
         return "VMLeaseObject{" +
                 "offer=" + offer +
-                ", cpuCores=" + cpuCores +
-                ", memoryMB=" + memoryMB +
-                ", networkMbps=" + networkMbps +
-                ", diskMB=" + diskMB +
+                ", scalars: " + scalarResources.toString() +
+                ", ranges: " + rangeResources.toString() +
                 ", hostname='" + hostname + '\'' +
                 ", vmID='" + vmID + '\'' +
-                ", portRanges=" + portRanges +
                 ", attributeMap=" + attributeMap +
                 ", offeredTime=" + offeredTime +
                 '}';

@@ -18,11 +18,7 @@ package com.netflix.fenzo;
 
 import org.apache.mesos.Protos;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 class LeaseProvider {
 
@@ -45,8 +41,15 @@ class LeaseProvider {
     static VirtualMachineLease getLeaseOffer(final String hostname, final double cpus, final double memory, final double disk,
                                              final double network, final List<VirtualMachineLease.Range> portRanges,
                                              final Map<String, Protos.Attribute> attributesMap) {
+        return getLeaseOffer(hostname, cpus, memory, disk, network, portRanges, attributesMap, null);
+    }
+
+    static VirtualMachineLease getLeaseOffer(final String hostname, final double cpus, final double memory, final double disk,
+                                             final double network, final List<VirtualMachineLease.Range> portRanges,
+                                             final Map<String, Protos.Attribute> attributesMap, Map<String, Double> scalarResources) {
         final long offeredTime = System.currentTimeMillis();
         final String id = UUID.randomUUID().toString();
+        final Map<String, Double> scalars = scalarResources==null? Collections.<String, Double>emptyMap() : scalarResources;
         return new VirtualMachineLease() {
             @Override
             public String getId() {
@@ -91,6 +94,14 @@ class LeaseProvider {
             @Override
             public Map<String, Protos.Attribute> getAttributeMap() {
                 return attributesMap==null? null : attributesMap;
+            }
+            @Override
+            public Double getScalarValue(String name) {
+                return scalars.get(name);
+            }
+            @Override
+            public Map<String, Double> getScalarValues() {
+                return scalars;
             }
         };
     }
