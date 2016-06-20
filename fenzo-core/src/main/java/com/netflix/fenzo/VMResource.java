@@ -28,5 +28,6 @@ public enum VMResource {
     Ports,
     Disk,
     ResourceSet,
-    Fitness
+    Fitness,
+    Other
 }

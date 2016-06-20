@@ -60,6 +60,16 @@ class TaskRequestProvider {
                                       final List<? extends VMTaskFitnessCalculator> softConstraints,
                                       final Map<String, TaskRequest.NamedResourceSetRequest> resourceSets
     ) {
+        return getTaskRequest(grpName, cpus, memory, disk, network, ports, hardConstraints, softConstraints, resourceSets, null);
+    }
+
+    static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double disk,
+                                      final double network, final int ports,
+                                      final List<? extends ConstraintEvaluator> hardConstraints,
+                                      final List<? extends VMTaskFitnessCalculator> softConstraints,
+                                      final Map<String, TaskRequest.NamedResourceSetRequest> resourceSets,
+                                      final Map<String, Double> scalarRequests
+    ) {
         final String taskId = ""+id.incrementAndGet();
         final AtomicReference<TaskRequest.AssignedResources> arRef = new AtomicReference<>();
         return new TaskRequest() {
@@ -92,6 +102,10 @@ class TaskRequestProvider {
             @Override
             public int getPorts() {
                 return ports;
+            }
+            @Override
+            public Map<String, Double> getScalarRequests() {
+                return scalarRequests;
             }
             @Override
             public List<? extends ConstraintEvaluator> getHardConstraints() {

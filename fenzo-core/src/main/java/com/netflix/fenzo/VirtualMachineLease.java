@@ -133,4 +133,19 @@ public interface VirtualMachineLease {
      * @return a Map of attribute names to attribute values
      */
     public Map<String, Protos.Attribute> getAttributeMap();
+
+    /**
+     * Get the value of the scalar resource for the given <code>name</code>.
+     * @param name Name of the scalar resource.
+     * @return Value of the requested scalar resource if available, <code>null</code> otherwise.
+     */
+    Double getScalarValue(String name);
+
+    /**
+     * Get a map of all of the scalar resources with resource names as the key and resource value as the value.
+     * Although cpus, memory, networkMbps, and disk are scalar resources, Fenzo currently treats them separately. Use
+     * this scalar values collection to specify scalar resources other than those four.
+     * @return All of the scalar resources available.
+     */
+    Map<String, Double> getScalarValues();
 }

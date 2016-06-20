@@ -116,6 +116,14 @@ public interface TaskRequest {
     int getPorts();
 
     /**
+     * Get the scalar resources being requested by the task.
+     * Although the cpus, memory, networkMbps, and disk are scalar resources, Fenzo currently treats the separately. Use
+     * this scalar requests collection to specify scalar resources other than those four.
+     * @return A {@link Map} of scalar resources requested, with resource name as the key and amount requested as the value.
+     */
+    Map<String, Double> getScalarRequests();
+
+    /**
      * Get the list of custom named resource sets requested by the task.
      *
      * @return List of named resource set requests, or null.

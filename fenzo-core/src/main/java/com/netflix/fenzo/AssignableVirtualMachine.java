@@ -104,7 +104,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private final Action1<VirtualMachineLease> leaseRejectAction;
     private final long leaseOfferExpirySecs;
     private final String hostname;
-    // ToDo abstract out into VMResources
+    private final Map<String, Double> currTotalScalars = new HashMap<>();
+    private final Map<String, Double> currUsedScalars = new HashMap<>();
     private double currTotalCpus=0.0;
     private double currUsedCpus=0.0;
     private double currTotalMemory=0.0;
@@ -175,6 +176,15 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         if(singleLeaseMode && firstLeaseAdded)
             return; // ToDo should this be illegal state exception?
         firstLeaseAdded = true;
+        final Map<String, Double> scalars = l.getScalarValues();
+        if(scalars != null && !scalars.isEmpty()) {
+            for(Map.Entry<String, Double> entry: scalars.entrySet()) {
+                Double currVal = currTotalScalars.get(entry.getKey());
+                if(currVal == null)
+                    currVal = 0.0;
+                currTotalScalars.put(entry.getKey(), currVal + entry.getValue());
+            }
+        }
         currTotalCpus += l.cpuCores();
         currTotalMemory += l.memoryMB();
         currTotalNetworkMbps += l.networkMbps();
@@ -245,11 +255,13 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             currTotalNetworkMbps=0.0;
             currTotalDisk=0.0;
             currPortRanges.clear();
+            currTotalScalars.clear();
         }
         currUsedCpus=0.0;
         currUsedMemory=0.0;
         currUsedNetworkMbps=0.0;
         currUsedDisk=0.0;
+        currUsedScalars.clear();
         // ToDo: in single offer mode, need to resolve used ports somehow
         // don't clear attribute map
         for(VirtualMachineLease l: leasesMap.values())
@@ -305,6 +317,14 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             @Override
             public Map<String, Protos.Attribute> getAttributeMap() {
                 return Collections.unmodifiableMap(currAttributesMap);
+            }
+            @Override
+            public Double getScalarValue(String name) {
+                return currTotalScalars.get(name);
+            }
+            @Override
+            public Map<String, Double> getScalarValues() {
+                return Collections.unmodifiableMap(currTotalScalars);
             }
         };
     }
@@ -502,6 +522,22 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         currTotalMemory -= request.getMemory();
         currTotalDisk -= request.getDisk();
         currTotalNetworkMbps -= request.getNetworkMbps();
+        final Map<String, Double> scalarRequests = request.getScalarRequests();
+        if(scalarRequests != null && !scalarRequests.isEmpty()) {
+            for(Map.Entry<String, Double> entry: scalarRequests.entrySet()) {
+                Double oldVal = currTotalScalars.get(entry.getKey());
+                if(oldVal != null) {
+                    double newVal = oldVal - entry.getValue();
+                    if(newVal < 0.0) {
+                        logger.warn(hostname + ": Scalar resource " + entry.getKey() + " is " + newVal + " after removing " +
+                                entry.getValue() + " from task " + request.getId());
+                        currTotalScalars.put(entry.getKey(), 0.0);
+                    }
+                    else
+                        currTotalScalars.put(entry.getKey(), newVal);
+                }
+            }
+        }
         // ToDo need to figure out ports as well
     }
 
@@ -510,6 +546,15 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         currTotalMemory += r.getMemory();
         currTotalNetworkMbps += r.getNetworkMbps();
         currTotalDisk += r.getDisk();
+        final Map<String, Double> scalarRequests = r.getScalarRequests();
+        if(scalarRequests != null && !scalarRequests.isEmpty()) {
+            for(Map.Entry<String, Double> entry: scalarRequests.entrySet()) {
+                Double oldVal = currTotalScalars.get(entry.getKey());
+                if(oldVal == null)
+                    oldVal = 0.0;
+                currTotalScalars.put(entry.getKey(), oldVal + entry.getValue());
+            }
+        }
         // ToDo add back ports
     }
 
@@ -633,6 +678,22 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
 
     private ResAsgmntResult evalAndGetResourceAssignmentFailures(TaskRequest request) {
         List<AssignmentFailure> failures = new ArrayList<>();
+        final Map<String, Double> scalarRequests = request.getScalarRequests();
+        if(scalarRequests != null && !scalarRequests.isEmpty()) {
+            for(Map.Entry<String, Double> entry: scalarRequests.entrySet()) {
+                if(entry.getValue() == null)
+                    continue;
+                Double u = currUsedScalars.get(entry.getKey());
+                if(u == null)  u = 0.0;
+                Double t = currTotalScalars.get(entry.getKey());
+                if(t == null)  t=0.0;
+                if(u + entry.getValue() > t) {
+                    failures.add(new AssignmentFailure(
+                            VMResource.Other, entry.getValue(), u, t, entry.getKey()
+                    ));
+                }
+            }
+        }
         if((currUsedCpus+request.getCPUs()) > currTotalCpus) {
             AssignmentFailure failure = new AssignmentFailure(
                     VMResource.CPU, request.getCPUs(), currUsedCpus,
@@ -801,6 +862,16 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
      * @param result The assignment result to assign.
      */
     void assignResult(TaskAssignmentResult result) {
+        final Map<String, Double> scalarRequests = result.getRequest().getScalarRequests();
+        if(scalarRequests != null && !scalarRequests.isEmpty()) {
+            for(Map.Entry<String, Double> entry: scalarRequests.entrySet()) {
+                if(entry.getValue() == null)
+                    continue;
+                Double u = currUsedScalars.get(entry.getKey());
+                if(u == null)  u = 0.0;
+                currUsedScalars.put(entry.getKey(), u + entry.getValue());
+            }
+        }
         currUsedCpus += result.getRequest().getCPUs();
         currUsedMemory += result.getRequest().getMemory();
         currUsedNetworkMbps += result.getRequest().getNetworkMbps();
