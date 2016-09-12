@@ -53,7 +53,7 @@ public class ScaleDownAction implements AutoScaleAction {
     }
 
     /**
-     * Get the hostnames to remove from the cluster during the scale down action.
+     * Get the hostnames to unqueueTask from the cluster during the scale down action.
      *
      * @return a Collection of host names.
      */

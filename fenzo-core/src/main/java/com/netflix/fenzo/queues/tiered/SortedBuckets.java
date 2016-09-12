@@ -1,0 +1,118 @@
+/*
+ * Copyright 2016 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.netflix.fenzo.queues.tiered;
+
+import com.netflix.fenzo.queues.UsageTrackedQueue;
+
+import java.util.*;
+
+/**
+ * The buckets are sorted using a comparison method that makes it inconsistent with equals. This class maintains
+ * the oerdering while being able to also perform methods such as contains, add, and remove without depending on
+ * comparisons being stricly consistent with equals. Comparisons use the bucket's resource usage values, where as
+ * the equals is defined by the bucket name being equal. There may be multiple buckets with the same resource usage
+ * values, and therefore, comparator returns 0 while the equals check may return different results across them. The
+ * Collections classes such as SortedMap or SortedSet cannot be used due to this inconsistency.
+ *
+ * This implementation is not synchronized. Invocations of methods of this class must be synchronized externally if
+ * there is a chance of calling them concurrently.
+ */
+class SortedBuckets {
+    // TODO performance can be improved by changing List<> here to a two level map - outer map will have keys
+    // of bucket's resource usage and values will be a Map<String, QueueBucket>.
+    private final List<QueueBucket> buckets;
+    private final Map<String, QueueBucket> bucketMap;
+    private final Comparator<QueueBucket> comparator;
+    private final UsageTrackedQueue.ResUsage parentUsage;
+
+    SortedBuckets(final UsageTrackedQueue.ResUsage parentUsage) {
+        buckets = new ArrayList<>();
+        bucketMap = new HashMap<>();
+        comparator = new Comparator<QueueBucket>() {
+            @Override
+            public int compare(QueueBucket o1, QueueBucket o2) {
+                return Double.compare(o1.getDominantUsageShare(parentUsage), o2.getDominantUsageShare(parentUsage));
+            }
+        };
+        this.parentUsage = parentUsage;
+    }
+
+    boolean add(QueueBucket bucket) {
+        if (bucketMap.containsKey(bucket.getName()))
+            return false;
+        if (buckets.isEmpty())
+            buckets.add(bucket);
+        else
+            buckets.add(findInsertionPoint(bucket, buckets), bucket);
+        bucketMap.put(bucket.getName(), bucket);
+        return true;
+    }
+
+    QueueBucket remove(String bucketName) {
+        final QueueBucket bucket = bucketMap.get(bucketName);
+        if (bucket == null)
+            return null;
+        final int index = findInsertionPoint(bucket, buckets);
+        if (index < 0)
+            throw new IllegalStateException("Unexpected: bucket with name=" + bucketName + " does not exist");
+        // we have now found a bucket that has the same position due to its usage value. The actual bucket we are
+        // interested in (with the same name) may be the same one or it may be to the left or right a few positions.
+        int remPos = buckets.get(index).getName().equals(bucketName)? index : -1;
+        if (remPos < 0)
+            remPos = findWalkingLeft(buckets, index, bucketName, bucket.getDominantUsageShare(parentUsage));
+        if (remPos < 0)
+            remPos = findWalkingRight(buckets, index, bucketName, bucket.getDominantUsageShare(parentUsage));
+        if (remPos < 0)
+            throw new IllegalStateException("Unexpected: bucket with name=" + bucketName + " not found to remove");
+        buckets.remove(remPos);
+        bucketMap.remove(bucketName);
+        return bucket;
+    }
+
+    QueueBucket get(String bucketName) {
+        return bucketMap.get(bucketName);
+    }
+
+    private int findWalkingRight(List<QueueBucket> buckets, int index, String bucketName, double dominantUsageShare) {
+        int pos = index;
+        while (++pos < buckets.size() && buckets.get(pos).getDominantUsageShare(parentUsage) == dominantUsageShare) {
+            if (buckets.get(pos).getName().equals(bucketName))
+                return pos;
+        }
+        return -1;
+    }
+
+    private int findWalkingLeft(List<QueueBucket> buckets, int index, String bucketName, double dominantUsageShare) {
+        int pos = index;
+        while (--pos >= 0 && buckets.get(pos).getDominantUsageShare(parentUsage) == dominantUsageShare) {
+            if (buckets.get(pos).getName().equals(bucketName))
+                return pos;
+        }
+        return -1;
+    }
+
+    private int findInsertionPoint(QueueBucket bucket, List<QueueBucket> buckets) {
+        final int i = Collections.binarySearch(buckets, bucket, comparator);
+        if (i >= 0)
+            return i;
+        return -i - 1;
+    }
+
+    List<QueueBucket> getSortedList() {
+        return Collections.unmodifiableList(buckets);
+    }
+}

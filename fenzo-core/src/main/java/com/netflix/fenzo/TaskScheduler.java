@@ -23,14 +23,7 @@ import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.functions.Action2;
 import com.netflix.fenzo.functions.Func1;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -406,13 +399,15 @@ public class TaskScheduler {
     private final ExecutorService executorService = Executors.newFixedThreadPool(EXEC_SVC_THREADS);
     private final AtomicBoolean isShutdown = new AtomicBoolean();
     private final ResAllocsEvaluater resAllocsEvaluator;
+    private final TaskTracker taskTracker;
+    private volatile boolean usingTaskIteratorOnly = false;
 
     private TaskScheduler(Builder builder) {
         if(builder.leaseRejectAction ==null)
             throw new IllegalArgumentException("Lease reject action must be non-null");
         this.builder = builder;
         this.stateMonitor = new StateMonitor();
-        TaskTracker taskTracker = new TaskTracker();
+        taskTracker = new TaskTracker();
         resAllocsEvaluator = new ResAllocsEvaluater(taskTracker, builder.resAllocs);
         assignableVMs = new AssignableVMs(taskTracker, builder.leaseRejectAction,
                 builder.leaseOfferExpirySecs, builder.maxOffersToReject, builder.autoScaleByAttributeName,
@@ -435,7 +430,7 @@ public class TaskScheduler {
         }
     }
 
-    private void checkIfShutdown() throws IllegalStateException {
+    void checkIfShutdown() throws IllegalStateException {
         if(isShutdown.get())
             throw new IllegalStateException("TaskScheduler already shutdown");
     }
@@ -455,6 +450,10 @@ public class TaskScheduler {
         if(autoScaler==null)
             throw new IllegalStateException("No autoScaler setup");
         autoScaler.setCallback(callback);
+    }
+
+    public TaskTracker getTaskTracker() {
+        return taskTracker;
     }
 
     private TaskAssignmentResult getSuccessfulResult(List<TaskAssignmentResult> results) {
@@ -586,18 +585,50 @@ public class TaskScheduler {
      *                  ununsed leases
      * @return a {@link SchedulingResult} object that contains a task assignment results map and other summaries
      * @throws IllegalStateException if you call this method concurrently, or, if you try to add an existing lease
-     * again, or, if there was unexpected exception during the scheduling iteration. For example, unexpected exceptions
+     * again, or, if there was unexpected exception during the scheduling iteration, or, if using
+     * {@link TaskSchedulingService}, which will instead invoke scheduling from within. Unexpected exceptions
      * can arise from uncaught exceptions in user defined plugins. It is also thrown if the scheduler has been shutdown
      * via the {@link #shutdown()} method.
      */
     public SchedulingResult scheduleOnce(
             List<? extends TaskRequest> requests,
             List<VirtualMachineLease> newLeases) throws IllegalStateException {
+        if (usingTaskIteratorOnly)
+            throw new IllegalStateException("Invalid call when using task iterator variant");
+        final Iterator<? extends TaskRequest> iterator =
+                requests != null ?
+                        requests.iterator() :
+                        Collections.<TaskRequest>emptyIterator();
+        TaskIterator taskIterator = new TaskIterator() {
+            @Override
+            public TaskRequest next() {
+                if (iterator.hasNext())
+                    return iterator.next();
+                return null;
+            }
+        };
+        return scheduleOnce(taskIterator, newLeases);
+    }
+
+    /**
+     * Variant of {@link #scheduleOnce(List, List)} that takes a task iterator instead of task list.
+     * @param taskIterator Iterator for tasks to assign resources to.
+     * @param newLeases new resource leases from hosts that the scheduler can use along with any previously
+     *                  ununsed leases
+     * @return a {@link SchedulingResult} object that contains a task assignment results map and other summaries
+     * @throws IllegalStateException if you call this method concurrently, or, if you try to add an existing lease
+     * again, or, if there was unexpected exception during the scheduling iteration. For example, unexpected exceptions
+     * can arise from uncaught exceptions in user defined plugins. It is also thrown if the scheduler has been shutdown
+     * via the {@link #shutdown()} method.
+     */
+    /* package */ SchedulingResult scheduleOnce(
+            TaskIterator taskIterator,
+            List<VirtualMachineLease> newLeases) throws IllegalStateException {
         checkIfShutdown();
         try (AutoCloseable
                      ac = stateMonitor.enter()) {
             long start = System.currentTimeMillis();
-            final SchedulingResult schedulingResult = doSchedule(requests, newLeases);
+            final SchedulingResult schedulingResult = doSchedule(taskIterator, newLeases);
             if((lastVMPurgeAt + purgeVMsIntervalSecs*1000) < System.currentTimeMillis()) {
                 lastVMPurgeAt = System.currentTimeMillis();
                 logger.info("Purging inactive VMs");
@@ -617,8 +648,8 @@ public class TaskScheduler {
     }
 
     private SchedulingResult doSchedule(
-            List<? extends TaskRequest> requests,
-            List<VirtualMachineLease> newLeases) {
+            TaskIterator taskIterator,
+            List<VirtualMachineLease> newLeases) throws Exception {
         AtomicInteger rejectedCount = new AtomicInteger();
         List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs(newLeases, rejectedCount);
         if(logger.isDebugEnabled())
@@ -626,11 +657,16 @@ public class TaskScheduler {
         final boolean hasResAllocs = resAllocsEvaluator.prepare();
         //logger.info("Got " + avms.size() + " AVMs to schedule on");
         int totalNumAllocations=0;
-        Set<TaskRequest> failedTasksForAutoScaler = new HashSet<>(requests);
+        Set<TaskRequest> failedTasksForAutoScaler = new HashSet<>();
         Map<String, VMAssignmentResult> resultMap = new HashMap<>(avms.size());
         final SchedulingResult schedulingResult = new SchedulingResult(resultMap);
         if(!avms.isEmpty()) {
-            for(final TaskRequest task: requests) {
+            while (true) {
+                final TaskRequest task = taskIterator.next();
+                //System.out.println("*************** TaskSched: task=" + (task == null? "null" : task.getId()));
+                if (task == null)
+                    break;
+                failedTasksForAutoScaler.add(task);
                 if(hasResAllocs) {
                     if(resAllocsEvaluator.taskGroupFailed(task.taskGroupName())) {
                         if(logger.isDebugEnabled())
@@ -884,7 +920,7 @@ public class TaskScheduler {
                 try (AutoCloseable ac = stateMonitor.enter()) {
                     assignableVMs.setTaskAssigned(request, hostname);
                 } catch (Exception e) {
-                    logger.error("Unexpected error from state monitor: " + e.getMessage());
+                    logger.error("Unexpected error from state monitor: " + e.getMessage(), e);
                     throw new IllegalStateException(e);
                 }
             }

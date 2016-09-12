@@ -16,6 +16,9 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.queues.QueuableTask;
+import com.netflix.fenzo.queues.TaskQueueException;
+import com.netflix.fenzo.queues.UsageTrackedQueue;
 import com.netflix.fenzo.sla.ResAllocs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,15 +134,28 @@ public class TaskTracker {
     private final Map<String, ActiveTask> runningTasks = new HashMap<>();
     private final Map<String, ActiveTask> assignedTasks = new HashMap<>();
     private final Map<String, TaskGroupUsage> taskGroupUsages = new HashMap<>();
+    private UsageTrackedQueue usageTrackedQueue = null;
 
     // package scoped
     TaskTracker() {
     }
 
+    public void setUsageTrackedQueue(UsageTrackedQueue t) {
+        usageTrackedQueue = t;
+    }
+
     boolean addRunningTask(TaskRequest request, AssignableVirtualMachine avm) {
         final boolean added = runningTasks.put(request.getId(), new ActiveTask(request, avm)) == null;
-        if(added)
+        if(added) {
             addUsage(request);
+            if (usageTrackedQueue != null && request instanceof QueuableTask)
+                try {
+                    usageTrackedQueue.launchTask((QueuableTask)request);
+                } catch (TaskQueueException e) {
+                    // We don't expect this to happen since we call this only outside scheduling iteration
+                    logger.warn("Unexpected: " + e.getMessage());
+                }
+        }
         return added;
     }
 
@@ -150,9 +166,16 @@ public class TaskTracker {
             final TaskGroupUsage usage = taskGroupUsages.get(task.taskGroupName());
             if(usage==null)
                 logger.warn("Unexpected to not find usage for task group " + task.taskGroupName() +
-                        " to remove usage of task " + task.getId());
+                        " to unqueueTask usage of task " + task.getId());
             else
                 usage.subtractUsage(task);
+            if (usageTrackedQueue != null && removed.getTaskRequest() instanceof QueuableTask)
+                try {
+                    usageTrackedQueue.removeTask((QueuableTask)removed.getTaskRequest());
+                } catch (TaskQueueException e) {
+                    // We don't expect this to happen since we call this only outside scheduling iteration
+                    logger.warn("Unexpected: " + e.getMessage());
+                }
         }
         return removed != null;
     }
@@ -163,8 +186,16 @@ public class TaskTracker {
 
     boolean addAssignedTask(TaskRequest request, AssignableVirtualMachine avm) {
         final boolean assigned = assignedTasks.put(request.getId(), new ActiveTask(request, avm)) == null;
-        if(assigned)
+        if(assigned) {
             addUsage(request);
+            if (usageTrackedQueue != null && request instanceof QueuableTask)
+                try {
+                    usageTrackedQueue.assignTask((QueuableTask) request);
+                } catch (TaskQueueException e) {
+                    // We don't expect this to happen since we call this only from within a scheduling iteration
+                    logger.warn("Unexpected: " + e.getMessage());
+                }
+        }
         return assigned;
     }
 

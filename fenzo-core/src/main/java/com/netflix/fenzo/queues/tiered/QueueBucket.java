@@ -1,0 +1,135 @@
+package com.netflix.fenzo.queues.tiered;
+
+import com.netflix.fenzo.queues.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.*;
+
+/**
+ * A queue bucket is a collection of tasks in one bucket. Generally, all tasks in the bucket are associated
+ * with a single entity for scheduling purposes such as capacity guarantees.
+ */
+class QueueBucket implements UsageTrackedQueue {
+    private static final Logger logger = LoggerFactory.getLogger(QueueBucket.class);
+    private final int tierNumber;
+    private final String name;
+    private final ResUsage totals;
+    private final LinkedHashMap<String, QueuableTask> queuedTasks;
+    private final LinkedHashMap<String, QueuableTask> launchedTasks;
+    // Assigned tasks is a temporary holder for tasks being assigned resources during scheduling
+    // iteration. These tasks are duplicate entries of tasks in queuedTasks, which cannot be removed from queuedTasks
+    // collection in order to keep the iterator on queuedTasks consistent throughout the scheduling iteration. Remember
+    // that scheduler's taskTracker will trigger call into assignTask() during the scheduling iteration.
+    private final LinkedHashMap<String, QueuableTask> assignedTasks;
+    private Iterator<Map.Entry<String, QueuableTask>> iterator = null;
+
+    QueueBucket(int tierNumber, String name) {
+        this.tierNumber = tierNumber;
+        this.name = name;
+        totals = new ResUsage();
+        queuedTasks = new LinkedHashMap<>();
+        launchedTasks = new LinkedHashMap<>();
+        assignedTasks = new LinkedHashMap<>();
+    }
+
+    @Override
+    public void queueTask(QueuableTask t) throws TaskQueueException {
+        if (iterator != null)
+            throw new ConcurrentModificationException("Must reset before queuing tasks");
+        if (queuedTasks.get(t.getId()) != null)
+            throw new TaskQueueException("Duplicate task not allowed, task with id " + t.getId());
+        if (launchedTasks.get(t.getId()) != null)
+            throw new TaskQueueException("Task already launched, can't queue, id=" + t.getId());
+        queuedTasks.put(t.getId(), t);
+    }
+
+    @Override
+    public QueuableTask nextTaskToLaunch() throws TaskQueueException {
+        if (iterator == null) {
+            iterator = queuedTasks.entrySet().iterator();
+            if (!assignedTasks.isEmpty())
+                throw new TaskQueueException(assignedTasks.size() + " tasks still assigned but not launched");
+        }
+        if (iterator.hasNext())
+            return iterator.next().getValue();
+        return null;
+    }
+
+    @Override
+    public void assignTask(QueuableTask t) throws TaskQueueException {
+        if (iterator == null)
+            throw new TaskQueueException(new IllegalStateException("assign called while not iterating over tasks"));
+        if (queuedTasks.get(t.getId()) == null)
+            throw new TaskQueueException("Task not in queue for assigning, id=" + t.getId());
+        if (assignedTasks.get(t.getId()) != null)
+            throw new TaskQueueException("Task already assigned, id=" + t.getId());
+        if (launchedTasks.get(t.getId()) != null)
+            throw new TaskQueueException("Task already launched, id=" + t.getId());
+        assignedTasks.put(t.getId(), t);
+        totals.addUsage(t);
+    }
+
+    @Override
+    public boolean launchTask(QueuableTask t) throws TaskQueueException {
+        if (iterator != null)
+            throw new ConcurrentModificationException("Must reset before launching tasks");
+        if (launchedTasks.get(t.getId()) != null)
+            throw new TaskQueueException("Task already launched, id=" + t.getId());
+        queuedTasks.remove(t.getId());
+        final QueuableTask removed = assignedTasks.remove(t.getId());
+        launchedTasks.put(t.getId(), t);
+        if (removed == null) { // add usage only if it was not assigned, happens when initializing tasks that were running previously
+            totals.addUsage(t);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean removeTask(QueuableTask t) throws TaskQueueException {
+        if (iterator != null)
+            throw new TaskQueueException("Must reset before removing tasks");
+        QueuableTask removed = queuedTasks.remove(t.getId());
+        if (removed == null) {
+            removed = assignedTasks.remove(t.getId());
+            if (removed == null)
+                removed = launchedTasks.remove(t.getId());
+            if (removed != null)
+                totals.remUsage(t);
+        }
+        return removed != null;
+    }
+
+    @Override
+    public double getDominantUsageShare(ResUsage parentUsage) {
+        return totals.getDominantUsageShareFrom(parentUsage);
+    }
+
+    @Override
+    public void reset() throws TaskQueueException {
+        iterator = null;
+    }
+
+    @Override
+    public Map<TaskQueue.State, Collection<QueuableTask>> getAllTasks() throws TaskQueueException {
+        if (iterator != null)
+            throw new TaskQueueException("Must reset before getting list of tasks");
+        Map<TaskQueue.State, Collection<QueuableTask>> result = new HashMap<>();
+        result.put(TaskQueue.State.QUEUED, Collections.unmodifiableCollection(queuedTasks.values()));
+        result.put(TaskQueue.State.LAUNCHED, Collections.unmodifiableCollection(launchedTasks.values()));
+        return result;
+    }
+
+    int size() {
+        return queuedTasks.size() + launchedTasks.size(); // don't add assignedTasks.size(), they are duplicate of queuedTasks
+    }
+
+    int getTierNumber() {
+        return tierNumber;
+    }
+
+    String getName() {
+        return name;
+    }
+}

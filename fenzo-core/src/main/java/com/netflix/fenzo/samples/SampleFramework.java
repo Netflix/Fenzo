@@ -267,7 +267,7 @@ public class SampleFramework {
                     for(TaskAssignmentResult t: result.getTasksAssigned()) {
                         stringBuilder.append(t.getTaskId()).append(", ");
                         taskInfos.add(getTaskInfo(slaveId, t.getTaskId()));
-                        // remove task from pending tasks map and put into launched tasks map
+                        // unqueueTask task from pending tasks map and put into launched tasks map
                         // (in real world, transition the task state)
                         pendingTasksMap.remove(t.getTaskId());
                         launchedTasks.put(t.getTaskId(), leasesUsed.get(0).hostname());
