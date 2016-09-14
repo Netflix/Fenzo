@@ -171,7 +171,8 @@ public class TaskTracker {
                 usage.subtractUsage(task);
             if (usageTrackedQueue != null && removed.getTaskRequest() instanceof QueuableTask)
                 try {
-                    usageTrackedQueue.removeTask((QueuableTask)removed.getTaskRequest());
+                    final QueuableTask queuableTask = (QueuableTask) removed.getTaskRequest();
+                    usageTrackedQueue.removeTask(queuableTask.getId(), queuableTask.getQAttributes());
                 } catch (TaskQueueException e) {
                     // We don't expect this to happen since we call this only outside scheduling iteration
                     logger.warn("Unexpected: " + e.getMessage());

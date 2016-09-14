@@ -137,11 +137,12 @@ public interface UsageTrackedQueue {
      * Remove the given task from the queue, irrespective of whether it is queued or launched. This cannot be called
      * while the queue is being iterated on, for example, in a scheduling loop. {@link #reset()} must be called before
      * calling this method.
-     * @param t The task to unqueueTask
-     * @return {@code True} if the task was actually found and removed, {@code False} otherwise.
+     * @param id The task id to remove
+     * @param qAttributes The queue attributes for the task to remove
+     * @return {@link QueuableTask} that was removed, or {@code null} if the task wasn't found.
      * @throws TaskQueueException if the queue is being iterated on for a scheduling iteration.
      */
-    boolean removeTask(QueuableTask t) throws TaskQueueException;
+    QueuableTask removeTask(String id, QAttributes qAttributes) throws TaskQueueException;
 
     /**
      * Get the usage of the dominant resource, expressed as a share within the given parent entity's usage.

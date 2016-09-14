@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TieredQueue implements InternalTaskQueue {
 
@@ -33,19 +32,19 @@ public class TieredQueue implements InternalTaskQueue {
     private Iterator<TierBuckets> iterator = null;
     private TierBuckets currTier = null;
     private final BlockingQueue<QueuableTask> tasksToAdd;
-    private final BlockingQueue<QueuableTask> tasksIdsToRemove;
+    private final BlockingQueue<QAttributes.TaskIdAttributesTuple> taskIdsToRemove;
 
     public TieredQueue(int numTiers) {
         tiers = new ArrayList<>(numTiers);
         for ( int i=0; i<numTiers; i++ )
             tiers.add(new TierBuckets(i));
         tasksToAdd = new LinkedBlockingQueue<>();
-        tasksIdsToRemove = new LinkedBlockingQueue<>();
+        taskIdsToRemove = new LinkedBlockingQueue<>();
     }
 
 
     @Override
-    public void add(QueuableTask task) {
+    public void queueTask(QueuableTask task) {
         tasksToAdd.offer(task);
     }
 
@@ -57,13 +56,13 @@ public class TieredQueue implements InternalTaskQueue {
     }
 
     @Override
-    public void remove(QueuableTask task) {
-        tasksIdsToRemove.offer(task);
+    public void remove(final String taskId, final QAttributes qAttributes) {
+        taskIdsToRemove.offer(new QAttributes.TaskIdAttributesTuple(taskId, qAttributes));
     }
 
-    private boolean removeInternal(QueuableTask task) throws TaskQueueException {
-        final TierBuckets tierBuckets = tiers.get(task.getQAttributes().getTierNumber());
-        return tierBuckets.removeTask(task);
+    private boolean removeInternalById(String id, QAttributes qAttributes) throws TaskQueueException {
+        final TierBuckets tierBuckets = tiers.get(qAttributes.getTierNumber());
+        return tierBuckets != null && tierBuckets.removeTask(id, qAttributes) != null;
     }
 
     @Override
@@ -105,16 +104,19 @@ public class TieredQueue implements InternalTaskQueue {
                     exceptions.add(e);
                 }
         }
-        List<QueuableTask> tasksToRem = new ArrayList<>();
-        tasksIdsToRemove.drainTo(tasksToRem);
-        if (!tasksToRem.isEmpty()) {
-            for (QueuableTask task: tasksToRem)
+        List<QAttributes.TaskIdAttributesTuple> taskIdTuples = new ArrayList<>();
+        taskIdsToRemove.drainTo(taskIdTuples);
+        if (!taskIdTuples.isEmpty()) {
+            for (QAttributes.TaskIdAttributesTuple tuple: taskIdTuples) {
                 try {
-                    if (!removeInternal(task))
-                        exceptions.add(new TaskQueueException("Task with id " + task.getId() + " not found to unqueueTask"));
-                } catch (TaskQueueException e) {
+                    if (!removeInternalById(tuple.getId(), tuple.getqAttributes())) {
+                        exceptions.add(new TaskQueueException("Task with id " + tuple.getId() + " not found to remove"));
+                    }
+                }
+                catch (TaskQueueException e) {
                     exceptions.add(e);
                 }
+            }
         }
         return exceptions;
     }
@@ -143,8 +145,8 @@ public class TieredQueue implements InternalTaskQueue {
             }
 
             @Override
-            public boolean removeTask(QueuableTask t) throws TaskQueueException {
-                return tiers.get(t.getQAttributes().getTierNumber()).removeTask(t);
+            public QueuableTask removeTask(String id, QAttributes qAttributes) throws TaskQueueException {
+                return tiers.get(qAttributes.getTierNumber()).removeTask(id, qAttributes);
             }
 
             @Override

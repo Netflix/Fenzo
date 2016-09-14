@@ -100,18 +100,4 @@ public class QueuableTaskProvider {
             }
         };
     }
-
-    public static QAttributes getAttr(final int i, final String a) {
-        return new QAttributes() {
-            @Override
-            public String getBucketName() {
-                return a;
-            }
-
-            @Override
-            public int getTierNumber() {
-                return i;
-            }
-        };
-    }
 }

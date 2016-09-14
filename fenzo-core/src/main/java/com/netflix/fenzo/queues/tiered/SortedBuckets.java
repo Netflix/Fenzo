@@ -22,12 +22,17 @@ import java.util.*;
 
 /**
  * The buckets are sorted using a comparison method that makes it inconsistent with equals. This class maintains
- * the oerdering while being able to also perform methods such as contains, add, and remove without depending on
- * comparisons being stricly consistent with equals. Comparisons use the bucket's resource usage values, where as
- * the equals is defined by the bucket name being equal. There may be multiple buckets with the same resource usage
- * values, and therefore, comparator returns 0 while the equals check may return different results across them. The
- * Collections classes such as SortedMap or SortedSet cannot be used due to this inconsistency.
- *
+ * the ordering while being able to also perform methods such as contains, add, and remove without depending on
+ * comparisons being strictly consistent with equals. Comparisons use the bucket's resource usage values, where as
+ * the equals is defined by the bucket name being equal. Duplicate entries with the same bucket name are not allowed.
+ * There may be multiple buckets with the same resource usage values, and therefore, comparator returns 0 while the
+ * equals check returns {@code true} only when the bucket name matches. The Collections classes such as SortedMap or
+ * SortedSet cannot be used due to this inconsistency.
+ * <P>
+ * This implementation provides {@code O(logN)} performance for adding an item, constant-time performance for get,
+ * and {@code O(logN+M)} performance for remove, where, {@code N} is the number of items in the collection and
+ * {@code M} is the average number of items with same resource usage values.
+ * <P>
  * This implementation is not synchronized. Invocations of methods of this class must be synchronized externally if
  * there is a chance of calling them concurrently.
  */

@@ -18,6 +18,7 @@ package com.netflix.fenzo.queues;
 
 
 import com.netflix.fenzo.TaskIterator;
+import com.netflix.fenzo.TaskScheduler;
 
 import java.util.Collection;
 import java.util.Map;
@@ -37,16 +38,18 @@ public interface TaskQueue extends TaskIterator {
 
     /**
      * Add a task to the queue. Duplicates are not allowed, as in, a task request that has the same Id as another
-     * existing element will be rejected.
+     * existing element will be rejected. The added task will be assigned resources by a scheduler. To add a task
+     * into Fenzo that is already running from before, use {@link TaskScheduler#getTaskAssigner()}.
      * @param task A task to add to the queue.
      */
-    void add(QueuableTask task);
+    void queueTask(QueuableTask task);
 
     /**
      * Remove the given task from queue. The task is removed from the queue, including the case that it is already
      * marked as running. This must be called for all tasks that either no longer need resource assignments or if
      * previously running tasks complete for any reason.
-     * @param task The task to unqueueTask.
+     * @param taskId The id of the task to remove.
+     * @param qAttributes The queue attributes of the task to remove.
      */
-    void remove(QueuableTask task);
+    void remove(String taskId, QAttributes qAttributes);
 }

@@ -34,27 +34,27 @@ public class SortedBucketsTest {
     @Test
     public void testSorting() throws Exception {
         UsageTrackedQueue.ResUsage parentUsage = new UsageTrackedQueue.ResUsage();
-        QAttributes tier1bktA = QueuableTaskProvider.getAttr(1, "Parent");
+        QAttributes tier1bktA = new QAttributes.QAttributesAdaptor(1, "Parent");
         parentUsage.addUsage(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(100, 1000, 100)));
         SortedBuckets sortedBuckets = new SortedBuckets(parentUsage);
 
         final QueueBucket a = new QueueBucket(1, "A");
-        final QAttributes attrA = QueuableTaskProvider.getAttr(1, "A");
+        final QAttributes attrA = new QAttributes.QAttributesAdaptor(1, "A");
         a.launchTask(QueuableTaskProvider.wrapTask(attrA, TaskRequestProvider.getTaskRequest(10, 100, 10)));
         sortedBuckets.add(a);
 
         final QueueBucket b = new QueueBucket(1, "B");
-        final QAttributes attrB = QueuableTaskProvider.getAttr(1, "B");
+        final QAttributes attrB = new QAttributes.QAttributesAdaptor(1, "B");
         b.launchTask(QueuableTaskProvider.wrapTask(attrB, TaskRequestProvider.getTaskRequest(20, 200, 20)));
         sortedBuckets.add(b);
 
         final QueueBucket c = new QueueBucket(1, "C");
-        final QAttributes attrC = QueuableTaskProvider.getAttr(1, "C");
+        final QAttributes attrC = new QAttributes.QAttributesAdaptor(1, "C");
         c.launchTask(QueuableTaskProvider.wrapTask(attrC, TaskRequestProvider.getTaskRequest(15, 150, 15)));
         sortedBuckets.add(c);
 
         final QueueBucket d = new QueueBucket(1, "D");
-        final QAttributes attrD = QueuableTaskProvider.getAttr(1, "D");
+        final QAttributes attrD = new QAttributes.QAttributesAdaptor(1, "D");
         d.launchTask(QueuableTaskProvider.wrapTask(attrD, TaskRequestProvider.getTaskRequest(10, 100, 10)));
         sortedBuckets.add(d);
 

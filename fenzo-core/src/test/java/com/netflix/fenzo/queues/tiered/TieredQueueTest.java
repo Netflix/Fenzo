@@ -31,19 +31,19 @@ public class TieredQueueTest {
     @Test
     public void testAddingTasks() throws Exception {
         InternalTaskQueue queue = new TieredQueue(3);
-        QAttributes tier1bktA = QueuableTaskProvider.getAttr(0, "A");
-        QAttributes tier1bktB = QueuableTaskProvider.getAttr(0, "B");
-        QAttributes tier2bktC = QueuableTaskProvider.getAttr(1, "C");
-        QAttributes tier2bktD = QueuableTaskProvider.getAttr(1, "D");
-        QAttributes tier3bktE = QueuableTaskProvider.getAttr(2, "E");
+        QAttributes tier1bktA = new QAttributes.QAttributesAdaptor(0, "A");
+        QAttributes tier1bktB = new QAttributes.QAttributesAdaptor(0, "B");
+        QAttributes tier2bktC = new QAttributes.QAttributesAdaptor(1, "C");
+        QAttributes tier2bktD = new QAttributes.QAttributesAdaptor(1, "D");
+        QAttributes tier3bktE = new QAttributes.QAttributesAdaptor(2, "E");
 
-        queue.add(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1)));
-        queue.add(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1)));
-        queue.add(QueuableTaskProvider.wrapTask(tier1bktB, TaskRequestProvider.getTaskRequest(1, 100, 1)));
-        queue.add(QueuableTaskProvider.wrapTask(tier2bktC, TaskRequestProvider.getTaskRequest(1, 100, 1)));
-        queue.add(QueuableTaskProvider.wrapTask(tier2bktD, TaskRequestProvider.getTaskRequest(1, 100, 1)));
-        queue.add(QueuableTaskProvider.wrapTask(tier2bktC, TaskRequestProvider.getTaskRequest(1, 100, 1)));
-        queue.add(QueuableTaskProvider.wrapTask(tier3bktE, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktB, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier2bktC, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier2bktD, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier2bktC, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier3bktE, TaskRequestProvider.getTaskRequest(1, 100, 1)));
 
         queue.reset();
         QueuableTask t;
@@ -58,9 +58,9 @@ public class TieredQueueTest {
     @Test
     public void testAddRunningTasks() throws Exception {
         InternalTaskQueue queue = new TieredQueue(3);
-        QAttributes tier1bktA = QueuableTaskProvider.getAttr(0, "A");
-        QAttributes tier1bktB = QueuableTaskProvider.getAttr(0, "B");
-        QAttributes tier1bktC = QueuableTaskProvider.getAttr(0, "C");
+        QAttributes tier1bktA = new QAttributes.QAttributesAdaptor(0, "A");
+        QAttributes tier1bktB = new QAttributes.QAttributesAdaptor(0, "B");
+        QAttributes tier1bktC = new QAttributes.QAttributesAdaptor(0, "C");
 
         final TaskScheduler scheduler = getScheduler();
         final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler);
@@ -81,11 +81,11 @@ public class TieredQueueTest {
                     "hostC"
             );
         for(int i=0; i<4; i++)
-            queue.add(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
+            queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
         for(int i=0; i<4; i++)
-            queue.add(QueuableTaskProvider.wrapTask(tier1bktB, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
+            queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktB, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
         for(int i=0; i<4; i++)
-            queue.add(QueuableTaskProvider.wrapTask(tier1bktC, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
+            queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktC, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
 
         queue.reset();
         QueuableTask t;

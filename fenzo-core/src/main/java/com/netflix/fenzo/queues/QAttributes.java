@@ -34,4 +34,42 @@ public interface QAttributes {
      * @return The tier number for the corresponding queue.
      */
     int getTierNumber();
+
+    class QAttributesAdaptor implements QAttributes {
+        private final int tierNumber;
+        private final String bucketName;
+
+        public QAttributesAdaptor(int tierNumber, String bucketName) {
+            this.bucketName = bucketName;
+            this.tierNumber = tierNumber;
+        }
+
+        @Override
+        public String getBucketName() {
+            return bucketName;
+        }
+
+        @Override
+        public int getTierNumber() {
+            return tierNumber;
+        }
+    }
+
+    class TaskIdAttributesTuple {
+        private final String id;
+        private final QAttributes qAttributes;
+
+        public TaskIdAttributesTuple(String id, QAttributes qAttributes) {
+            this.id = id;
+            this.qAttributes = qAttributes;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public QAttributes getqAttributes() {
+            return qAttributes;
+        }
+    }
 }

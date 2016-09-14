@@ -555,7 +555,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                 currTotalScalars.put(entry.getKey(), oldVal + entry.getValue());
             }
         }
-        // ToDo add back ports
+        // ToDo queueTask back ports
     }
 
     String getAttrValue(String attrName) {

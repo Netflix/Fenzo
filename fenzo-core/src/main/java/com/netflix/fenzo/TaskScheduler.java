@@ -660,7 +660,14 @@ public class TaskScheduler {
         Set<TaskRequest> failedTasksForAutoScaler = new HashSet<>();
         Map<String, VMAssignmentResult> resultMap = new HashMap<>(avms.size());
         final SchedulingResult schedulingResult = new SchedulingResult(resultMap);
-        if(!avms.isEmpty()) {
+        if(avms.isEmpty()) {
+            while (true) {
+                final TaskRequest task = taskIterator.next();
+                if (task == null)
+                    break;
+                failedTasksForAutoScaler.add(task);
+            }
+        } else {
             while (true) {
                 final TaskRequest task = taskIterator.next();
                 //System.out.println("*************** TaskSched: task=" + (task == null? "null" : task.getId()));

@@ -16,10 +16,7 @@
 
 package com.netflix.fenzo.queues.tiered;
 
-import com.netflix.fenzo.queues.QueuableTask;
-import com.netflix.fenzo.queues.TaskQueue;
-import com.netflix.fenzo.queues.TaskQueueException;
-import com.netflix.fenzo.queues.UsageTrackedQueue;
+import com.netflix.fenzo.queues.*;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -110,24 +107,24 @@ class TierBuckets implements UsageTrackedQueue {
     }
 
     @Override
-    public boolean removeTask(QueuableTask t) throws TaskQueueException {
+    public QueuableTask removeTask(String id, QAttributes qAttributes) throws TaskQueueException {
         // removing a task can change the resource usage and therefore the sorting order of queues. So, we take the
         // same approach as in launchTask() above - remove the bucket and readd to keep sorting order updated.
-        final QueueBucket bucket = sortedBuckets.remove(t.getQAttributes().getBucketName());
+        final QueueBucket bucket = sortedBuckets.remove(qAttributes.getBucketName());
         if (bucket == null)
-            return false;
-        final boolean removed = bucket.removeTask(t);
+            return null;
+        final QueuableTask removed;
         try {
-            if (removed) {
-                totals.remUsage(t);
-                return true;
+            removed = bucket.removeTask(id, qAttributes);
+            if (removed != null) {
+                totals.remUsage(removed);
             }
         }
         finally {
             if (bucket.size() > 0)
                 sortedBuckets.add(bucket);
         }
-        return false;
+        return removed;
     }
 
     @Override

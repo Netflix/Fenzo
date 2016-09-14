@@ -79,7 +79,7 @@ class QueueBucket implements UsageTrackedQueue {
         queuedTasks.remove(t.getId());
         final QueuableTask removed = assignedTasks.remove(t.getId());
         launchedTasks.put(t.getId(), t);
-        if (removed == null) { // add usage only if it was not assigned, happens when initializing tasks that were running previously
+        if (removed == null) { // queueTask usage only if it was not assigned, happens when initializing tasks that were running previously
             totals.addUsage(t);
             return true;
         }
@@ -87,18 +87,18 @@ class QueueBucket implements UsageTrackedQueue {
     }
 
     @Override
-    public boolean removeTask(QueuableTask t) throws TaskQueueException {
+    public QueuableTask removeTask(String id, QAttributes qAttributes) throws TaskQueueException {
         if (iterator != null)
             throw new TaskQueueException("Must reset before removing tasks");
-        QueuableTask removed = queuedTasks.remove(t.getId());
+        QueuableTask removed = queuedTasks.remove(id);
         if (removed == null) {
-            removed = assignedTasks.remove(t.getId());
+            removed = assignedTasks.remove(id);
             if (removed == null)
-                removed = launchedTasks.remove(t.getId());
+                removed = launchedTasks.remove(id);
             if (removed != null)
-                totals.remUsage(t);
+                totals.remUsage(removed);
         }
-        return removed != null;
+        return removed;
     }
 
     @Override
@@ -122,7 +122,7 @@ class QueueBucket implements UsageTrackedQueue {
     }
 
     int size() {
-        return queuedTasks.size() + launchedTasks.size(); // don't add assignedTasks.size(), they are duplicate of queuedTasks
+        return queuedTasks.size() + launchedTasks.size(); // don't queueTask assignedTasks.size(), they are duplicate of queuedTasks
     }
 
     int getTierNumber() {

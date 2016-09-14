@@ -139,7 +139,7 @@ public class TaskSchedulingService {
         }
     }
 
-    public void addLeases(List<VirtualMachineLease> leases) {
+    public void addLeases(List<? extends VirtualMachineLease> leases) {
         if (leases != null && !leases.isEmpty()) {
             for(VirtualMachineLease l: leases)
                 leaseBlockingQueue.offer(l);

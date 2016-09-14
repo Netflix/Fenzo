@@ -27,8 +27,8 @@ import java.util.Map;
  * Methods in this interface are expected to be called concurrently. For example, tasks may be added to or removed from
  * the queue while a scheduling iteration using this queue is in progress. Implementations must handle this. Note that,
  * it may not be sufficient for the implementations to use concurrent versions of collection classes for queue of tasks.
- * The queue must be consistent throughout the scheduling iteration. One recommended
- * way to achieve such consistency is to place the {@link #add(QueuableTask)} and {@link #remove(QueuableTask)}
+ * The queue must be consistent throughout the scheduling iteration. One recommended way to achieve such consistency is
+ * to place the {@link #queueTask(QueuableTask)} and {@link #remove(String, QAttributes)}
  * operations as requests in a holding area within the implementation and return immediately. Later, actually carry
  * them out during the {@link #reset()} method.
  */
@@ -39,7 +39,7 @@ public interface InternalTaskQueue extends TaskQueue {
      * scheduling iteration begins.
      * @return A list of exceptions, if any, that may have occurred during resetting the pointer to the head of the
      * queue. Or, this may include exceptions that arose when applying any deferred operations from
-     * {@link #add(QueuableTask)} and {@link #remove(QueuableTask)} methods.
+     * {@link #queueTask(QueuableTask)} and {@link #remove(String, QAttributes)} methods.
      */
     List<Exception> reset();
 
