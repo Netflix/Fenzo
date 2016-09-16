@@ -35,13 +35,16 @@ import java.util.Map;
 public interface InternalTaskQueue extends TaskQueue {
     /**
      * Reset the queue and make it ready for next scheduling iteration. Any operations requested that were not safe
-     * to carry out during a scheduling iteration can be carried out after calling this method, before the next
+     * to carry out during a scheduling iteration can be carried out during this method, before the next
      * scheduling iteration begins.
-     * @return A list of exceptions, if any, that may have occurred during resetting the pointer to the head of the
-     * queue. Or, this may include exceptions that arose when applying any deferred operations from
+     * @return {@code true} if the queue was changed as part of this operation, {@code false} otherwise. The queue is
+     * deemed changed if any queue modifications that were held for safety were carried out now, such as adding to or
+     * removing from the queue.
+     * @throws TaskQueueMultiException If any exceptions that may have occurred during resetting the pointer to the head
+     * of the queue. Or, this may include exceptions that arose when applying any deferred operations from
      * {@link #queueTask(QueuableTask)} and {@link #remove(String, QAttributes)} methods.
      */
-    List<Exception> reset();
+    boolean reset() throws TaskQueueMultiException;
 
     /**
      * Get the usage tracker, if any. Queue implementations may request updates for usage tracking purposes. If

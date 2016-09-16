@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A task scheduling service that maintains a scheduling loop to continuously assign resources to tasks pending in
@@ -66,6 +67,8 @@ public class TaskSchedulingService {
     private final Action0 preHook;
     private final BlockingQueue<VirtualMachineLease> leaseBlockingQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<Action1<Map<TaskQueue.State, Collection<QueuableTask>>>> taskMapRequest = new LinkedBlockingQueue<>(10);
+    private final AtomicLong lastSchedIterationAt = new AtomicLong();
+    private final long maxSchedIterDelay;
 
     public TaskSchedulingService(Builder builder) {
         taskScheduler = builder.taskScheduler;
@@ -75,6 +78,7 @@ public class TaskSchedulingService {
         executorService = builder.executorService;
         loopIntervalMillis = builder.loopIntervalMillis;
         preHook = builder.preHook;
+        maxSchedIterDelay = Math.max(builder.maxDelayMillis, loopIntervalMillis);
     }
 
     public void start() {
@@ -104,22 +108,26 @@ public class TaskSchedulingService {
             return;
         }
         try {
-            if (preHook != null)
-                preHook.call();
-            List<VirtualMachineLease> currentLeases = new ArrayList<>();
-            leaseBlockingQueue.drainTo(currentLeases);
-            taskQueue.reset(); // mark end of scheduling iteration to the queue
-            final SchedulingResult schedulingResult = taskScheduler.scheduleOnce(taskQueue, currentLeases);
-            taskQueue.getUsageTracker().reset();
-            assignTasks(schedulingResult, taskScheduler);
-            schedulingResultCallback.call(schedulingResult);
-            final Action1<Map<TaskQueue.State, Collection<QueuableTask>>> action = taskMapRequest.poll();
-            try {
-                if (action != null)
-                    action.call(taskQueue.getAllTasks());
-            }
-            catch (TaskQueueException e) {
-                logger.warn("Unexpected when trying to get task list: " + e.getMessage(), e);
+            // check if next scheduling iteration is actually needed right away
+            final boolean qModified = taskQueue.reset();
+            final boolean newLeaseExists = leaseBlockingQueue.peek() != null;
+            if ( qModified || newLeaseExists || doNextIteration()) {
+                lastSchedIterationAt.set(System.currentTimeMillis());
+                if (preHook != null)
+                    preHook.call();
+                List<VirtualMachineLease> currentLeases = new ArrayList<>();
+                leaseBlockingQueue.drainTo(currentLeases);
+                final SchedulingResult schedulingResult = taskScheduler.scheduleOnce(taskQueue, currentLeases);
+                taskQueue.getUsageTracker().reset();
+                assignTasks(schedulingResult, taskScheduler);
+                schedulingResultCallback.call(schedulingResult);
+                final Action1<Map<TaskQueue.State, Collection<QueuableTask>>> action = taskMapRequest.poll();
+                try {
+                    if (action != null)
+                        action.call(taskQueue.getAllTasks());
+                } catch (TaskQueueException e) {
+                    logger.warn("Unexpected when trying to get task list: " + e.getMessage(), e);
+                }
             }
         }
         catch (Exception e) {
@@ -128,6 +136,10 @@ public class TaskSchedulingService {
             result.addException(e);
             schedulingResultCallback.call(result);
         }
+    }
+
+    private boolean doNextIteration() {
+        return (System.currentTimeMillis() - lastSchedIterationAt.get()) > maxSchedIterDelay;
     }
 
     private void assignTasks(SchedulingResult schedulingResult, TaskScheduler taskScheduler) {
@@ -168,6 +180,7 @@ public class TaskSchedulingService {
         private long loopIntervalMillis = 50;
         private ScheduledExecutorService executorService = null;
         private Action0 preHook = null;
+        private long maxDelayMillis = 5000L;
 
         public Builder withTaskScheduler(TaskScheduler taskScheduler) {
             this.taskScheduler = taskScheduler;
@@ -188,6 +201,11 @@ public class TaskSchedulingService {
 
         public Builder withLoopIntervalMillis(long loopIntervalMillis) {
             this.loopIntervalMillis = loopIntervalMillis;
+            return this;
+        }
+
+        public Builder withMaxDelayMillis(long maxDelay) {
+            this.maxDelayMillis = maxDelay;
             return this;
         }
 

@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
-package com.netflix.fenzo;
+package com.netflix.fenzo.queues;
 
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.queues.TaskQueueException;
+import java.util.List;
 
-public interface TaskIterator {
-    /**
-     * Get the next task from queue, or {@code null} if no more tasks exist.
-     * @return The next task.
-     * @throws TaskQueueException if there were errors retrieving the next task from the queue.
-     */
-    TaskRequest next() throws TaskQueueException;
+public class TaskQueueMultiException extends Exception {
+
+    private final List<Exception> exceptions;
+
+    public TaskQueueMultiException(List<Exception> exceptions) {
+        super("Multiple task queue exceptions");
+        this.exceptions = exceptions;
+    }
+
+    public List<Exception> getExceptions() {
+        return exceptions;
+    }
 }

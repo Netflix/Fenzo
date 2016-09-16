@@ -19,10 +19,7 @@ package com.netflix.fenzo;
 import com.netflix.fenzo.functions.Action0;
 import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
-import com.netflix.fenzo.queues.QAttributes;
-import com.netflix.fenzo.queues.QueuableTask;
-import com.netflix.fenzo.queues.TaskQueue;
-import com.netflix.fenzo.queues.TaskQueues;
+import com.netflix.fenzo.queues.*;
 import com.netflix.fenzo.queues.tiered.QueuableTaskProvider;
 import junit.framework.Assert;
 import org.junit.Test;
@@ -32,6 +29,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class TaskSchedulingServiceTest {
@@ -43,9 +41,15 @@ public class TaskSchedulingServiceTest {
 
     private TaskSchedulingService getSchedulingService(TaskQueue queue, TaskScheduler scheduler, long loopMillis,
                                                        Action1<SchedulingResult> resultCallback) {
+        return getSchedulingService(queue, scheduler, loopMillis, loopMillis, resultCallback);
+    }
+
+    private TaskSchedulingService getSchedulingService(TaskQueue queue, TaskScheduler scheduler, long loopMillis,
+                                                       long maxDelayMillis, Action1<SchedulingResult> resultCallback) {
         return new TaskSchedulingService.Builder()
                 .withTaskQuue(queue)
                 .withLoopIntervalMillis(loopMillis)
+                .withMaxDelayMillis(maxDelayMillis)
                 .withPreSchedulingLoopHook(new Action0() {
                     @Override
                     public void call() {
@@ -384,6 +388,67 @@ public class TaskSchedulingServiceTest {
     @Test
     public void testRemoveFromQueue() throws Exception {
         // TODO
+    }
+
+    @Test
+    public void testMaxSchedIterDelay() throws Exception {
+        TaskQueue queue = TaskQueues.createTieredQueue(2);
+        final TaskScheduler scheduler = getScheduler();
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
+            @Override
+            public void call(SchedulingResult schedulingResult) {
+                // no-op
+            }
+        };
+        final long maxDelay = 500L;
+        final long loopMillis = 50L;
+        final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, loopMillis, maxDelay, resultCallback);
+        schedulingService.start();
+        long startAt = System.currentTimeMillis();
+        Thread.sleep(51L);
+        final AtomicLong gotTasksAt = new AtomicLong();
+        CountDownLatch latch = new CountDownLatch(1);
+        setupTaskGetter(schedulingService, gotTasksAt, latch);
+        if (!latch.await(maxDelay + 100L, TimeUnit.MILLISECONDS)) {
+            Assert.fail("Timeout waiting for tasks list");
+        }
+        Assert.assertTrue("Got task list too soon", (gotTasksAt.get() - startAt) > maxDelay);
+        // now test that when queue does change, we get it sooner
+        startAt = System.currentTimeMillis();
+        latch = new CountDownLatch(1);
+        setupTaskGetter(schedulingService, gotTasksAt, latch);
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        if (!latch.await(maxDelay + 100L, TimeUnit.MILLISECONDS)) {
+            Assert.fail("Timeout waiting for tasks list");
+        }
+        Assert.assertTrue("Got task list too late", (gotTasksAt.get() - startAt) < 2 * loopMillis);
+        // repeat with adding lease
+        startAt = System.currentTimeMillis();
+        latch = new CountDownLatch(1);
+        setupTaskGetter(schedulingService, gotTasksAt, latch);
+        schedulingService.addLeases(LeaseProvider.getLeases(1, 1, 100, 1, 10));
+        if (!latch.await(maxDelay + 100L, TimeUnit.MILLISECONDS)) {
+            Assert.fail("Timeout waiting for tasks list");
+        }
+        Assert.assertTrue("Got tasks list too late", (gotTasksAt.get() - startAt) < 2 * loopMillis);
+        startAt = System.currentTimeMillis();
+        latch = new CountDownLatch(1);
+        setupTaskGetter(schedulingService, gotTasksAt, latch);
+        if (!latch.await(maxDelay + 100L, TimeUnit.MILLISECONDS)) {
+            Assert.fail("Timeout waiting for tasks list");
+        }
+        Assert.assertTrue("Got task list too soon", (gotTasksAt.get() - startAt) > maxDelay);
+    }
+
+    private void setupTaskGetter(TaskSchedulingService schedulingService, final AtomicLong gotTasksAt, final CountDownLatch latch) throws TaskQueueException {
+        schedulingService.getAllTasks(new Action1<Map<TaskQueue.State, Collection<QueuableTask>>>() {
+            @Override
+            public void call(Map<TaskQueue.State, Collection<QueuableTask>> stateCollectionMap) {
+                gotTasksAt.set(System.currentTimeMillis());
+                latch.countDown();
+            }
+        });
     }
 
     private boolean unqueueTaskResults(int numTasks, BlockingQueue<QueuableTask> assignmentResults) throws InterruptedException {

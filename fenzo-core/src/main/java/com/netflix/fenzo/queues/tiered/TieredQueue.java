@@ -91,8 +91,9 @@ public class TieredQueue implements InternalTaskQueue {
     }
 
     @Override
-    public List<Exception> reset() {
+    public boolean reset() throws TaskQueueMultiException {
         iterator = null;
+        boolean queueChanged = false;
         List<Exception> exceptions = new ArrayList<>();
         final List<QueuableTask> toAdd = new ArrayList<>();
         tasksToAdd.drainTo(toAdd);
@@ -100,6 +101,7 @@ public class TieredQueue implements InternalTaskQueue {
             for(QueuableTask t: toAdd)
                 try {
                     addInternal(t);
+                    queueChanged = true;
                 } catch (TaskQueueException e) {
                     exceptions.add(e);
                 }
@@ -111,6 +113,8 @@ public class TieredQueue implements InternalTaskQueue {
                 try {
                     if (!removeInternalById(tuple.getId(), tuple.getqAttributes())) {
                         exceptions.add(new TaskQueueException("Task with id " + tuple.getId() + " not found to remove"));
+                    } else {
+                        queueChanged = true;
                     }
                 }
                 catch (TaskQueueException e) {
@@ -118,7 +122,9 @@ public class TieredQueue implements InternalTaskQueue {
                 }
             }
         }
-        return exceptions;
+        if (!exceptions.isEmpty())
+            throw new TaskQueueMultiException(exceptions);
+        return queueChanged;
     }
 
     @Override

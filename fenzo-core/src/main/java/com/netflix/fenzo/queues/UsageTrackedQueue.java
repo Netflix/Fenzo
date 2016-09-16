@@ -34,7 +34,7 @@ import java.util.Map;
  * <UL>
  *     <LI>{@link #queueTask(QueuableTask)}</LI>
  *     <LI>{@link #launchTask(QueuableTask)}</LI>
- *     <LI>{@link #removeTask(QueuableTask)}</LI>
+ *     <LI>{@link #removeTask(String, QAttributes)}</LI>
  * </UL>
  */
 public interface UsageTrackedQueue {
@@ -103,9 +103,10 @@ public interface UsageTrackedQueue {
      * resources to it. The scheduling iteration calls this method repeatedly, until a {@code null} is returned. The
      * first call to this method marks the queue as being iterated upon for scheduling. The {@link #reset()} method
      * must be called to mark the end of the scheduling iteration, after which other queue modification methods such as
-     * {@link #queueTask(QueuableTask)}, {@link #launchTask(QueuableTask)}, and {@link #removeTask(QueuableTask)} can be
-     * called.
+     * {@link #queueTask(QueuableTask)}, {@link #launchTask(QueuableTask)}, and {@link #removeTask(String, QAttributes)}
+     * can be called.
      * @return A task to assign resources to, or {@code null} if there are no tasks left to assign resources to.
+     * @throws TaskQueueException if there was an error getting next task from the queue.
      */
     QueuableTask nextTaskToLaunch() throws TaskQueueException;
 
