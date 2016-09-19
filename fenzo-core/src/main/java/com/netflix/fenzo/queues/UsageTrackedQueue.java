@@ -126,7 +126,7 @@ public interface UsageTrackedQueue {
      * a) after assigning resources to all tasks, the scheduling loop ends and tasks are launched, or b) service is
      * initialized and tasks previously known to be running are marked as launched. Resource usage is tracked in the
      * queues, which is correctly updated only once for a task even if both {@link #assignTask(QueuableTask)} and
-     * {@link #launchTask(QueuableTask)} are called. This method indicates if the resource usage totals were updated
+     * this method are called for the same task. This method indicates if the resource usage totals were updated
      * during this call.
      * @param t The task to launch.
      * @return True if resources for this task were actually added to total usage, false if not.
@@ -153,17 +153,16 @@ public interface UsageTrackedQueue {
     double getDominantUsageShare(ResUsage parentUsage);
 
     /**
-     * Reset the queue to prepare for a new scheduling iteration.
-     * @throws TaskQueueException if there is dirty state from previous scheduling iteration.
+     * Reset the queue to mark the end of a scheduling iteration.
      */
-    void reset() throws TaskQueueException;
+    void reset();
 
     /**
      * Get list of all tasks grouped by their state. The list is expected to be consistent, without any transitionary
      * affects from an ongoing scheduling iteration.
-     * @return List of all tasks in queue as a {@link Map} with {@link TaskQueue.State} as key and {@link Collection} of
+     * @return List of all tasks in queue as a {@link Map} with {@link TaskQueue.TaskState} as key and {@link Collection} of
      * {@link QueuableTask} as values.
      * @throws TaskQueueException if called concurrently with a scheduling iteration in progress.
      */
-    Map<TaskQueue.State, Collection<QueuableTask>> getAllTasks() throws TaskQueueException;
+    Map<TaskQueue.TaskState, Collection<QueuableTask>> getAllTasks() throws TaskQueueException;
 }

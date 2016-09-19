@@ -19,12 +19,13 @@ package com.netflix.fenzo.queues;
 
 import com.netflix.fenzo.TaskIterator;
 import com.netflix.fenzo.TaskScheduler;
+import com.netflix.fenzo.functions.Action1;
 
 import java.util.Collection;
 import java.util.Map;
 
 /**
- * This interface defines a task queue that contains all tasks that are pending resource allocation or assigned
+ * This interface defines a task queue that contains all tasks that are either pending resource allocation or assigned
  * resources while continuing to run. When using task queues, tasks are input into Fenzo once. The tasks are then
  * maintained in the queue until the task is explicitly removed due to no longer requiring resource assignment, or if
  * the task completed for any reason.
@@ -34,20 +35,32 @@ import java.util.Map;
  */
 public interface TaskQueue extends TaskIterator {
 
-    enum State { QUEUED, LAUNCHED }
+    /**
+     * Tasks in a queue are said to be in one of two states. The {@link #QUEUED} state represents tasks pending
+     * resource assignment. Where as, the {@link #LAUNCHED} state represents tasks that have been assigned resources,
+     * such tasks may be either already executing or pending launch. This is used primarily for conveying the state of
+     * the tasks via the callback passed to {@link com.netflix.fenzo.TaskSchedulingService#requestAllTasks(Action1)}.
+     */
+    enum TaskState { QUEUED, LAUNCHED }
 
     /**
      * Add a task to the queue. Duplicates are not allowed, as in, a task request that has the same Id as another
      * existing element will be rejected. The added task will be assigned resources by a scheduler. To add a task
      * into Fenzo that is already running from before, use {@link TaskScheduler#getTaskAssigner()}.
+     * <P>
+     * This operation is designed to be performed asynchronously, when it is safe to modify the queue. The queue
+     * implementations generally do not modify the queue while a scheduling iteration is in progress.
      * @param task A task to add to the queue.
      */
     void queueTask(QueuableTask task);
 
     /**
-     * Remove the given task from queue. The task is removed from the queue, including the case that it is already
-     * marked as running. This must be called for all tasks that either no longer need resource assignments or if
-     * previously running tasks complete for any reason.
+     * Remove a task from queue with the given {@code taskId} and {@code qAttributes}. The task is removed from the
+     * queue, whether it is marked as queued for assignments or already marked as running. This must be called for all
+     * tasks that either no longer need resource assignments or if previously running tasks complete for any reason.
+     * <P>
+     * This operation is designed to be performed asynchronously, when it is safe to modify the queue. The queue
+     * implementations generally do not modify the queue while a scheduling iteration is in progress.
      * @param taskId The id of the task to remove.
      * @param qAttributes The queue attributes of the task to remove.
      */

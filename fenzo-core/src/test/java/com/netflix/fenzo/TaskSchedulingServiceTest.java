@@ -94,7 +94,7 @@ public class TaskSchedulingServiceTest {
         schedulingService.start();
         schedulingService.addLeases(LeaseProvider.getLeases(1, 4, 4000, 1, 10));
         queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
-        if (!latch.await(2000, TimeUnit.MILLISECONDS))
+        if (!latch.await(20000, TimeUnit.MILLISECONDS))
             Assert.fail("Did not assign resources in time");
         System.out.println();
     }
@@ -275,12 +275,12 @@ public class TaskSchedulingServiceTest {
         Assert.assertNotNull("Time out waiting for just one task to get assigned", task);
         Assert.assertEquals(tier1bktA.getBucketName(), task.getQAttributes().getBucketName());
         final CountDownLatch latch = new CountDownLatch(1);
-        final AtomicReference<Map<TaskQueue.State, Collection<QueuableTask>>> ref = new AtomicReference<>();
-        schedulingService.getAllTasks(new Action1<Map<TaskQueue.State, Collection<QueuableTask>>>() {
+        final AtomicReference<Map<TaskQueue.TaskState, Collection<QueuableTask>>> ref = new AtomicReference<>();
+        schedulingService.requestAllTasks(new Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>() {
             @Override
-            public void call(Map<TaskQueue.State, Collection<QueuableTask>> stateCollectionMap) {
+            public void call(Map<TaskQueue.TaskState, Collection<QueuableTask>> stateCollectionMap) {
                 //System.out.println("**************** Got tasks collection");
-                final Collection<QueuableTask> tasks = stateCollectionMap.get(TaskQueue.State.QUEUED);
+                final Collection<QueuableTask> tasks = stateCollectionMap.get(TaskQueue.TaskState.QUEUED);
                 //System.out.println("********* size=" + tasks.size());
 //                if (!tasks.isEmpty())
 //                    System.out.println("******** bucket: " + tasks.iterator().next().getQAttributes().getBucketName());
@@ -290,10 +290,10 @@ public class TaskSchedulingServiceTest {
         });
         if (!latch.await(1000, TimeUnit.MILLISECONDS))
             Assert.fail("Time out waiting for tasks collection");
-        final Map<TaskQueue.State, Collection<QueuableTask>> map = ref.get();
+        final Map<TaskQueue.TaskState, Collection<QueuableTask>> map = ref.get();
         Assert.assertNotNull(map);
-        Assert.assertNotNull(map.get(TaskQueue.State.QUEUED));
-        Assert.assertEquals(tier1bktD1.getBucketName(), map.get(TaskQueue.State.QUEUED).iterator().next().getQAttributes().getBucketName());
+        Assert.assertNotNull(map.get(TaskQueue.TaskState.QUEUED));
+        Assert.assertEquals(tier1bktD1.getBucketName(), map.get(TaskQueue.TaskState.QUEUED).iterator().next().getQAttributes().getBucketName());
     }
 
     // test that dominant resource share works for ordering of buckets - test by having equal resource usage among two
@@ -368,10 +368,10 @@ public class TaskSchedulingServiceTest {
         }
         final AtomicReference<String> bucketRef = new AtomicReference<>();
         final CountDownLatch latch = new CountDownLatch(1);
-        schedulingService.getAllTasks(new Action1<Map<TaskQueue.State, Collection<QueuableTask>>>() {
+        schedulingService.requestAllTasks(new Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>() {
             @Override
-            public void call(Map<TaskQueue.State, Collection<QueuableTask>> stateCollectionMap) {
-                final Collection<QueuableTask> tasks = stateCollectionMap.get(TaskQueue.State.QUEUED);
+            public void call(Map<TaskQueue.TaskState, Collection<QueuableTask>> stateCollectionMap) {
+                final Collection<QueuableTask> tasks = stateCollectionMap.get(TaskQueue.TaskState.QUEUED);
                 if (tasks != null && !tasks.isEmpty()) {
                     for (QueuableTask t : tasks)
                         bucketRef.set(t.getQAttributes().getBucketName());
@@ -432,19 +432,12 @@ public class TaskSchedulingServiceTest {
             Assert.fail("Timeout waiting for tasks list");
         }
         Assert.assertTrue("Got tasks list too late", (gotTasksAt.get() - startAt) < 2 * loopMillis);
-        startAt = System.currentTimeMillis();
-        latch = new CountDownLatch(1);
-        setupTaskGetter(schedulingService, gotTasksAt, latch);
-        if (!latch.await(maxDelay + 100L, TimeUnit.MILLISECONDS)) {
-            Assert.fail("Timeout waiting for tasks list");
-        }
-        Assert.assertTrue("Got task list too soon", (gotTasksAt.get() - startAt) > maxDelay);
     }
 
     private void setupTaskGetter(TaskSchedulingService schedulingService, final AtomicLong gotTasksAt, final CountDownLatch latch) throws TaskQueueException {
-        schedulingService.getAllTasks(new Action1<Map<TaskQueue.State, Collection<QueuableTask>>>() {
+        schedulingService.requestAllTasks(new Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>() {
             @Override
-            public void call(Map<TaskQueue.State, Collection<QueuableTask>> stateCollectionMap) {
+            public void call(Map<TaskQueue.TaskState, Collection<QueuableTask>> stateCollectionMap) {
                 gotTasksAt.set(System.currentTimeMillis());
                 latch.countDown();
             }

@@ -23,13 +23,19 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
-class TierBuckets implements UsageTrackedQueue {
+/**
+ * This class represents a tier of the multi-tiered queue that {@link TieredQueue} represents. The tier holds one or
+ * more buckets for queues, {@link QueueBucket} and maintains them in an order defined by the dynamic value for
+ * dominant resource usage via {@link SortedBuckets}. The values are dynamically updated via the implementation of
+ * {@link UsageTrackedQueue} this class provides.
+ */
+class Tier implements UsageTrackedQueue {
 
     private final int tierNumber;
     private final ResUsage totals;
     private final SortedBuckets sortedBuckets;
 
-    TierBuckets(int tierNumber) {
+    Tier(int tierNumber) {
         totals = new ResUsage();
         this.tierNumber = tierNumber;
         // TODO: need to consider the impact of this comparator to any others we may want, like simple round robin.
@@ -55,6 +61,7 @@ class TierBuckets implements UsageTrackedQueue {
         getOrCreateBucket(t).queueTask(t);
     }
 
+    @Override
     public QueuableTask nextTaskToLaunch() throws TaskQueueException {
         for (QueueBucket bucket: sortedBuckets.getSortedList()) {
             final QueuableTask task = bucket.nextTaskToLaunch();
@@ -133,18 +140,19 @@ class TierBuckets implements UsageTrackedQueue {
     }
 
     @Override
-    public void reset() throws TaskQueueException {
+    public void reset() {
         for (QueueBucket bucket: sortedBuckets.getSortedList()) {
             bucket.reset();
         }
     }
 
-    public Map<TaskQueue.State, Collection<QueuableTask>> getAllTasks() throws TaskQueueException {
-        Map<TaskQueue.State, Collection<QueuableTask>> result = new HashMap<>();
+    @Override
+    public Map<TaskQueue.TaskState, Collection<QueuableTask>> getAllTasks() throws TaskQueueException {
+        Map<TaskQueue.TaskState, Collection<QueuableTask>> result = new HashMap<>();
         for (QueueBucket bucket: sortedBuckets.getSortedList()) {
-            final Map<TaskQueue.State, Collection<QueuableTask>> allTasks = bucket.getAllTasks();
+            final Map<TaskQueue.TaskState, Collection<QueuableTask>> allTasks = bucket.getAllTasks();
             if (!allTasks.isEmpty()) {
-                for (TaskQueue.State s: TaskQueue.State.values()) {
+                for (TaskQueue.TaskState s: TaskQueue.TaskState.values()) {
                     final Collection<QueuableTask> q = allTasks.get(s);
                     if (q != null && !q.isEmpty()) {
                         Collection<QueuableTask> resQ = result.get(s);

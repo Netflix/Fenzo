@@ -17,24 +17,29 @@
 package com.netflix.fenzo.queues;
 
 /**
- * Attributes for a queue. A queue is comprised of attributes: a bucket name and a tier number. Queues are
+ * Attributes for a queue. A queue is comprised of attributes: a bucket name and a tier number. Generally, queues are
  * placed into one or more tiers, each of which have one or more buckets. The tiers and buckets can be associated with
- * some aspects of scheduling, such as for capacity guarantees.
+ * some aspects of scheduling, such as for capacity guarantees. However, queue implementations are free to interpret
+ * tier and bucket to suit their needs.
  */
 public interface QAttributes {
 
     /**
-     * Get the name of the queue's bucket name.
+     * Get the queue's bucket name.
      * @return Name of the queue's bucket.
      */
     String getBucketName();
 
     /**
-     * Tiered queues belong to a tier represented by a number. Lower numbers are ahead in the order of tiers.
+     * Get the tier number for the queue. Queues belong to a tier represented by a number. In general, lower numbers
+     * are ahead in the order of tiers.
      * @return The tier number for the corresponding queue.
      */
     int getTierNumber();
 
+    /**
+     * A convenience class for creating {@link QAttributes} instances.
+     */
     class QAttributesAdaptor implements QAttributes {
         private final int tierNumber;
         private final String bucketName;
@@ -55,6 +60,9 @@ public interface QAttributes {
         }
     }
 
+    /**
+     * A convenience class to represent the tuple of task id and {@link QAttributes}.
+     */
     class TaskIdAttributesTuple {
         private final String id;
         private final QAttributes qAttributes;

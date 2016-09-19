@@ -18,17 +18,11 @@ package com.netflix.fenzo;
 
 import com.netflix.fenzo.functions.Action0;
 import com.netflix.fenzo.functions.Action1;
-import com.netflix.fenzo.queues.InternalTaskQueue;
-import com.netflix.fenzo.queues.QueuableTask;
-import com.netflix.fenzo.queues.TaskQueue;
-import com.netflix.fenzo.queues.TaskQueueException;
+import com.netflix.fenzo.queues.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -36,24 +30,27 @@ import java.util.concurrent.atomic.AtomicLong;
  * A task scheduling service that maintains a scheduling loop to continuously assign resources to tasks pending in
  * the queue. This service maintains a scheduling loop to assign resources to tasks in the queue created when
  * constructing this service. It calls {@link TaskScheduler#scheduleOnce(TaskIterator, List)} from within its
- * scheduling loop. And, therefore, it is not allowed to call that method directly when using this service. Users of
- * this service instead add tasks into this service's queue, which are held until they are assigned. Here's a typical
- * use of this service:
+ * scheduling loop. Users of this service add tasks into this service's queue, which are held until they are assigned.
+ * Here's a typical use of this service:
  * <UL>
  *     <LI>
  *         Build a {@link TaskScheduler} using its builder, {@link TaskScheduler.Builder}.
  *     </LI>
  *     <LI>
  *         Build this service using its builder, {@link TaskSchedulingService.Builder}, providing a queue implementation
- *         such as {@link com.netflix.fenzo.queues.tiered.TieredQueue}. Specify scheduling interval and other callbacks.
+ *         from {@link com.netflix.fenzo.queues.TaskQueues}. Specify scheduling interval and other callbacks.
  *     </LI>
  *     <LI>
  *         Start the scheduling loop by calling {@link #start()}.
  *     </LI>
  *     <LI>
- *         Receive callbacks for scheduling result that give you back a {@link SchedulingResult} object. Note that it is
- *         no longer required to call {@link TaskScheduler#getTaskAssigner()} for tasks assigned in the result. This
- *         service assigns the tasks before making the result available to you via the callback.
+ *         Receive callbacks for scheduling result that provide a {@link SchedulingResult} object. Note that it is
+ *         not allowed to call {@link TaskScheduler#getTaskAssigner()} for tasks assigned in the result, they are
+ *         assigned from within this scheduling service. This service assigns the tasks before making the result
+ *         available to you via the callback. To mark tasks as running for those tasks that were running from
+ *         before this service was created, use {@link #initializeRunningTask(QueuableTask, String)}. Later, call
+ *         {@link com.netflix.fenzo.queues.TaskQueue#remove(String, QAttributes)} when tasks complete or they no
+ *         longer need resource assignments.
  *     </LI>
  * </UL>
  */
@@ -66,11 +63,14 @@ public class TaskSchedulingService {
     private final long loopIntervalMillis;
     private final Action0 preHook;
     private final BlockingQueue<VirtualMachineLease> leaseBlockingQueue = new LinkedBlockingQueue<>();
-    private final BlockingQueue<Action1<Map<TaskQueue.State, Collection<QueuableTask>>>> taskMapRequest = new LinkedBlockingQueue<>(10);
+    private final BlockingQueue<Map<String, QueuableTask>> addRunningTasksQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>> taskMapRequest = new LinkedBlockingQueue<>(10);
+    private final BlockingQueue<Action1<Map<String, Map<VMResource, Double[]>>>> resStatusRequest = new LinkedBlockingQueue<>(10);
+    private final BlockingQueue<Action1<List<VirtualMachineCurrentState>>> vmCurrStateRequest = new LinkedBlockingQueue<>(10);
     private final AtomicLong lastSchedIterationAt = new AtomicLong();
     private final long maxSchedIterDelay;
 
-    public TaskSchedulingService(Builder builder) {
+    private TaskSchedulingService(Builder builder) {
         taskScheduler = builder.taskScheduler;
         schedulingResultCallback = builder.schedulingResultCallback;
         taskQueue = builder.taskQueue;
@@ -81,6 +81,13 @@ public class TaskSchedulingService {
         maxSchedIterDelay = Math.max(builder.maxDelayMillis, loopIntervalMillis);
     }
 
+    /**
+     * Start this scheduling service. Tasks are scheduled continuously in a loop with a delay between two consecutive
+     * iterations of at least the value specified via {@link Builder#withLoopIntervalMillis(long)}, and at most delay
+     * specified via {@link Builder#withMaxDelayMillis(long)}. The delay between consecutive iterations is longer if the
+     * service notices no change since the previous iteration. Changes include additions of new tasks and additions of
+     * new leases.
+     */
     public void start() {
         executorService.scheduleWithFixedDelay(new Runnable() {
             @Override
@@ -90,6 +97,10 @@ public class TaskSchedulingService {
         }, 0, loopIntervalMillis, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Mark this scheduler as shutdown and prevent any further scheduling iterations from starting. This may let an
+     * already running scheduling iteration to complete.
+     */
     public void shutdown() {
         executorService.shutdown();
     }
@@ -110,6 +121,7 @@ public class TaskSchedulingService {
         try {
             // check if next scheduling iteration is actually needed right away
             final boolean qModified = taskQueue.reset();
+            addPendingRunningTasks();
             final boolean newLeaseExists = leaseBlockingQueue.peek() != null;
             if ( qModified || newLeaseExists || doNextIteration()) {
                 lastSchedIterationAt.set(System.currentTimeMillis());
@@ -118,16 +130,11 @@ public class TaskSchedulingService {
                 List<VirtualMachineLease> currentLeases = new ArrayList<>();
                 leaseBlockingQueue.drainTo(currentLeases);
                 final SchedulingResult schedulingResult = taskScheduler.scheduleOnce(taskQueue, currentLeases);
+                // mark end of scheduling iteration before assigning tasks.
                 taskQueue.getUsageTracker().reset();
                 assignTasks(schedulingResult, taskScheduler);
                 schedulingResultCallback.call(schedulingResult);
-                final Action1<Map<TaskQueue.State, Collection<QueuableTask>>> action = taskMapRequest.poll();
-                try {
-                    if (action != null)
-                        action.call(taskQueue.getAllTasks());
-                } catch (TaskQueueException e) {
-                    logger.warn("Unexpected when trying to get task list: " + e.getMessage(), e);
-                }
+                doPendingActions();
             }
         }
         catch (Exception e) {
@@ -135,6 +142,42 @@ public class TaskSchedulingService {
             SchedulingResult result = new SchedulingResult(null);
             result.addException(e);
             schedulingResultCallback.call(result);
+        }
+    }
+
+    private void addPendingRunningTasks() {
+        // add any pending running tasks
+        if (addRunningTasksQueue.peek() != null) {
+            List<Map<String, QueuableTask>> r = new LinkedList<>();
+            addRunningTasksQueue.drainTo(r);
+            for (Map<String, QueuableTask> m: r) {
+                for (Map.Entry<String, QueuableTask> entry: m.entrySet())
+                    taskScheduler.getTaskAssigner().call(entry.getValue(), entry.getKey());
+            }
+        }
+    }
+
+    private void doPendingActions() {
+        final Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>> action = taskMapRequest.poll();
+        try {
+            if (action != null)
+                action.call(taskQueue.getAllTasks());
+        } catch (TaskQueueException e) {
+            logger.warn("Unexpected when trying to get task list: " + e.getMessage(), e);
+        }
+        final Action1<Map<String, Map<VMResource, Double[]>>> rsAction = resStatusRequest.poll();
+        try {
+            if (rsAction != null)
+                rsAction.call(taskScheduler.getResourceStatus());
+        } catch (IllegalStateException e) {
+            logger.warn("Unexpected when trying to get resource status: " + e.getMessage(), e);
+        }
+        final Action1<List<VirtualMachineCurrentState>> vmcAction = vmCurrStateRequest.poll();
+        try {
+            if (vmcAction != null)
+                vmcAction.call(taskScheduler.getVmCurrentStatesIntl());
+        } catch (IllegalStateException e) {
+            logger.warn("Unexpected when trying to get vm current states: " + e.getMessage(), e);
         }
     }
 
@@ -146,11 +189,18 @@ public class TaskSchedulingService {
         if(!schedulingResult.getResultMap().isEmpty()) {
             for (VMAssignmentResult result: schedulingResult.getResultMap().values()) {
                 for (TaskAssignmentResult t: result.getTasksAssigned())
-                    taskScheduler.getTaskAssigner().call(t.getRequest(), result.getHostname());
+                    taskScheduler.getTaskAssignerIntl().call(t.getRequest(), result.getHostname());
             }
         }
     }
 
+    /**
+     * Add new leases to be used for next scheduling iteration. Leases with IDs previously added cannot be added
+     * again. If duplicates are found, the scheduling iteration throws an exception and is available via the
+     * scheduling result callback. See {@link TaskScheduler#scheduleOnce(List, List)} for details on behavior upon
+     * encountering an exception.
+     * @param leases New leases to use for scheduling.
+     */
     public void addLeases(List<? extends VirtualMachineLease> leases) {
         if (leases != null && !leases.isEmpty()) {
             for(VirtualMachineLease l: leases)
@@ -163,13 +213,51 @@ public class TaskSchedulingService {
      * list of queues returned is in a consistent state, that is, transitionary actions from ongoing scheduling
      * iterations do not affect the returned collection of tasks. Although an ongoing scheduling iteration is
      * unaffected by this call, onset of the next scheduling iteration may be delayed until the call to the given
-     * {@code action} returns. Therefore, it is expected that the provided {@code action} return quickly.
+     * {@code action} returns. Therefore, it is expected that the {@code action} return quickly.
      * @param action The action to call with task collection.
      * @throws TaskQueueException if too many actions are pending to get tasks collection.
      */
-    public void getAllTasks(Action1<Map<TaskQueue.State, Collection<QueuableTask>>> action) throws TaskQueueException {
+    public void requestAllTasks(Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>> action) throws TaskQueueException {
         if (!taskMapRequest.offer(action))
             throw new TaskQueueException("Too many pending actions submitted for getting tasks collection");
+    }
+
+    /**
+     * Get resource status information and call the given action when available. Although an ongoing scheduling
+     * iteration is unaffected by this call, onset of the next scheduling iteration may be delayed until the call to the
+     * given {@code action} returns. Therefore, it is expected that the {@code action} return quickly.
+     * @param action The action to call with resource status.
+     * @throws TaskQueueException if too many actions are pending to get resource status.
+     */
+    public void requestResourceStatus(Action1<Map<String, Map<VMResource, Double[]>>> action) throws TaskQueueException {
+        if (!resStatusRequest.offer(action))
+            throw new TaskQueueException("Too many pending actions submitted for getting resource status");
+    }
+
+    /**
+     * Get the current states of all known VMs and call the given action when available. Although an ongoing scheduling
+     * iteration is unaffected by this call, onset of the next scheduling iteration may be delayed until the call to the
+     * given {@code action} returns. Therefore, it is expected that the {@code action} return quickly.
+     * @param action The action to call with VM states.
+     * @throws TaskQueueException if too many actions are pending to get VM states.
+     */
+    public void requestVmCurrentStates(Action1<List<VirtualMachineCurrentState>> action) throws TaskQueueException {
+        if (!vmCurrStateRequest.offer(action))
+            throw new TaskQueueException("Too many pending actions submitted for getting VM current state");
+    }
+
+    /**
+     * Mark the given tasks as running. This is expected to be called for all tasks that were already running from before
+     * {@link com.netflix.fenzo.TaskSchedulingService} started running, for example, when the scheduling service
+     * is being started after a restart of the system and there were some tasks launched in the previous run of
+     * the system. Any tasks assigned resources during scheduling invoked by this service will be automatically marked
+     * as running.
+     * <P>
+     * @param task The task to mark as running
+     * @param hostname The name of the VM that the task is running on.
+     */
+    public void initializeRunningTask(QueuableTask task, String hostname) {
+        addRunningTasksQueue.offer(Collections.singletonMap(hostname, task));
     }
 
     public final static class Builder {
@@ -178,20 +266,42 @@ public class TaskSchedulingService {
         private Action1<SchedulingResult> schedulingResultCallback = null;
         private InternalTaskQueue taskQueue = null;
         private long loopIntervalMillis = 50;
-        private ScheduledExecutorService executorService = null;
+        private final ScheduledExecutorService executorService;
         private Action0 preHook = null;
         private long maxDelayMillis = 5000L;
 
+        public Builder() {
+            executorService = new ScheduledThreadPoolExecutor(1);
+        }
+
+        /**
+         * Use the given instance of {@link TaskScheduler} for scheduling resources. A task scheduler must be provided
+         * before this builder can create the scheduling service.
+         * @param taskScheduler The task scheduler instance to use.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskSchedulingService}.
+         */
         public Builder withTaskScheduler(TaskScheduler taskScheduler) {
             this.taskScheduler = taskScheduler;
             return this;
         }
 
+        /**
+         * Use the given callback to give scheduling results to at the end of each scheduling iteration. A callback must
+         * be provided before this builder can create the scheduling service.
+         * @param callback The action to call with scheduling results.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskSchedulingService}.
+         */
         public Builder withSchedulingResultCallback(Action1<SchedulingResult> callback) {
             this.schedulingResultCallback = callback;
             return this;
         }
 
+        /**
+         * Use the given instance of {@link com.netflix.fenzo.queues.TaskQueue} from which to get tasks to assign
+         * resource to. A task queue must be provided before this builder can create the scheduling service.
+         * @param taskQ The task queue from which to get tasks for assignment of resoruces.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskSchedulingService}.
+         */
         public Builder withTaskQuue(TaskQueue taskQ) {
             if (!(taskQ instanceof InternalTaskQueue))
                 throw new IllegalArgumentException("Argument is not a valid implementation of task queue");
@@ -199,21 +309,46 @@ public class TaskSchedulingService {
             return this;
         }
 
+        /**
+         * Use the given milli seconds as minimum delay between two consecutive scheduling iterations. Default to 50.
+         * @param loopIntervalMillis The delay between consecutive scheduling iterations in milli seconds.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskSchedulingService}.
+         */
         public Builder withLoopIntervalMillis(long loopIntervalMillis) {
             this.loopIntervalMillis = loopIntervalMillis;
             return this;
         }
 
-        public Builder withMaxDelayMillis(long maxDelay) {
-            this.maxDelayMillis = maxDelay;
+        /**
+         * Use the given milli seconds as the maximum delay between two consecutive scheduling iterations. Default to
+         * 5000. Delay between two iterations may be longer than the minimum delay specified using
+         * {@link #withLoopIntervalMillis(long)} if the service notices no changes to the queue or there are no new
+         * VM leases input.
+         * @param maxDelayMillis The maximum delay between two consecutive scheduling iterations.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskSchedulingService}.
+         */
+        public Builder withMaxDelayMillis(long maxDelayMillis) {
+            this.maxDelayMillis = maxDelayMillis;
             return this;
         }
 
+        /**
+         * Use the given action to call before starting a new scheduling iteration. This can be used, for example,
+         * to prepare for the next iteration by updating any state that user provided plugins may wish to use for
+         * constraints and fitness functions.
+         * @param preHook The callback to mark beginning of a new scheduling iteration.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskSchedulingService}.
+         */
         public Builder withPreSchedulingLoopHook(Action0 preHook) {
             this.preHook = preHook;
             return this;
         }
 
+        /**
+         * Creates a {@link TaskSchedulingService} based on the various builder methods you have chained.
+         *
+         * @return a {@code TaskSchedulingService} built according to the specifications you indicated
+         */
         public TaskSchedulingService build() {
             if (taskScheduler == null)
                 throw new NullPointerException("Null task scheduler not allowed");
@@ -221,9 +356,6 @@ public class TaskSchedulingService {
                 throw new NullPointerException("Null scheduling result callback not allowed");
             if (taskQueue == null)
                 throw new NullPointerException("Null task queue not allowed");
-            if (executorService == null) {
-                executorService = new ScheduledThreadPoolExecutor(1);
-            }
             return new TaskSchedulingService(this);
         }
     }

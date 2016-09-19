@@ -16,19 +16,12 @@
 
 package com.netflix.fenzo.queues;
 
-import com.netflix.fenzo.queues.tiered.TieredQueue;
+public class InvalidTierNumberException extends TaskQueueException {
+    public InvalidTierNumberException(int number, int total) {
+        super("Invalid tier number " + number + ", must be <" + total);
+    }
 
-/**
- * A class to create instances of various {@link TaskQueue} implementations.
- */
-public class TaskQueues {
-
-    /**
-     * Create a tiered {@link TaskQueue} with the given number of tiers.
-     * @param numTiers The number of tiers.
-     * @return A {@link TaskQueue} implementation that supports tiered queues.
-     */
-    public static TaskQueue createTieredQueue(int numTiers) {
-        return new TieredQueue(numTiers);
+    public InvalidTierNumberException(int number, int total, Throwable t) {
+        super("Invalid tier number " + number + ", must be <" + total, t);
     }
 }

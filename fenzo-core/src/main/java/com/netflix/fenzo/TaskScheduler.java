@@ -400,7 +400,9 @@ public class TaskScheduler {
     private final AtomicBoolean isShutdown = new AtomicBoolean();
     private final ResAllocsEvaluater resAllocsEvaluator;
     private final TaskTracker taskTracker;
-    private volatile boolean usingTaskIteratorOnly = false;
+    private volatile boolean usingSchedulingService = false;
+    private final IllegalStateException usingSchedSvcExcetption =
+            new IllegalStateException("Invalid call when using task scheduling service");
 
     private TaskScheduler(Builder builder) {
         if(builder.leaseRejectAction ==null)
@@ -542,6 +544,10 @@ public class TaskScheduler {
         autoScaler.removeRule(ruleName);
     }
 
+    /* package */ void setUsingSchedulingService(boolean b) {
+        usingSchedulingService = true;
+    }
+
     /**
      * Schedule a list of task requests by using any newly-added resource leases in addition to any
      * previously-unused leases. This is the main scheduling method that attempts to assign resources to task
@@ -593,8 +599,8 @@ public class TaskScheduler {
     public SchedulingResult scheduleOnce(
             List<? extends TaskRequest> requests,
             List<VirtualMachineLease> newLeases) throws IllegalStateException {
-        if (usingTaskIteratorOnly)
-            throw new IllegalStateException("Invalid call when using task iterator variant");
+        if (usingSchedulingService)
+            throw usingSchedSvcExcetption;
         final Iterator<? extends TaskRequest> iterator =
                 requests != null ?
                         requests.iterator() :
@@ -790,8 +796,16 @@ public class TaskScheduler {
      *         element of which contains the amount of the resource used and the second element contains the
      *         amount still available (available does not include used).
      * @see <a href="https://github.com/Netflix/Fenzo/wiki/Insights#how-to-learn-which-resources-are-available-on-which-hosts">How to Learn Which Resources Are Available on Which Hosts</a>
+     * @throws IllegalStateException if called concurrently with {@link #scheduleOnce(List, List)} or if called when
+     * using a {@link TaskSchedulingService}.
      */
-    public Map<String, Map<VMResource, Double[]>> getResourceStatus() {
+    public Map<String, Map<VMResource, Double[]>> getResourceStatus() throws IllegalStateException {
+        if (usingSchedulingService)
+            throw usingSchedSvcExcetption;
+        return getResourceStatusIntl();
+    }
+
+    /* package */ Map<String, Map<VMResource, Double[]>> getResourceStatusIntl() {
         try (AutoCloseable ac = stateMonitor.enter()) {
             return assignableVMs.getResourceStatus();
         } catch (Exception e) {
@@ -806,11 +820,17 @@ public class TaskScheduler {
      * to create the state information. Scheduling runs are blocked around the lock.
      * 
      * @return a list containing the current state of all known VMs
-     * @throws IllegalStateException if you call this concurrently with the main scheduling method,
-     *         {@link #scheduleOnce scheduleOnce()}
+     * @throws IllegalStateException if called concurrently with {@link #scheduleOnce(List, List)} or if called when
+     * using a {@link TaskSchedulingService}.
      * @see <a href="https://github.com/Netflix/Fenzo/wiki/Insights#how-to-learn-the-amount-of-resources-currently-available-on-particular-hosts">How to Learn the Amount of Resources Currently Available on Particular Hosts</a>
      */
     public List<VirtualMachineCurrentState> getVmCurrentStates() throws IllegalStateException {
+        if (usingSchedulingService)
+            throw usingSchedSvcExcetption;
+        return getVmCurrentStatesIntl();
+    }
+
+    /* package */ List<VirtualMachineCurrentState> getVmCurrentStatesIntl() throws IllegalStateException {
         try (AutoCloseable ac = stateMonitor.enter()) {
             return assignableVMs.getVmCurrentStates();
         }
@@ -921,6 +941,12 @@ public class TaskScheduler {
      * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
     public Action2<TaskRequest, String> getTaskAssigner() throws IllegalStateException {
+        if (usingSchedulingService)
+            throw usingSchedSvcExcetption;
+        return getTaskAssignerIntl();
+    }
+
+    /* package */Action2<TaskRequest, String> getTaskAssignerIntl() throws IllegalStateException {
         return new Action2<TaskRequest, String>() {
             @Override
             public void call(TaskRequest request, String hostname) {

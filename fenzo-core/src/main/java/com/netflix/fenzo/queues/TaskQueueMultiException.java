@@ -18,6 +18,10 @@ package com.netflix.fenzo.queues;
 
 import java.util.List;
 
+/**
+ * An exception that wraps multiple exceptions caught during a scheduling iteration of the queue, to be returned
+ * at the end of scheduling iteration.
+ */
 public class TaskQueueMultiException extends Exception {
 
     private final List<Exception> exceptions;

@@ -17,7 +17,6 @@
 package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.queues.*;
-import com.netflix.fenzo.queues.TaskQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,34 +24,53 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+/**
+ * A tiered queuing system where queues are arranged in multiple tiers and then among multiple buckets within each tier.
+ * Tiers represent coarse grain priority, in which higher tier's queues are considered for resource assignment
+ * before any of the lower tiers' queues are considered. Within a tier, multiple queues are considered for resource
+ * assignment such that their dominant resource usage shares are similar. For example, a queue bucket using 60% of the
+ * total memory in use is said to be similar in usage to another bucket using 60% of the total CPUs in use, even if the
+ * latter's memory usage is, say, only 10%. The tiers are numbered [@code 0} to {@code N-1} for {@code N} tiers, with
+ * {@code 0} being the highest priority level.
+ */
 public class TieredQueue implements InternalTaskQueue {
 
     private static final Logger logger = LoggerFactory.getLogger(TieredQueue.class);
-    private final List<TierBuckets> tiers;
-    private Iterator<TierBuckets> iterator = null;
-    private TierBuckets currTier = null;
-    private final BlockingQueue<QueuableTask> tasksToAdd;
+    private final List<Tier> tiers;
+    private Iterator<Tier> iterator = null;
+    private Tier currTier = null;
+    private final BlockingQueue<QueuableTask> tasksToQueue;
     private final BlockingQueue<QAttributes.TaskIdAttributesTuple> taskIdsToRemove;
 
+    /**
+     * Construct a tiered queue system with the given number of tiers.
+     * @param numTiers The number of tiers.
+     */
     public TieredQueue(int numTiers) {
         tiers = new ArrayList<>(numTiers);
         for ( int i=0; i<numTiers; i++ )
-            tiers.add(new TierBuckets(i));
-        tasksToAdd = new LinkedBlockingQueue<>();
+            tiers.add(new Tier(i));
+        tasksToQueue = new LinkedBlockingQueue<>();
         taskIdsToRemove = new LinkedBlockingQueue<>();
     }
 
-
     @Override
     public void queueTask(QueuableTask task) {
-        tasksToAdd.offer(task);
+        tasksToQueue.offer(task);
     }
 
     private void addInternal(QueuableTask task) throws TaskQueueException {
         final int tierNumber = task.getQAttributes().getTierNumber();
         if ( tierNumber >= tiers.size() )
-            throw new TaskQueueException("Invalid tier number, must be <" + tiers.size());
+            throw new InvalidTierNumberException(tierNumber, tiers.size());
         tiers.get(tierNumber).queueTask(task);
+    }
+
+    private void addRunningInternal(QueuableTask t) throws TaskQueueException {
+        final int number = t.getQAttributes().getTierNumber();
+        if (number >= tiers.size())
+            throw new InvalidTierNumberException(number, tiers.size());
+        tiers.get(number).launchTask(t);
     }
 
     @Override
@@ -61,10 +79,18 @@ public class TieredQueue implements InternalTaskQueue {
     }
 
     private boolean removeInternalById(String id, QAttributes qAttributes) throws TaskQueueException {
-        final TierBuckets tierBuckets = tiers.get(qAttributes.getTierNumber());
+        final Tier tierBuckets = tiers.get(qAttributes.getTierNumber());
         return tierBuckets != null && tierBuckets.removeTask(id, qAttributes) != null;
     }
 
+    /**
+     * This implementation dynamically picks the next task to consider for resource assignment based on tiers and then
+     * based on current dominant resource usage. The usage is updated with each resource assignment during the
+     * scheduling iteration, in addition to updating with all running jobs from before.
+     * @return The next task to assign resources to, or {@code null} if none remain for consideration.
+     * @throws TaskQueueException if there is an unknown error getting the next task to launch from any of the tiers or
+     * queue buckets.
+     */
     @Override
     public QueuableTask next() throws TaskQueueException {
         if (iterator == null) {
@@ -94,31 +120,34 @@ public class TieredQueue implements InternalTaskQueue {
     public boolean reset() throws TaskQueueMultiException {
         iterator = null;
         boolean queueChanged = false;
-        List<Exception> exceptions = new ArrayList<>();
-        final List<QueuableTask> toAdd = new ArrayList<>();
-        tasksToAdd.drainTo(toAdd);
-        if (!toAdd.isEmpty()) {
-            for(QueuableTask t: toAdd)
-                try {
-                    addInternal(t);
-                    queueChanged = true;
-                } catch (TaskQueueException e) {
-                    exceptions.add(e);
-                }
-        }
-        List<QAttributes.TaskIdAttributesTuple> taskIdTuples = new ArrayList<>();
-        taskIdsToRemove.drainTo(taskIdTuples);
-        if (!taskIdTuples.isEmpty()) {
-            for (QAttributes.TaskIdAttributesTuple tuple: taskIdTuples) {
-                try {
-                    if (!removeInternalById(tuple.getId(), tuple.getqAttributes())) {
-                        exceptions.add(new TaskQueueException("Task with id " + tuple.getId() + " not found to remove"));
-                    } else {
+        List<Exception> exceptions = new LinkedList<>();
+        if (tasksToQueue.peek() != null) {
+            final List<QueuableTask> toQueue = new LinkedList<>();
+            tasksToQueue.drainTo(toQueue);
+            if (!toQueue.isEmpty()) {
+                for (QueuableTask t : toQueue)
+                    try {
+                        addInternal(t);
                         queueChanged = true;
+                    } catch (TaskQueueException e) {
+                        exceptions.add(e);
                     }
-                }
-                catch (TaskQueueException e) {
-                    exceptions.add(e);
+            }
+        }
+        if (taskIdsToRemove.peek() != null) {
+            List<QAttributes.TaskIdAttributesTuple> taskIdTuples = new ArrayList<>();
+            taskIdsToRemove.drainTo(taskIdTuples);
+            if (!taskIdTuples.isEmpty()) {
+                for (QAttributes.TaskIdAttributesTuple tuple : taskIdTuples) {
+                    try {
+                        if (!removeInternalById(tuple.getId(), tuple.getqAttributes())) {
+                            exceptions.add(new TaskQueueException("Task with id " + tuple.getId() + " not found to remove"));
+                        } else {
+                            queueChanged = true;
+                        }
+                    } catch (TaskQueueException e) {
+                        exceptions.add(e);
+                    }
                 }
             }
         }
@@ -127,6 +156,12 @@ public class TieredQueue implements InternalTaskQueue {
         return queueChanged;
     }
 
+    /**
+     * This method provides a bridge to the usage tracked queues contained within the tiered queues implementation.
+     * @return Implementation for {@link UsageTrackedQueue} to account for all the queues within this tiered queue
+     * implementation. This implementation focuses on usage tracking only and therefore does not allow invoking
+     * {@link UsageTrackedQueue#nextTaskToLaunch()} and {@link UsageTrackedQueue#getAllTasks()}.
+     */
     @Override
     public UsageTrackedQueue getUsageTracker() {
         return new UsageTrackedQueue() {
@@ -161,26 +196,26 @@ public class TieredQueue implements InternalTaskQueue {
             }
 
             @Override
-            public void reset() throws TaskQueueException {
-                for(TierBuckets tb: tiers)
+            public void reset() {
+                for(Tier tb: tiers)
                     tb.reset();
             }
 
             @Override
-            public Map<TaskQueue.State, Collection<QueuableTask>> getAllTasks() {
+            public Map<TaskState, Collection<QueuableTask>> getAllTasks() {
                 throw new UnsupportedOperationException();
             }
         };
     }
 
     @Override
-    public Map<State, Collection<QueuableTask>> getAllTasks() {
-        Map<State, Collection<QueuableTask>> result = new HashMap<>();
-        for (TierBuckets tb: tiers) {
+    public Map<TaskState, Collection<QueuableTask>> getAllTasks() {
+        Map<TaskState, Collection<QueuableTask>> result = new HashMap<>();
+        for (Tier tb: tiers) {
             try {
-                final Map<State, Collection<QueuableTask>> allTasks = tb.getAllTasks();
+                final Map<TaskState, Collection<QueuableTask>> allTasks = tb.getAllTasks();
                 if (!allTasks.isEmpty()) {
-                    for (State s: State.values()) {
+                    for (TaskState s: TaskState.values()) {
                         final Collection<QueuableTask> t = allTasks.get(s);
                         if (t != null && !t.isEmpty()) {
                             Collection<QueuableTask> st = result.get(s);

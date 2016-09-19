@@ -107,17 +107,17 @@ class QueueBucket implements UsageTrackedQueue {
     }
 
     @Override
-    public void reset() throws TaskQueueException {
+    public void reset() {
         iterator = null;
     }
 
     @Override
-    public Map<TaskQueue.State, Collection<QueuableTask>> getAllTasks() throws TaskQueueException {
+    public Map<TaskQueue.TaskState, Collection<QueuableTask>> getAllTasks() throws TaskQueueException {
         if (iterator != null)
             throw new TaskQueueException("Must reset before getting list of tasks");
-        Map<TaskQueue.State, Collection<QueuableTask>> result = new HashMap<>();
-        result.put(TaskQueue.State.QUEUED, Collections.unmodifiableCollection(queuedTasks.values()));
-        result.put(TaskQueue.State.LAUNCHED, Collections.unmodifiableCollection(launchedTasks.values()));
+        Map<TaskQueue.TaskState, Collection<QueuableTask>> result = new HashMap<>();
+        result.put(TaskQueue.TaskState.QUEUED, Collections.unmodifiableCollection(queuedTasks.values()));
+        result.put(TaskQueue.TaskState.LAUNCHED, Collections.unmodifiableCollection(launchedTasks.values()));
         return result;
     }
 
