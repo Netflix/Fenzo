@@ -24,15 +24,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -505,5 +498,58 @@ public class BasicSchedulerTests {
         Assert.assertEquals(1, resultMap.values().iterator().next().getTasksAssigned().size());
     }
 
+    @Test
+    public void testOffersListInConstraintPlugin() throws Exception {
+        TaskScheduler scheduler = new TaskScheduler.Builder()
+                .withLeaseOfferExpirySecs(1000000)
+                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
+                    @Override
+                    public void call(VirtualMachineLease virtualMachineLease) {
 
+                    }
+                })
+                .build();
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<Collection<Protos.Offer>> ref = new AtomicReference<>();
+        ConstraintEvaluator c = new ConstraintEvaluator() {
+            @Override
+            public String getName() {
+                return "cEvaltr";
+            }
+
+            @Override
+            public Result evaluate(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
+                ref.set(targetVM.getAllCurrentOffers());
+                return new Result(true, "");
+            }
+        };
+        final TaskRequest t = TaskRequestProvider.getTaskRequest(1, 100, 1, Collections.singletonList(c), null);
+        SchedulingResult result = scheduler.scheduleOnce(Collections.singletonList(t), LeaseProvider.getLeases(1, 4, 4000, 1, 10));
+        Assert.assertFalse("Got no scheduling assignments", result.getResultMap().isEmpty());
+        final String hostname = result.getResultMap().keySet().iterator().next();
+        Assert.assertTrue(ref.get() != null);
+        Assert.assertEquals(1, ref.get().size());
+        ref.set(null);
+        final TaskRequest t2 = TaskRequestProvider.getTaskRequest(4, 100, 1, Collections.singletonList(c), null);
+        result = scheduler.scheduleOnce(
+                Collections.singletonList(t2),
+                Collections.singletonList(
+                        LeaseProvider.getConsumedLease(result.getResultMap().values().iterator().next())
+                )
+        );
+        Assert.assertEquals(0, result.getResultMap().size());
+        Assert.assertNotNull(ref.get());
+        Assert.assertEquals(1, ref.get().size());
+        // add another offer
+        ref.set(null);
+        result = scheduler.scheduleOnce(
+                Collections.singletonList(t2),
+                Collections.singletonList(
+                        LeaseProvider.getLeaseOffer(hostname, 4, 4000, 1, 10)
+                )
+        );
+        Assert.assertEquals(1, result.getResultMap().size());
+        Assert.assertNotNull(ref.get());
+        Assert.assertEquals(2, ref.get().size());
+    }
 }

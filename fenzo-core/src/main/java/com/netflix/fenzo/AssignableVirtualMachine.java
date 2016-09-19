@@ -778,6 +778,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     VirtualMachineCurrentState getVmCurrentState() {
+        final List<Protos.Offer> offers = new LinkedList<>();
+        for (VirtualMachineLease l: leasesMap.values()) {
+            offers.add(l.getOffer());
+        }
         return new VirtualMachineCurrentState() {
             @Override
             public String getHostname() {
@@ -791,6 +795,13 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             public VirtualMachineLease getCurrAvailableResources() {
                 return currTotalLease;
             }
+
+            @Override
+            public Collection<Protos.Offer> getAllCurrentOffers() {
+                System.out.println("****************************** ");
+                return offers;
+            }
+
             @Override
             public Collection<TaskAssignmentResult> getTasksCurrentlyAssigned() {
                 return Collections.emptyList();
@@ -807,6 +818,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     private VirtualMachineCurrentState vmCurrentState() {
+        final List<Protos.Offer> offers = new LinkedList<>();
+        for (VirtualMachineLease l: leasesMap.values()) {
+            offers.add(l.getOffer());
+        }
         return new VirtualMachineCurrentState() {
             @Override
             public String getHostname() {
@@ -820,6 +835,12 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             public VirtualMachineLease getCurrAvailableResources() {
                 return currTotalLease;
             }
+
+            @Override
+            public Collection<Protos.Offer> getAllCurrentOffers() {
+                return offers;
+            }
+
             @Override
             public Collection<TaskAssignmentResult> getTasksCurrentlyAssigned() {
                 return Collections.unmodifiableCollection(assignmentResults.values());

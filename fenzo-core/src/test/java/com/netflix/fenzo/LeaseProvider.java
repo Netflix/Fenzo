@@ -49,6 +49,7 @@ class LeaseProvider {
                                              final Map<String, Protos.Attribute> attributesMap, Map<String, Double> scalarResources) {
         final long offeredTime = System.currentTimeMillis();
         final String id = UUID.randomUUID().toString();
+        final String vmId = UUID.randomUUID().toString();
         final Map<String, Double> scalars = scalarResources==null? Collections.<String, Double>emptyMap() : scalarResources;
         return new VirtualMachineLease() {
             @Override
@@ -65,7 +66,7 @@ class LeaseProvider {
             }
             @Override
             public String getVMID() {
-                return UUID.randomUUID().toString();
+                return vmId;
             }
             @Override
             public double cpuCores() {
@@ -88,7 +89,13 @@ class LeaseProvider {
             }
             @Override
             public Protos.Offer getOffer() {
-                return null;
+                return Protos.Offer.getDefaultInstance()
+                        .toBuilder()
+                        .setId(Protos.OfferID.getDefaultInstance().toBuilder().setValue(id).build())
+                        .setHostname(hostname)
+                        .setSlaveId(Protos.SlaveID.getDefaultInstance().toBuilder().setValue(vmId).build())
+                        .setFrameworkId(Protos.FrameworkID.getDefaultInstance().toBuilder().setValue("Testing").build())
+                        .build();
             }
 
             @Override

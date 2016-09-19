@@ -16,6 +16,8 @@
 
 package com.netflix.fenzo;
 
+import org.apache.mesos.Protos;
+
 import java.util.Collection;
 import java.util.Map;
 
@@ -47,6 +49,13 @@ public interface VirtualMachineCurrentState {
      * @return a lease object that represents resources that are currently available on the host
      */
     VirtualMachineLease getCurrAvailableResources();
+
+    /**
+     * Get all offers for the VM that represent the available resources. There may be more than one offer over time
+     * if Mesos master offered partial resources for the VM multiple times.
+     * @return A collection of Mesos resource offers.
+     */
+    Collection<Protos.Offer> getAllCurrentOffers();
 
     /**
      * Get list of task assignment results for this host so far in the current scheduling run.
