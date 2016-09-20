@@ -58,7 +58,7 @@ class ShortfallEvaluator {
         // maintain the list of tasks for which we have already requested resources. So, we ask again only if we notice
         // new tasks. There can be some scenarios where a resource that we asked got used up for a task other than the one
         // we asked for. Although, this is unlikely in FIFO queuing of tasks. So, we maintain the list of tasks with a
-        // timeout and remove it from there so we catch this scenario and ask for the resources again for that task.
+        // timeout and unqueueTask it from there so we catch this scenario and ask for the resources again for that task.
 
         final HashMap<String, Integer> shortfallMap = new HashMap<>();
         if(attrKeys!=null && failures!=null && !failures.isEmpty()) {

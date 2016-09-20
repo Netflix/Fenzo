@@ -43,7 +43,7 @@ public class SchedulingResult {
     private int totalVMsCount;
     private int idleVMsCount;
 
-    SchedulingResult(Map<String, VMAssignmentResult> resultMap) {
+    public SchedulingResult(Map<String, VMAssignmentResult> resultMap) {
         this.resultMap = resultMap;
         failures = new HashMap<>();
         exceptions = new ArrayList<>();
@@ -69,7 +69,7 @@ public class SchedulingResult {
         failures.put(request, f);
     }
 
-    void addException(Exception e) {
+    public void addException(Exception e) {
         exceptions.add(e);
     }
 

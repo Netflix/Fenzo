@@ -59,10 +59,10 @@ class AutoScaleRules {
 
     /**
      * Removes an autoscale rule from the set of active rules. Pass in the name of the autoscale rule you want to
-     * remove (this is the same name that would be returned by its
+     * unqueueTask (this is the same name that would be returned by its
      * {@link AutoScaleRule#getRuleName getRuleName()} method).
      *
-     * @param ruleName the rule name of the autoscale rule you want to remove from the set of active rules
+     * @param ruleName the rule name of the autoscale rule you want to unqueueTask from the set of active rules
      */
     void remRule(String ruleName) {
         if(ruleName != null)

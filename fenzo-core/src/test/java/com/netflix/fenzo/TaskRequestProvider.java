@@ -22,31 +22,31 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-class TaskRequestProvider {
+public class TaskRequestProvider {
 
     private static final AtomicInteger id = new AtomicInteger();
 
-    static TaskRequest getTaskRequest(final double cpus, final double memory, final int ports) {
+    public static TaskRequest getTaskRequest(final double cpus, final double memory, final int ports) {
         return getTaskRequest("", cpus, memory, 0.0, ports, null, null);
     }
-    static TaskRequest getTaskRequest(final double cpus, final double memory, double network, final int ports) {
+    public static TaskRequest getTaskRequest(final double cpus, final double memory, double network, final int ports) {
         return getTaskRequest("", cpus, memory, network, ports, null, null);
     }
-    static TaskRequest getTaskRequest(final double cpus, final double memory, final int ports,
+    public static TaskRequest getTaskRequest(final double cpus, final double memory, final int ports,
                                       final List<? extends ConstraintEvaluator> hardConstraints,
                                       final List<? extends VMTaskFitnessCalculator> softConstraints) {
         return getTaskRequest("", cpus, memory, 0.0, ports, hardConstraints, softConstraints);
     }
-    static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, double network, final int ports) {
+    public static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, double network, final int ports) {
         return getTaskRequest(grpName, cpus, memory, network, ports, null, null);
     }
-    static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double network, final int ports,
+    public static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double network, final int ports,
                                       final List<? extends ConstraintEvaluator> hardConstraints,
                                       final List<? extends VMTaskFitnessCalculator> softConstraints) {
         return getTaskRequest(grpName, cpus, memory, 0, network, ports, hardConstraints, softConstraints);
     }
 
-    static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double disk,
+    public static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double disk,
                                       final double network, final int ports,
                                       final List<? extends ConstraintEvaluator> hardConstraints,
                                       final List<? extends VMTaskFitnessCalculator> softConstraints) {
@@ -54,7 +54,7 @@ class TaskRequestProvider {
                 Collections.<String, TaskRequest.NamedResourceSetRequest>emptyMap());
     }
 
-    static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double disk,
+    public static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double disk,
                                       final double network, final int ports,
                                       final List<? extends ConstraintEvaluator> hardConstraints,
                                       final List<? extends VMTaskFitnessCalculator> softConstraints,
@@ -63,7 +63,7 @@ class TaskRequestProvider {
         return getTaskRequest(grpName, cpus, memory, disk, network, ports, hardConstraints, softConstraints, resourceSets, null);
     }
 
-    static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double disk,
+    public static TaskRequest getTaskRequest(final String grpName, final double cpus, final double memory, final double disk,
                                       final double network, final int ports,
                                       final List<? extends ConstraintEvaluator> hardConstraints,
                                       final List<? extends VMTaskFitnessCalculator> softConstraints,
