@@ -46,7 +46,8 @@ public interface TaskQueue extends TaskIterator {
     /**
      * Add a task to the queue. Duplicates are not allowed, as in, a task request that has the same Id as another
      * existing element will be rejected. The added task will be assigned resources by a scheduler. To add a task
-     * into Fenzo that is already running from before, use {@link TaskScheduler#getTaskAssigner()}.
+     * into Fenzo that is already running from before, use
+     * {@link com.netflix.fenzo.TaskSchedulingService#initializeRunningTask(QueuableTask, String)}.
      * <P>
      * This operation is designed to be performed asynchronously, when it is safe to modify the queue. The queue
      * implementations generally do not modify the queue while a scheduling iteration is in progress.

@@ -545,7 +545,7 @@ public class TaskScheduler {
     }
 
     /* package */ void setUsingSchedulingService(boolean b) {
-        usingSchedulingService = true;
+        usingSchedulingService = b;
     }
 
     /**

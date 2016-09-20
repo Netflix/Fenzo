@@ -30,7 +30,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * before any of the lower tiers' queues are considered. Within a tier, multiple queues are considered for resource
  * assignment such that their dominant resource usage shares are similar. For example, a queue bucket using 60% of the
  * total memory in use is said to be similar in usage to another bucket using 60% of the total CPUs in use, even if the
- * latter's memory usage is, say, only 10%. The tiers are numbered [@code 0} to {@code N-1} for {@code N} tiers, with
+ * latter's memory usage is, say, only 10%. The tiers are numbered {@code 0} to {@code N-1} for {@code N} tiers, with
  * {@code 0} being the highest priority level.
  */
 public class TieredQueue implements InternalTaskQueue {

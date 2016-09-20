@@ -111,10 +111,10 @@ public interface UsageTrackedQueue {
     QueuableTask nextTaskToLaunch() throws TaskQueueException;
 
     /**
-     * Mark the given task to be assigned resources. Assignment is a step before launch. The resources assigned to
-     * the task are committed from the perspective of total resource usage. This method can be called only while a queue
-     * is being iterated upon, within a scheduling iteration. Calling it outside results in an exception being thrown. A
-     * call to {@link #nextTaskToLaunch()} marks the queue as being iterated on.
+     * Mark the given task to be assigned resources. Assignment is a step within a scheduling iteration. The resources
+     * assigned to the task are committed from the perspective of total resource usage. This method can be called only
+     * while a queue is being iterated upon, from within a scheduling iteration. Calling it outside of an iteration
+     * results in an exception being thrown. A call to {@link #nextTaskToLaunch()} marks the queue as being iterated on.
      * @param t The task to be marked as assigned.
      * @throws TaskQueueException if this method was called outside of a scheduling loop.
      */
@@ -159,7 +159,7 @@ public interface UsageTrackedQueue {
 
     /**
      * Get list of all tasks grouped by their state. The list is expected to be consistent, without any transitionary
-     * affects from an ongoing scheduling iteration.
+     * affects from an ongoing scheduling iteration. This must be called only from outside of a scheduling iteration.
      * @return List of all tasks in queue as a {@link Map} with {@link TaskQueue.TaskState} as key and {@link Collection} of
      * {@link QueuableTask} as values.
      * @throws TaskQueueException if called concurrently with a scheduling iteration in progress.

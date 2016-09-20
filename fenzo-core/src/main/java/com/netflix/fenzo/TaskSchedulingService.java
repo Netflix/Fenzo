@@ -75,6 +75,7 @@ public class TaskSchedulingService {
         schedulingResultCallback = builder.schedulingResultCallback;
         taskQueue = builder.taskQueue;
         taskScheduler.getTaskTracker().setUsageTrackedQueue(taskQueue.getUsageTracker());
+        taskScheduler.setUsingSchedulingService(true);
         executorService = builder.executorService;
         loopIntervalMillis = builder.loopIntervalMillis;
         preHook = builder.preHook;
@@ -198,7 +199,8 @@ public class TaskSchedulingService {
      * Add new leases to be used for next scheduling iteration. Leases with IDs previously added cannot be added
      * again. If duplicates are found, the scheduling iteration throws an exception and is available via the
      * scheduling result callback. See {@link TaskScheduler#scheduleOnce(List, List)} for details on behavior upon
-     * encountering an exception.
+     * encountering an exception. This method can be called anytime without impacting any currently running scheduling
+     * iterations. The leases will be used in the next scheduling iteration.
      * @param leases New leases to use for scheduling.
      */
     public void addLeases(List<? extends VirtualMachineLease> leases) {
@@ -213,7 +215,7 @@ public class TaskSchedulingService {
      * list of queues returned is in a consistent state, that is, transitionary actions from ongoing scheduling
      * iterations do not affect the returned collection of tasks. Although an ongoing scheduling iteration is
      * unaffected by this call, onset of the next scheduling iteration may be delayed until the call to the given
-     * {@code action} returns. Therefore, it is expected that the {@code action} return quickly.
+     * {@code action} returns. Therefore, it is expected that the {@code action} callback return quickly.
      * @param action The action to call with task collection.
      * @throws TaskQueueException if too many actions are pending to get tasks collection.
      */
@@ -225,7 +227,7 @@ public class TaskSchedulingService {
     /**
      * Get resource status information and call the given action when available. Although an ongoing scheduling
      * iteration is unaffected by this call, onset of the next scheduling iteration may be delayed until the call to the
-     * given {@code action} returns. Therefore, it is expected that the {@code action} return quickly.
+     * given {@code action} returns. Therefore, it is expected that the {@code action} callback return quickly.
      * @param action The action to call with resource status.
      * @throws TaskQueueException if too many actions are pending to get resource status.
      */
@@ -237,7 +239,7 @@ public class TaskSchedulingService {
     /**
      * Get the current states of all known VMs and call the given action when available. Although an ongoing scheduling
      * iteration is unaffected by this call, onset of the next scheduling iteration may be delayed until the call to the
-     * given {@code action} returns. Therefore, it is expected that the {@code action} return quickly.
+     * given {@code action} returns. Therefore, it is expected that the {@code action} callback return quickly.
      * @param action The action to call with VM states.
      * @throws TaskQueueException if too many actions are pending to get VM states.
      */
@@ -248,7 +250,7 @@ public class TaskSchedulingService {
 
     /**
      * Mark the given tasks as running. This is expected to be called for all tasks that were already running from before
-     * {@link com.netflix.fenzo.TaskSchedulingService} started running, for example, when the scheduling service
+     * {@link com.netflix.fenzo.TaskSchedulingService} started running. For example, when the scheduling service
      * is being started after a restart of the system and there were some tasks launched in the previous run of
      * the system. Any tasks assigned resources during scheduling invoked by this service will be automatically marked
      * as running.
