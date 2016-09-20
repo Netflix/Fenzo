@@ -1,5 +1,7 @@
 com.netflix.fenzo
 com.netflix.fenzo.functions
 com.netflix.fenzo.plugins
+com.netflix.fenzo.queues
+com.netflix.fenzo.queues.tiered
 com.netflix.fenzo.samples
 com.netflix.fenzo.sla
