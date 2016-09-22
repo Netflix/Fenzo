@@ -141,7 +141,7 @@ public class TieredQueue implements InternalTaskQueue {
                 for (QAttributes.TaskIdAttributesTuple tuple : taskIdTuples) {
                     try {
                         if (!removeInternalById(tuple.getId(), tuple.getqAttributes())) {
-                            exceptions.add(new TaskQueueException("Task with id " + tuple.getId() + " not found to remove"));
+                            logger.debug("Task with id " + tuple.getId() + " not found to remove");
                         } else {
                             queueChanged = true;
                         }
