@@ -401,8 +401,7 @@ public class TaskScheduler {
     private final ResAllocsEvaluater resAllocsEvaluator;
     private final TaskTracker taskTracker;
     private volatile boolean usingSchedulingService = false;
-    private final IllegalStateException usingSchedSvcExcetption =
-            new IllegalStateException("Invalid call when using task scheduling service");
+    private final String usingSchedSvcMesg = "Invalid call when using task scheduling service";
 
     private TaskScheduler(Builder builder) {
         if(builder.leaseRejectAction ==null)
@@ -600,7 +599,7 @@ public class TaskScheduler {
             List<? extends TaskRequest> requests,
             List<VirtualMachineLease> newLeases) throws IllegalStateException {
         if (usingSchedulingService)
-            throw usingSchedSvcExcetption;
+            throw new IllegalStateException(usingSchedSvcMesg);
         final Iterator<? extends TaskRequest> iterator =
                 requests != null ?
                         requests.iterator() :
@@ -801,7 +800,7 @@ public class TaskScheduler {
      */
     public Map<String, Map<VMResource, Double[]>> getResourceStatus() throws IllegalStateException {
         if (usingSchedulingService)
-            throw usingSchedSvcExcetption;
+            throw new IllegalStateException(usingSchedSvcMesg);
         return getResourceStatusIntl();
     }
 
@@ -826,7 +825,7 @@ public class TaskScheduler {
      */
     public List<VirtualMachineCurrentState> getVmCurrentStates() throws IllegalStateException {
         if (usingSchedulingService)
-            throw usingSchedSvcExcetption;
+            throw new IllegalStateException(usingSchedSvcMesg);
         return getVmCurrentStatesIntl();
     }
 
@@ -942,7 +941,7 @@ public class TaskScheduler {
      */
     public Action2<TaskRequest, String> getTaskAssigner() throws IllegalStateException {
         if (usingSchedulingService)
-            throw usingSchedSvcExcetption;
+            throw new IllegalStateException(usingSchedSvcMesg);
         return getTaskAssignerIntl();
     }
 
