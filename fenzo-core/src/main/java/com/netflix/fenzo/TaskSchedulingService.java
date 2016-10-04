@@ -169,7 +169,7 @@ public class TaskSchedulingService {
         final Action1<Map<String, Map<VMResource, Double[]>>> rsAction = resStatusRequest.poll();
         try {
             if (rsAction != null)
-                rsAction.call(taskScheduler.getResourceStatus());
+                rsAction.call(taskScheduler.getResourceStatusIntl());
         } catch (IllegalStateException e) {
             logger.warn("Unexpected when trying to get resource status: " + e.getMessage(), e);
         }
