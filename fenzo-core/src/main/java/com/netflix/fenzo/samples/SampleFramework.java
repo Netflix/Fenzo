@@ -266,7 +266,7 @@ public class SampleFramework {
                     final Protos.SlaveID slaveId = leasesUsed.get(0).getOffer().getSlaveId();
                     for(TaskAssignmentResult t: result.getTasksAssigned()) {
                         stringBuilder.append(t.getTaskId()).append(", ");
-                        taskInfos.add(getTaskInfo(slaveId, t.getTaskId()));
+                        taskInfos.add(getTaskInfo(slaveId, t.getTaskId(), taskCmdGetter.call(t.getTaskId())));
                         // unqueueTask task from pending tasks map and put into launched tasks map
                         // (in real world, transition the task state)
                         pendingTasksMap.remove(t.getTaskId());
@@ -284,7 +284,8 @@ public class SampleFramework {
             try{Thread.sleep(100);}catch(InterruptedException ie){}
         }
     }
-    private Protos.TaskInfo getTaskInfo(Protos.SlaveID slaveID, final String taskId) {
+
+    static Protos.TaskInfo getTaskInfo(Protos.SlaveID slaveID, final String taskId, String cmd) {
         Protos.TaskID pTaskId = Protos.TaskID.newBuilder()
                 .setValue(taskId).build();
         return Protos.TaskInfo.newBuilder()
@@ -299,7 +300,7 @@ public class SampleFramework {
                         .setName("mem")
                         .setType(Protos.Value.Type.SCALAR)
                         .setScalar(Protos.Value.Scalar.newBuilder().setValue(128)))
-                .setCommand(Protos.CommandInfo.newBuilder().setValue(taskCmdGetter.call(taskId)).build())
+                .setCommand(Protos.CommandInfo.newBuilder().setValue(cmd).build())
                 .build();
     }
 
