@@ -166,7 +166,7 @@ public class SampleQbasedScheduling {
                                     taskInfos.add(SampleFramework.getTaskInfo(
                                             e.getValue().getLeasesUsed().iterator().next().getOffer().getSlaveId(),
                                             r.getTaskId(),
-                                            "sleep 3"
+                                            "sleep 2"
                                     ));
                                 driver.launchTasks(
                                         offers,

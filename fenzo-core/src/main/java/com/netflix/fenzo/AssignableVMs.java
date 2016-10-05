@@ -337,6 +337,7 @@ class AssignableVMs {
                     case Fitness:
                     case ResAllocs:
                     case ResourceSet:
+                    case Other:
                         break;
                     default:
                         logger.error("Unknown resource type: " + res);
