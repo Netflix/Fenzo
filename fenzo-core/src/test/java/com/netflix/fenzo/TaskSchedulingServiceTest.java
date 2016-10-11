@@ -428,7 +428,7 @@ public class TaskSchedulingServiceTest {
             Assert.fail("Didn't get vm states in time");
         }
         Assert.assertTrue("Did not find task on vm", found.get());
-        schedulingService.removeTask(task, leases.get(0).hostname());
+        schedulingService.removeTask(task.getId(), task.getQAttributes(), leases.get(0).hostname());
         found.set(false);
         final CountDownLatch latch3 = new CountDownLatch(1);
         schedulingService.requestVmCurrentStates(new Action1<List<VirtualMachineCurrentState>>() {

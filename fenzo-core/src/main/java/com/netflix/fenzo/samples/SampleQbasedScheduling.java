@@ -78,7 +78,8 @@ public class SampleQbasedScheduling {
                 case TASK_LOST:
                 case TASK_FINISHED:
                     System.out.println("Task status for " + status.getTaskId().getValue() + ": " + status.getState());
-                    schedSvcGetter.get().removeTask(allTasks.get(status.getTaskId().getValue()),
+                    schedSvcGetter.get().removeTask(status.getTaskId().getValue(),
+                            allTasks.get(status.getTaskId().getValue()).getQAttributes(),
                             tasksToHostnameMap.get(status.getTaskId().getValue()));
                     numTasksCompleted.incrementAndGet();
             }
