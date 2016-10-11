@@ -29,6 +29,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -387,7 +388,68 @@ public class TaskSchedulingServiceTest {
 
     @Test
     public void testRemoveFromQueue() throws Exception {
-        // TODO
+        final CountDownLatch latch = new CountDownLatch(1);
+        TaskQueue queue = TaskQueues.createTieredQueue(2);
+        final TaskScheduler scheduler = getScheduler();
+        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
+            @Override
+            public void call(SchedulingResult schedulingResult) {
+                //System.out.println("Got scheduling result with " + schedulingResult.getResultMap().size() + " results");
+                if (schedulingResult.getResultMap().size() > 0) {
+                    //System.out.println("Assignment on host " + schedulingResult.getResultMap().values().iterator().next().getHostname());
+                    latch.countDown();
+                }
+            }
+        };
+        final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, 100L, 200L, resultCallback);
+        schedulingService.start();
+        final List<VirtualMachineLease> leases = LeaseProvider.getLeases(1, 4, 4000, 1, 10);
+        schedulingService.addLeases(leases);
+        final QueuableTask task = QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(2, 2000, 1));
+        queue.queueTask(task);
+        if (!latch.await(5, TimeUnit.SECONDS))
+            Assert.fail("Did not assign resources in time");
+        final CountDownLatch latch2 = new CountDownLatch(1);
+        final AtomicBoolean found = new AtomicBoolean();
+        schedulingService.requestVmCurrentStates(new Action1<List<VirtualMachineCurrentState>>() {
+            @Override
+            public void call(List<VirtualMachineCurrentState> states) {
+                for (VirtualMachineCurrentState s: states) {
+                    for (TaskRequest t: s.getRunningTasks()) {
+                        if (t.getId().equals(task.getId())) {
+                            found.set(true);
+                            latch2.countDown();
+                        }
+                    }
+                }
+            }
+        });
+        if (!latch2.await(5, TimeUnit.SECONDS)) {
+            Assert.fail("Didn't get vm states in time");
+        }
+        Assert.assertTrue("Did not find task on vm", found.get());
+        schedulingService.removeTask(task, leases.get(0).hostname());
+        found.set(false);
+        final CountDownLatch latch3 = new CountDownLatch(1);
+        schedulingService.requestVmCurrentStates(new Action1<List<VirtualMachineCurrentState>>() {
+            @Override
+            public void call(List<VirtualMachineCurrentState> states) {
+                for (VirtualMachineCurrentState s: states) {
+                    for (TaskRequest t: s.getRunningTasks()) {
+                        if (t.getId().equals(task.getId())) {
+                            found.set(true);
+                            latch3.countDown();
+                        }
+                    }
+                }
+                latch3.countDown();
+            }
+        });
+        if (!latch3.await(5, TimeUnit.SECONDS)) {
+            Assert.fail("Timeout waiting for vm states");
+        }
+        Assert.assertFalse("Unexpected to find removed task on vm", found.get());
+        scheduler.shutdown();
     }
 
     @Test

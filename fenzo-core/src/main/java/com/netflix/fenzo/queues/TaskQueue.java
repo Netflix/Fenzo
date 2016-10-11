@@ -54,16 +54,4 @@ public interface TaskQueue extends TaskIterator {
      * @param task A task to add to the queue.
      */
     void queueTask(QueuableTask task);
-
-    /**
-     * Remove a task from queue with the given {@code taskId} and {@code qAttributes}. The task is removed from the
-     * queue, whether it is marked as queued for assignments or already marked as running. This must be called for all
-     * tasks that either no longer need resource assignments or if previously running tasks complete for any reason.
-     * <P>
-     * This operation is designed to be performed asynchronously, when it is safe to modify the queue. The queue
-     * implementations generally do not modify the queue while a scheduling iteration is in progress.
-     * @param taskId The id of the task to remove.
-     * @param qAttributes The queue attributes of the task to remove.
-     */
-    void remove(String taskId, QAttributes qAttributes);
 }

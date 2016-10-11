@@ -49,8 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *         assigned from within this scheduling service. This service assigns the tasks before making the result
  *         available to you via the callback. To mark tasks as running for those tasks that were running from
  *         before this service was created, use {@link #initializeRunningTask(QueuableTask, String)}. Later, call
- *         {@link com.netflix.fenzo.queues.TaskQueue#remove(String, QAttributes)} when tasks complete or they no
- *         longer need resource assignments.
+ *         {@link #removeTask(QueuableTask, String)} when tasks complete or they no longer need resource assignments.
  *     </LI>
  * </UL>
  */
@@ -64,6 +63,7 @@ public class TaskSchedulingService {
     private final Action0 preHook;
     private final BlockingQueue<VirtualMachineLease> leaseBlockingQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<Map<String, QueuableTask>> addRunningTasksQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Map<QueuableTask, String>> removeTasksQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>> taskMapRequest = new LinkedBlockingQueue<>(10);
     private final BlockingQueue<Action1<Map<String, Map<VMResource, Double[]>>>> resStatusRequest = new LinkedBlockingQueue<>(10);
     private final BlockingQueue<Action1<List<VirtualMachineCurrentState>>> vmCurrStateRequest = new LinkedBlockingQueue<>(10);
@@ -123,6 +123,7 @@ public class TaskSchedulingService {
             // check if next scheduling iteration is actually needed right away
             final boolean qModified = taskQueue.reset();
             addPendingRunningTasks();
+            removeTasks();
             final boolean newLeaseExists = leaseBlockingQueue.peek() != null;
             if ( qModified || newLeaseExists || doNextIteration()) {
                 lastSchedIterationAt.set(System.currentTimeMillis());
@@ -154,6 +155,26 @@ public class TaskSchedulingService {
             for (Map<String, QueuableTask> m: r) {
                 for (Map.Entry<String, QueuableTask> entry: m.entrySet())
                     taskScheduler.getTaskAssigner().call(entry.getValue(), entry.getKey());
+            }
+        }
+    }
+
+    private void removeTasks() {
+        if (removeTasksQueue.peek() != null) {
+            List<Map<QueuableTask, String>> r = new LinkedList<>();
+            removeTasksQueue.drainTo(r);
+            for (Map<QueuableTask, String> m: r) {
+                for (Map.Entry<QueuableTask, String> e: m.entrySet()) {
+                    // remove it from the queue and call taskScheduler to unassign it if hostname is not null
+                    try {
+                        taskQueue.getUsageTracker().removeTask(e.getKey().getId(), e.getKey().getQAttributes());
+                    } catch (TaskQueueException e1) {
+                        // shouldn't happen since we're calling outside of scheduling iteration
+                        logger.warn("Unexpected to get exception outside of scheduling iteration: " + e1.getMessage(), e1);
+                    }
+                    if (e.getValue() != null)
+                        taskScheduler.getTaskUnAssigner().call(e.getKey().getId(), e.getValue());
+                }
             }
         }
     }
@@ -260,6 +281,19 @@ public class TaskSchedulingService {
      */
     public void initializeRunningTask(QueuableTask task, String hostname) {
         addRunningTasksQueue.offer(Collections.singletonMap(hostname, task));
+    }
+
+    /**
+     * Mark the task to be removed. This is expected to be called for all tasks that were added to the queue, whether or
+     * not the task is already running. If the task is running, the <code>hostname</code> parameter must be set, otherwise,
+     * it can be <code>null</code>. The actual remove operation is performed before the start of the next scheduling
+     * iteration.
+     * @param task The task to be removed.
+     * @param hostname The name of the VM where the task was assigned resources from, or, <code>null</code> if it was
+     *                 not assigned any resources.
+     */
+    public void removeTask(QueuableTask task, String hostname) {
+        removeTasksQueue.offer(Collections.singletonMap(task, hostname));
     }
 
     public final static class Builder {
