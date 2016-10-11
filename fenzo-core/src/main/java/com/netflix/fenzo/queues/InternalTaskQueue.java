@@ -27,9 +27,8 @@ import java.util.Map;
  * the queue while a scheduling iteration using this queue is in progress. Implementations must handle this. Note that,
  * it may not be sufficient for the implementations to use concurrent versions of collection classes for queue of tasks.
  * The queue must be consistent throughout the scheduling iteration. One recommended way to achieve such consistency is
- * to place the {@link #queueTask(QueuableTask)} and {@link #remove(String, QAttributes)}
- * operations as requests in a holding area within the implementation and return immediately. Later, actually carry
- * them out during the {@link #reset()} method.
+ * to place the {@link #queueTask(QueuableTask)} operations as requests in a holding area within the implementation and
+ * return immediately. Later, actually carry them out during the {@link #reset()} method.
  */
 public interface InternalTaskQueue extends TaskQueue {
     /**
@@ -41,7 +40,7 @@ public interface InternalTaskQueue extends TaskQueue {
      * adding to or removing from the queue.
      * @throws TaskQueueMultiException If any exceptions that may have occurred during resetting the pointer to the head
      * of the queue. Or, this may include exceptions that arose when applying any deferred operations from
-     * {@link #queueTask(QueuableTask)} and {@link #remove(String, QAttributes)} methods.
+     * {@link #queueTask(QueuableTask)} method.
      */
     boolean reset() throws TaskQueueMultiException;
 
