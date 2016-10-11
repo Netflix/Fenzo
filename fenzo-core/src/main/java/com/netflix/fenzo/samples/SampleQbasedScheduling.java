@@ -1,3 +1,19 @@
+/*
+ * Copyright 2016 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.netflix.fenzo.samples;
 
 import com.netflix.fenzo.*;
@@ -15,21 +31,24 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class SampleQbasedScheduling {
 
     private static class MesosScheduler implements Scheduler {
 
         private final AtomicInteger numTasksCompleted;
-        private final TaskQueue queue;
+        private final AtomicReference<TaskSchedulingService> schedSvcGetter;
         private Action1<List<Protos.Offer>> leaseAction = null;
 
-        MesosScheduler(AtomicInteger numTasksCompleted, TaskQueue queue) {
+        MesosScheduler(AtomicInteger numTasksCompleted, AtomicReference<TaskSchedulingService> schedSvcGetter) {
             this.numTasksCompleted = numTasksCompleted;
-            this.queue = queue;
+            this.schedSvcGetter = schedSvcGetter;
         }
 
         @Override
@@ -59,7 +78,8 @@ public class SampleQbasedScheduling {
                 case TASK_LOST:
                 case TASK_FINISHED:
                     System.out.println("Task status for " + status.getTaskId().getValue() + ": " + status.getState());
-                    queue.remove(status.getTaskId().getValue(), qAttribs);
+                    schedSvcGetter.get().removeTask(allTasks.get(status.getTaskId().getValue()),
+                            tasksToHostnameMap.get(status.getTaskId().getValue()));
                     numTasksCompleted.incrementAndGet();
             }
         }
@@ -92,6 +112,9 @@ public class SampleQbasedScheduling {
 
     private final static QAttributes qAttribs = new QAttributes.QAttributesAdaptor(0, "onlyBucket");
 
+    private final static ConcurrentMap<String, QueuableTask> allTasks = new ConcurrentHashMap<>();
+    private final static ConcurrentMap<String, String> tasksToHostnameMap = new ConcurrentHashMap<>();
+
     /**
      * This is the main method of this sample framework. It showcases how to use Fenzo queues for scheduling. It creates
      * some number of tasks and launches them into Mesos using the Mesos built-in command executor. The tasks launched
@@ -123,7 +146,8 @@ public class SampleQbasedScheduling {
         final TaskQueue queue = TaskQueues.createTieredQueue(2);
 
         // Create our Mesos scheduler callback implementation
-        final MesosScheduler mesosSchedulerCallback = new MesosScheduler(numTasksCompleted, queue);
+        AtomicReference<TaskSchedulingService> schedSvcGetter = new AtomicReference<>();
+        final MesosScheduler mesosSchedulerCallback = new MesosScheduler(numTasksCompleted, schedSvcGetter);
 
         // create Mesos driver
         Protos.FrameworkInfo framework = Protos.FrameworkInfo.newBuilder()
@@ -162,12 +186,14 @@ public class SampleQbasedScheduling {
                                 for (VirtualMachineLease l: e.getValue().getLeasesUsed())
                                     offers.add(l.getOffer().getId());
                                 List<Protos.TaskInfo> taskInfos = new ArrayList<Protos.TaskInfo>();
-                                for (TaskAssignmentResult r: e.getValue().getTasksAssigned())
+                                for (TaskAssignmentResult r: e.getValue().getTasksAssigned()) {
                                     taskInfos.add(SampleFramework.getTaskInfo(
                                             e.getValue().getLeasesUsed().iterator().next().getOffer().getSlaveId(),
                                             r.getTaskId(),
                                             "sleep 2"
                                     ));
+                                    tasksToHostnameMap.put(r.getTaskId(), r.getHostname());
+                                }
                                 driver.launchTasks(
                                         offers,
                                         taskInfos
@@ -177,6 +203,7 @@ public class SampleQbasedScheduling {
                     }
                 })
                 .build();
+        schedSvcGetter.set(schedulingService);
 
         // set up action in our scheduler callback to send resource offers into our scheduling service
         mesosSchedulerCallback.leaseAction = new Action1<List<Protos.Offer>>() {
@@ -199,8 +226,11 @@ public class SampleQbasedScheduling {
         }.start();
 
         // submit some tasks
-        for (int i=0; i<numTasks; i++)
-            queue.queueTask(getTask(i));
+        for (int i=0; i<numTasks; i++) {
+            final QueuableTask task = getTask(i);
+            allTasks.put(task.getId(), task);
+            queue.queueTask(task);
+        }
 
         // wait for tasks to complete
         while (numTasksCompleted.get() < numTasks) {

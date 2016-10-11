@@ -40,7 +40,6 @@ public class TieredQueue implements InternalTaskQueue {
     private Iterator<Tier> iterator = null;
     private Tier currTier = null;
     private final BlockingQueue<QueuableTask> tasksToQueue;
-    private final BlockingQueue<QAttributes.TaskIdAttributesTuple> taskIdsToRemove;
 
     /**
      * Construct a tiered queue system with the given number of tiers.
@@ -51,7 +50,6 @@ public class TieredQueue implements InternalTaskQueue {
         for ( int i=0; i<numTiers; i++ )
             tiers.add(new Tier(i));
         tasksToQueue = new LinkedBlockingQueue<>();
-        taskIdsToRemove = new LinkedBlockingQueue<>();
     }
 
     @Override
@@ -71,16 +69,6 @@ public class TieredQueue implements InternalTaskQueue {
         if (number >= tiers.size())
             throw new InvalidTierNumberException(number, tiers.size());
         tiers.get(number).launchTask(t);
-    }
-
-    @Override
-    public void remove(final String taskId, final QAttributes qAttributes) {
-        taskIdsToRemove.offer(new QAttributes.TaskIdAttributesTuple(taskId, qAttributes));
-    }
-
-    private boolean removeInternalById(String id, QAttributes qAttributes) throws TaskQueueException {
-        final Tier tierBuckets = tiers.get(qAttributes.getTierNumber());
-        return tierBuckets != null && tierBuckets.removeTask(id, qAttributes) != null;
     }
 
     /**
@@ -132,23 +120,6 @@ public class TieredQueue implements InternalTaskQueue {
                     } catch (TaskQueueException e) {
                         exceptions.add(e);
                     }
-            }
-        }
-        if (taskIdsToRemove.peek() != null) {
-            List<QAttributes.TaskIdAttributesTuple> taskIdTuples = new ArrayList<>();
-            taskIdsToRemove.drainTo(taskIdTuples);
-            if (!taskIdTuples.isEmpty()) {
-                for (QAttributes.TaskIdAttributesTuple tuple : taskIdTuples) {
-                    try {
-                        if (!removeInternalById(tuple.getId(), tuple.getqAttributes())) {
-                            logger.debug("Task with id " + tuple.getId() + " not found to remove");
-                        } else {
-                            queueChanged = true;
-                        }
-                    } catch (TaskQueueException e) {
-                        exceptions.add(e);
-                    }
-                }
             }
         }
         if (!exceptions.isEmpty())
