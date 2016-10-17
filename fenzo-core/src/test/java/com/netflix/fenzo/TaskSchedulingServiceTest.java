@@ -496,6 +496,45 @@ public class TaskSchedulingServiceTest {
         Assert.assertTrue("Got tasks list too late", (gotTasksAt.get() - startAt) < 2 * loopMillis);
     }
 
+    @Test
+    public void testInitWithPrevRunningTasks() throws Exception {
+        TaskQueue queue = TaskQueues.createTieredQueue(2);
+        final TaskScheduler scheduler = getScheduler();
+        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
+            @Override
+            public void call(SchedulingResult schedulingResult) {
+                // no-op
+            }
+        };
+        final long maxDelay = 500L;
+        final long loopMillis = 50L;
+        final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, loopMillis, maxDelay, resultCallback);
+        schedulingService.start();
+        final String hostname = "hostA";
+        schedulingService.initializeRunningTask(
+                QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1)),
+                hostname
+        );
+        final AtomicReference<String> ref = new AtomicReference<>();
+        final CountDownLatch latch = new CountDownLatch(1);
+        schedulingService.requestVmCurrentStates(
+                new Action1<List<VirtualMachineCurrentState>>() {
+                    @Override
+                    public void call(List<VirtualMachineCurrentState> states) {
+                        if (states != null && !states.isEmpty()) {
+                            final VirtualMachineCurrentState state = states.iterator().next();
+                            ref.set(state.getHostname());
+                        }
+                        latch.countDown();
+                    }
+                }
+        );
+        if (!latch.await(maxDelay * 2, TimeUnit.MILLISECONDS)) {
+            Assert.fail("Timeout waiting for vm states");
+        }
+        Assert.assertEquals(hostname, ref.get());
+    }
+
     private void setupTaskGetter(TaskSchedulingService schedulingService, final AtomicLong gotTasksAt, final CountDownLatch latch) throws TaskQueueException {
         schedulingService.requestAllTasks(new Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>() {
             @Override

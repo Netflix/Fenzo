@@ -168,7 +168,7 @@ public class TaskSchedulingService {
             addRunningTasksQueue.drainTo(r);
             for (Map<String, QueuableTask> m: r) {
                 for (Map.Entry<String, QueuableTask> entry: m.entrySet())
-                    taskScheduler.getTaskAssigner().call(entry.getValue(), entry.getKey());
+                    taskScheduler.getTaskAssignerIntl().call(entry.getValue(), entry.getKey());
             }
         }
     }
