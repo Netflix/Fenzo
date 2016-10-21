@@ -353,21 +353,21 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     int expireLimitedLeases(AssignableVMs.VMRejectLimiter vmRejectLimiter) {
         if(singleLeaseMode)
             return 0;
-        int rejected=0;
-        Iterator<Map.Entry<String,VirtualMachineLease>> iterator = leasesMap.entrySet().iterator();
         long now = System.currentTimeMillis();
-        while(iterator.hasNext()) {
-            VirtualMachineLease l = iterator.next().getValue();
-            if(l.getOfferedTime() < (now - leaseOfferExpirySecs*1000) && vmRejectLimiter.reject()) {
-                leaseIdToHostnameMap.remove(l.getId());
-                if(logger.isDebugEnabled())
-                    logger.debug(getHostname() + ": expiring lease offer id " + l.getId());
-                leaseRejectAction.call(l);
-                iterator.remove();
-                rejected++;
+        for (VirtualMachineLease l: leasesMap.values()) {
+            if (l.getOfferedTime() < (now - leaseOfferExpirySecs * 1000) && vmRejectLimiter.reject()) {
+                for (VirtualMachineLease vml: leasesMap.values()) {
+                    leaseIdToHostnameMap.remove(vml.getId());
+                    if(logger.isDebugEnabled())
+                        logger.debug(getHostname() + ": expiring lease offer id " + l.getId());
+                    leaseRejectAction.call(vml);
+                }
+                int size = leasesMap.values().size();
+                leasesMap.clear();
+                return size;
             }
         }
-        return rejected;
+        return 0;
     }
 
     String getCurrVMId() {
