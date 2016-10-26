@@ -18,6 +18,7 @@ package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.TaskRequestProvider;
 import com.netflix.fenzo.queues.QAttributes;
+import com.netflix.fenzo.queues.QueuableTask;
 import com.netflix.fenzo.queues.UsageTrackedQueue;
 import org.junit.Assert;
 import org.junit.Test;
@@ -61,7 +62,7 @@ public class SortedBucketsTest {
         final List<QueueBucket> sortedList = sortedBuckets.getSortedList();
         QueueBucket prev = sortedList.get(0);
         for (int i=1; i<sortedList.size(); i++) {
-            Assert.assertTrue(prev.getDominantUsageShare(parentUsage) <= sortedList.get(i).getDominantUsageShare(parentUsage));
+            Assert.assertTrue(prev.getDominantUsageShare() <= sortedList.get(i).getDominantUsageShare());
             prev = sortedList.get(i);
         }
     }

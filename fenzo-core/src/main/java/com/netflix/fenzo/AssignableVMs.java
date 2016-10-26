@@ -66,6 +66,7 @@ class AssignableVMs {
     private final TaskTracker taskTracker;
     private final String attrNameToGroupMaxResources;
     private final Map<String, Map<VMResource, Double>> maxResourcesMap;
+    private final Map<VMResource, Double> totalResourcesMap;
     private final VMRejectLimiter vmRejectLimiter;
     private final AssignableVirtualMachine dummyVM = new AssignableVirtualMachine(null, null, "", null, 0L, null) {
         @Override
@@ -87,6 +88,7 @@ class AssignableVMs {
         this.leaseOfferExpirySecs = leaseOfferExpirySecs;
         this.attrNameToGroupMaxResources = attrNameToGroupMaxResources;
         maxResourcesMap = new HashMap<>();
+        totalResourcesMap = new HashMap<>();
         vmRejectLimiter = new VMRejectLimiter(maxOffersToReject, leaseOfferExpirySecs);  // ToDo make this configurable?
         activeVmGroups = new ActiveVmGroups();
         this.singleLeaseMode = singleLeaseMode;
@@ -214,11 +216,12 @@ class AssignableVMs {
         List<AssignableVirtualMachine> vms = new ArrayList<>();
         taskTracker.clearAssignedTasks();
         vmRejectLimiter.reset();
+        resetTotalResources();
         // ToDo make this parallel maybe?
         for(Map.Entry<String, AssignableVirtualMachine> entry: virtualMachinesMap.entrySet()) {
             AssignableVirtualMachine avm = entry.getValue();
             avm.prepareForScheduling();
-            if(isInActiveVmGroup(entry.getValue()) && entry.getValue().isAssignableNow()) {
+            if(isInActiveVmGroup(avm) && avm.isAssignableNow()) {
                 // for now, only add it if it is available right now
                 if(logger.isDebugEnabled())
                     logger.debug("Host " + avm.getHostname() + " available for assignments");
@@ -227,9 +230,29 @@ class AssignableVMs {
             else if(logger.isDebugEnabled())
                 logger.debug("Host " + avm.getHostname() + " not available for assignments");
             saveMaxResources(avm);
+            if (isInActiveVmGroup(avm) && !avm.isDisabled())
+                addTotalResources(avm);
         }
+        taskTracker.setTotalResources(totalResourcesMap);
         //Collections.sort(vms);
         return vms;
+    }
+
+    private void resetTotalResources() {
+        totalResourcesMap.clear();
+    }
+
+    private void addTotalResources(AssignableVirtualMachine avm) {
+        final Map<VMResource, Double> maxResources = avm.getMaxResources();
+        for (VMResource r: maxResources.keySet()) {
+            Double v = maxResources.get(r);
+            if (v != null) {
+                if (totalResourcesMap.get(r) == null)
+                    totalResourcesMap.put(r, v);
+                else
+                    totalResourcesMap.put(r, totalResourcesMap.get(r) + v);
+            }
+        }
     }
 
     private void removeExpiredLeases() {

@@ -344,7 +344,7 @@ public class TaskSchedulingServiceTest {
         // now submit a task from A to use 1 CPU and 10 MB memory and another task from B to use 1 CPU and 4000 MB memory
         // ensure that they are assigned on a new VM
         queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 10, 1)));
-        queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktB, TaskRequestProvider.getTaskRequest(1, 4000, 1)));
+        queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktB, TaskRequestProvider.getTaskRequest(1, 7000, 1)));
         leases = LeaseProvider.getLeases(2, 1, 8, 8000, 1, 100);
         schedulingService.addLeases(leases);
         if (!unqueueTaskResults(2, assignmentResults))
@@ -353,7 +353,7 @@ public class TaskSchedulingServiceTest {
         queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 10, 1)));
         if (!unqueueTaskResults(1, assignmentResults))
             Assert.fail("Timeout waiting for 1 task assignment");
-        // we now have 3 CPUs and 4020 MB memory being used out of 8 and 8000 respectively
+        // we now have 3 CPUs and 7020 MB memory being used out of 8 and 8000 respectively
         // now submit 5 tasks from A with 1 CPU, 1 memory each to possibly fill the host as well as a task from B with 1 CPU, 1000 memory.
         // ensure that only the tasks from A get assigned and that the task from B stays queued
         for (int i=0; i<5; i++)
@@ -533,6 +533,78 @@ public class TaskSchedulingServiceTest {
             Assert.fail("Timeout waiting for vm states");
         }
         Assert.assertEquals(hostname, ref.get());
+    }
+
+    // Test with a large number of tasks captured from a run that caused problems to tier buckets' sorting. Ensure that
+    //
+    @Test
+    public void testLargeTasksToInitInRunningState() throws Exception {
+        final List<SampleLargeNumTasksToInit.Task> runningTasks = SampleLargeNumTasksToInit.getSampleTasksInRunningState();
+        System.out.println("GOT " + runningTasks.size() + " tasks");
+        TaskQueue queue = TaskQueues.createTieredQueue(2);
+        final TaskScheduler scheduler = getScheduler();
+        final CountDownLatch latch = new CountDownLatch(6);
+        final AtomicReference<List<Exception>> ref = new AtomicReference<>();
+        final AtomicBoolean printFailures = new AtomicBoolean();
+        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
+            @Override
+            public void call(SchedulingResult schedulingResult) {
+                final List<Exception> exceptions = schedulingResult.getExceptions();
+                if (exceptions != null && !exceptions.isEmpty())
+                    ref.set(exceptions);
+                else if (!schedulingResult.getResultMap().isEmpty())
+                    System.out.println("#Assignments: " + schedulingResult.getResultMap().values().iterator().next().getTasksAssigned().size());
+                else if(printFailures.get()) {
+                    final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
+                    if (!failures.isEmpty()) {
+                        for (Map.Entry<TaskRequest, List<TaskAssignmentResult>> entry: failures.entrySet()) {
+                            System.out.println("       Failure for " + entry.getKey().getId() + ":");
+                            for(TaskAssignmentResult r: entry.getValue())
+                                System.out.println("            " + r.toString());
+                        }
+                    }
+                }
+                latch.countDown();
+            }
+        };
+        final long maxDelay = 100L;
+        final long loopMillis = 20L;
+        final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, loopMillis, maxDelay, resultCallback);
+        Map<String, SampleLargeNumTasksToInit.Task> uniqueTasks = new HashMap<>();
+        for(SampleLargeNumTasksToInit.Task t: runningTasks) {
+            if (!uniqueTasks.containsKey(t.getBucket()))
+                uniqueTasks.put(t.getBucket(), t);
+            schedulingService.initializeRunningTask(SampleLargeNumTasksToInit.toQueuableTask(t), t.getHost());
+        }
+        schedulingService.start();
+        // add a few new tasks
+        int id=0;
+        for(SampleLargeNumTasksToInit.Task t: uniqueTasks.values()) {
+            queue.queueTask(
+                    SampleLargeNumTasksToInit.toQueuableTask(
+                            new SampleLargeNumTasksToInit.Task("newTask-" + id++, t.getBucket(), t.getTier(), t.getCpu(), t.getMemory(), t.getNetworkMbps(), t.getDisk(), null)
+                    )
+            );
+        }
+        schedulingService.addLeases(LeaseProvider.getLeases(1000, 1, 32, 500000, 2000, 0, 100));
+        Thread.sleep(loopMillis*2);
+        printFailures.set(true);
+        if (!latch.await(1000, TimeUnit.MILLISECONDS)) {
+            Assert.fail("Unexpected to not get enough sched iterations done");
+        }
+
+        final List<Exception> exceptions = ref.get();
+        if (exceptions != null) {
+            for(Exception e: exceptions) {
+                if (e instanceof TaskQueueMultiException) {
+                    for (Exception ee : ((TaskQueueMultiException) e).getExceptions())
+                        ee.printStackTrace();
+                }
+                else
+                    e.printStackTrace();
+            }
+        }
+        Assert.assertNull(exceptions);
     }
 
     private void setupTaskGetter(TaskSchedulingService schedulingService, final AtomicLong gotTasksAt, final CountDownLatch latch) throws TaskQueueException {

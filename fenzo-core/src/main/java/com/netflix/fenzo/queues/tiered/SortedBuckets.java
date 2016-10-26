@@ -50,7 +50,7 @@ class SortedBuckets {
         comparator = new Comparator<QueueBucket>() {
             @Override
             public int compare(QueueBucket o1, QueueBucket o2) {
-                return Double.compare(o1.getDominantUsageShare(parentUsage), o2.getDominantUsageShare(parentUsage));
+                return Double.compare(o1.getDominantUsageShare(), o2.getDominantUsageShare());
             }
         };
         this.parentUsage = parentUsage;
@@ -78,9 +78,9 @@ class SortedBuckets {
         // interested in (with the same name) may be the same one or it may be to the left or right a few positions.
         int remPos = buckets.get(index).getName().equals(bucketName)? index : -1;
         if (remPos < 0)
-            remPos = findWalkingLeft(buckets, index, bucketName, bucket.getDominantUsageShare(parentUsage));
+            remPos = findWalkingLeft(buckets, index, bucketName, bucket.getDominantUsageShare());
         if (remPos < 0)
-            remPos = findWalkingRight(buckets, index, bucketName, bucket.getDominantUsageShare(parentUsage));
+            remPos = findWalkingRight(buckets, index, bucketName, bucket.getDominantUsageShare());
         if (remPos < 0)
             throw new IllegalStateException("Unexpected: bucket with name=" + bucketName + " not found to remove");
         buckets.remove(remPos);
@@ -94,7 +94,7 @@ class SortedBuckets {
 
     private int findWalkingRight(List<QueueBucket> buckets, int index, String bucketName, double dominantUsageShare) {
         int pos = index;
-        while (++pos < buckets.size() && buckets.get(pos).getDominantUsageShare(parentUsage) == dominantUsageShare) {
+        while (++pos < buckets.size() && buckets.get(pos).getDominantUsageShare() == dominantUsageShare) {
             if (buckets.get(pos).getName().equals(bucketName))
                 return pos;
         }
@@ -103,7 +103,7 @@ class SortedBuckets {
 
     private int findWalkingLeft(List<QueueBucket> buckets, int index, String bucketName, double dominantUsageShare) {
         int pos = index;
-        while (--pos >= 0 && buckets.get(pos).getDominantUsageShare(parentUsage) == dominantUsageShare) {
+        while (--pos >= 0 && buckets.get(pos).getDominantUsageShare() == dominantUsageShare) {
             if (buckets.get(pos).getName().equals(bucketName))
                 return pos;
         }
@@ -119,5 +119,13 @@ class SortedBuckets {
 
     List<QueueBucket> getSortedList() {
         return Collections.unmodifiableList(buckets);
+    }
+
+    void resort() {
+        List<QueueBucket> old = new ArrayList<>(buckets);
+        bucketMap.clear();
+        buckets.clear();
+        for(QueueBucket b: old)
+            add(b);
     }
 }

@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo.queues.tiered;
 
+import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,7 @@ class QueueBucket implements UsageTrackedQueue {
     // that scheduler's taskTracker will trigger call into assignTask() during the scheduling iteration.
     private final LinkedHashMap<String, QueuableTask> assignedTasks;
     private Iterator<Map.Entry<String, QueuableTask>> iterator = null;
+    private Map<VMResource, Double> totalResourcesMap = Collections.emptyMap();
 
     QueueBucket(int tierNumber, String name) {
         this.tierNumber = tierNumber;
@@ -118,8 +120,8 @@ class QueueBucket implements UsageTrackedQueue {
     }
 
     @Override
-    public double getDominantUsageShare(ResUsage parentUsage) {
-        return totals.getDominantUsageShareFrom(parentUsage);
+    public double getDominantUsageShare() {
+        return totals.getDominantResUsageFrom(totalResourcesMap);
     }
 
     @Override
@@ -135,6 +137,11 @@ class QueueBucket implements UsageTrackedQueue {
         result.put(TaskQueue.TaskState.QUEUED, Collections.unmodifiableCollection(queuedTasks.values()));
         result.put(TaskQueue.TaskState.LAUNCHED, Collections.unmodifiableCollection(launchedTasks.values()));
         return result;
+    }
+
+    @Override
+    public void setTotalResources(Map<VMResource, Double> totalResourcesMap) {
+        this.totalResourcesMap = totalResourcesMap;
     }
 
     int size() {

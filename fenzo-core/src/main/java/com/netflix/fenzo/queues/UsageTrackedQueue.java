@@ -16,6 +16,8 @@
 
 package com.netflix.fenzo.queues;
 
+import com.netflix.fenzo.VMResource;
+
 import java.util.Collection;
 import java.util.Map;
 
@@ -75,17 +77,18 @@ public interface UsageTrackedQueue {
             return disk;
         }
 
-        public double getDominantUsageShareFrom(ResUsage totals) {
-            double max = totals.cpus == 0.0? cpus : cpus / totals.cpus;
-            double tmp = totals.memory == 0.0? memory : memory / totals.memory;
-            if (tmp > max)
-                max = tmp;
-            tmp = totals.networkMbps == 0.0? networkMbps : networkMbps / totals.networkMbps;
-            if (tmp > max)
-                max = tmp;
-            tmp = totals.disk == 0.0? disk : disk / totals.disk;
-            if (tmp > max)
-                max = tmp;
+        public double getDominantResUsageFrom(Map<VMResource, Double> totals) {
+            Double tval = totals.get(VMResource.CPU);
+            double max = tval != null && tval > 0.0? cpus / tval : cpus;
+            tval = totals.get(VMResource.Memory);
+            double tmp = tval != null && tval > 0.0? memory / tval : memory;
+            max = Math.max(max, tmp);
+            tval = totals.get(VMResource.Network);
+            tmp = tval != null && tval > 0.0? networkMbps / tval : networkMbps;
+            max = Math.max(max, tmp);
+            tval = totals.get(VMResource.Disk);
+            tmp = tval != null && tval > 0.0? disk / tval : disk;
+            max = Math.max(max, tmp);
             return max;
         }
     }
@@ -146,11 +149,10 @@ public interface UsageTrackedQueue {
     QueuableTask removeTask(String id, QAttributes qAttributes) throws TaskQueueException;
 
     /**
-     * Get the usage of the dominant resource, expressed as a share within the given parent entity's usage.
-     * @param parentUsage The resource usage of the parent entity.
-     * @return The dominant resource usage as a share of the given parent entity's usage.
+     * Get the usage of the dominant resource, expressed as a share of the total known available resources.
+     * @return The dominant resource usage.
      */
-    double getDominantUsageShare(ResUsage parentUsage);
+    double getDominantUsageShare();
 
     /**
      * Reset the queue to mark the end of a scheduling iteration.
@@ -165,4 +167,11 @@ public interface UsageTrackedQueue {
      * @throws TaskQueueException if called concurrently with a scheduling iteration in progress.
      */
     Map<TaskQueue.TaskState, Collection<QueuableTask>> getAllTasks() throws TaskQueueException;
+
+    /**
+     * Set the map of total resources available. This is required to evaluate the dominant resource share used that may
+     * be used by some queue implementations for fair share purposes.
+     * @param totalResourcesMap Map of total resources to set.
+     */
+    void setTotalResources(Map<VMResource, Double> totalResourcesMap);
 }

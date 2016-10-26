@@ -222,4 +222,9 @@ public class TaskTracker {
     TaskGroupUsage getUsage(String taskGroupName) {
         return taskGroupUsages.get(taskGroupName);
     }
+
+    void setTotalResources(Map<VMResource, Double> totalResourcesMap) {
+        if (usageTrackedQueue != null)
+            usageTrackedQueue.setTotalResources(totalResourcesMap);
+    }
 }

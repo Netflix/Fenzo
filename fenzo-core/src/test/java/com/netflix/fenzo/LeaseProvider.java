@@ -116,7 +116,7 @@ class LeaseProvider {
     static VirtualMachineLease getLeaseOffer(final String hostname, final double cpus, final double memory,
                                              final double network, final List<VirtualMachineLease.Range> portRanges,
                                              final Map<String, Protos.Attribute> attributesMap) {
-        return getLeaseOffer(hostname, cpus, memory, 1, network, portRanges, attributesMap);
+        return getLeaseOffer(hostname, cpus, memory, 500000, network, portRanges, attributesMap);
     }
 
     static VirtualMachineLease getLeaseOffer(final String hostname, final double cpus,

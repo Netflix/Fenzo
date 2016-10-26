@@ -426,7 +426,11 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     boolean isAssignableNow() {
-        return (System.currentTimeMillis()>disabledUntil) && !leasesMap.isEmpty();
+        return !isDisabled() && !leasesMap.isEmpty();
+    }
+
+    boolean isDisabled() {
+        return System.currentTimeMillis() < disabledUntil;
     }
 
     void setAssignedTask(TaskRequest request) {
