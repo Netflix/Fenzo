@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo.queues.tiered;
 
+import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,7 +163,7 @@ public class TieredQueue implements InternalTaskQueue {
             }
 
             @Override
-            public double getDominantUsageShare(ResUsage parentUsage) {
+            public double getDominantUsageShare() {
                 return 0.0;
             }
 
@@ -175,6 +176,12 @@ public class TieredQueue implements InternalTaskQueue {
             @Override
             public Map<TaskState, Collection<QueuableTask>> getAllTasks() {
                 throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void setTotalResources(Map<VMResource, Double> totalResourcesMap) {
+                for (Tier t: tiers)
+                    t.setTotalResources(totalResourcesMap);
             }
         };
     }

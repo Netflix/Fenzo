@@ -18,6 +18,7 @@ package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.TaskRequestProvider;
 import com.netflix.fenzo.queues.QAttributes;
+import com.netflix.fenzo.queues.QueuableTask;
 import com.netflix.fenzo.queues.UsageTrackedQueue;
 import org.junit.Assert;
 import org.junit.Test;
@@ -61,9 +62,37 @@ public class SortedBucketsTest {
         final List<QueueBucket> sortedList = sortedBuckets.getSortedList();
         QueueBucket prev = sortedList.get(0);
         for (int i=1; i<sortedList.size(); i++) {
-            Assert.assertTrue(prev.getDominantUsageShare(parentUsage) <= sortedList.get(i).getDominantUsageShare(parentUsage));
+            Assert.assertTrue(prev.getDominantUsageShare() <= sortedList.get(i).getDominantUsageShare());
             prev = sortedList.get(i);
         }
+    }
+
+    @Test
+    public void testDominantResourceUsageRebalancing() throws Exception {
+        TieredQueue queue = new TieredQueue(3);
+        QAttributes bucketA = new QAttributes.QAttributesAdaptor(0, "A");
+        QAttributes bucketB = new QAttributes.QAttributesAdaptor(0, "B");
+        QAttributes bucketC = new QAttributes.QAttributesAdaptor(0, "C");
+
+        QueuableTask taskA = QueuableTaskProvider.wrapTask(bucketA, TaskRequestProvider.getTaskRequest(2, 1, 0));
+        QueuableTask taskB = QueuableTaskProvider.wrapTask(bucketB, TaskRequestProvider.getTaskRequest(1, 10, 0));
+        QueuableTask taskC = QueuableTaskProvider.wrapTask(bucketC, TaskRequestProvider.getTaskRequest(1, 20, 0));
+
+        queue.queueTask(taskA);
+        queue.queueTask(taskB);
+
+        queue.getUsageTracker().launchTask(taskA);
+        queue.getUsageTracker().launchTask(taskB);
+
+        // Adding this task breaks buckets queue ordering
+        queue.queueTask(taskC);
+        queue.getUsageTracker().launchTask(taskC);
+
+        // Now add another task to bucket A - this would trigger an exception if sorting order is incorrect,
+        // as was observed due to a previous bug
+        QueuableTask taskA2 = QueuableTaskProvider.wrapTask(bucketA, TaskRequestProvider.getTaskRequest(2, 1, 0));
+        queue.queueTask(taskA2);
+        queue.getUsageTracker().launchTask(taskA2);
     }
 
     public static void main(String[] args) {

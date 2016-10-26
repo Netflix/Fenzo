@@ -16,12 +16,12 @@
 
 package com.netflix.fenzo.queues.tiered;
 
+import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 
 /**
  * This class represents a tier of the multi-tiered queue that {@link TieredQueue} represents. The tier holds one or
@@ -31,9 +31,11 @@ import java.util.Map;
  */
 class Tier implements UsageTrackedQueue {
 
+    private static final Logger logger = LoggerFactory.getLogger(Tier.class);
     private final int tierNumber;
     private final ResUsage totals;
     private final SortedBuckets sortedBuckets;
+    private Map<VMResource, Double> currTotalResourcesMap = new HashMap<>();
 
     Tier(int tierNumber) {
         totals = new ResUsage();
@@ -96,6 +98,8 @@ class Tier implements UsageTrackedQueue {
         // We do this by removing the bucket from the sortedBuckets, launching the task in the bucket,
         // then adding the bucket back into the sortedBuckets. It will then fall into its right new place.
         // This operation therefore takes time complexity of O(log N).
+        if (logger.isDebugEnabled())
+            logger.debug("Adding " + t.getId() + ": to ordered buckets: " + getSortedListString());
         final String bucketName = t.getQAttributes().getBucketName();
         QueueBucket bucket = sortedBuckets.remove(bucketName);
         if (bucket == null) {
@@ -111,6 +115,22 @@ class Tier implements UsageTrackedQueue {
             sortedBuckets.add(bucket);
         }
         return false;
+    }
+
+    private void verifySortedBuckets() throws TaskQueueException {
+        if (sortedBuckets.getSortedList().isEmpty())
+            return;
+        List<QueueBucket> list = new ArrayList<>(sortedBuckets.getSortedList());
+        if (list.size() > 1) {
+            QueueBucket prev = list.get(0);
+            for (int i=1; i<list.size(); i++) {
+                if (list.get(i).getDominantUsageShare() < prev.getDominantUsageShare()) {
+                    final String msg = "Incorrect sorting order : " + getSortedListString();
+                    throw new TaskQueueException(msg);
+                }
+                prev = list.get(i);
+            }
+        }
     }
 
     @Override
@@ -135,15 +155,58 @@ class Tier implements UsageTrackedQueue {
     }
 
     @Override
-    public double getDominantUsageShare(ResUsage parentUsage) {
+    public double getDominantUsageShare() {
         return 0.0; // undefined for a tier
     }
 
     @Override
     public void reset() {
+        if (logger.isDebugEnabled()) {
+            try {
+                verifySortedBuckets();
+            } catch (TaskQueueException e) {
+                logger.error(e.getMessage());
+            }
+        }
         for (QueueBucket bucket: sortedBuckets.getSortedList()) {
             bucket.reset();
         }
+    }
+
+    private String getSortedListString() {
+        StringBuilder b = new StringBuilder("Tier " + tierNumber + " sortedBs: [");
+        for (QueueBucket bucket: sortedBuckets.getSortedList()) {
+            b.append(bucket.getName()).append(" (").append(bucket.getDominantUsageShare()).append("), ");
+        }
+        b.append("]");
+        return b.toString();
+    }
+
+    @Override
+    public void setTotalResources(Map<VMResource, Double> totalResourcesMap) {
+        if (totalResMapChanged(currTotalResourcesMap, totalResourcesMap)) {
+            currTotalResourcesMap.clear();
+            currTotalResourcesMap.putAll(totalResourcesMap);
+            for (QueueBucket b: sortedBuckets.getSortedList()) {
+                b.setTotalResources(totalResourcesMap);
+            }
+            logger.info("Re-sorting buckets in tier " + tierNumber + " after totals changed");
+            sortedBuckets.resort();
+        }
+    }
+
+    private boolean totalResMapChanged(Map<VMResource, Double> currTotalResourcesMap, Map<VMResource, Double> totalResourcesMap) {
+        if (currTotalResourcesMap.size() != totalResourcesMap.size())
+            return true;
+        Set<VMResource> curr = new HashSet<>(currTotalResourcesMap.keySet());
+        for (VMResource r: totalResourcesMap.keySet()) {
+            final Double c = currTotalResourcesMap.get(r);
+            final Double n = totalResourcesMap.get(r);
+            if ((c == null && n != null) || (c != null && n == null) || (n != null &&!n.equals(c)))
+                return true;
+            curr.remove(r);
+        }
+        return !curr.isEmpty();
     }
 
     @Override
