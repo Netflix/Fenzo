@@ -67,6 +67,34 @@ public class SortedBucketsTest {
         }
     }
 
+    @Test
+    public void testDominantResourceUsageRebalancing() throws Exception {
+        TieredQueue queue = new TieredQueue(3);
+        QAttributes bucketA = new QAttributes.QAttributesAdaptor(0, "A");
+        QAttributes bucketB = new QAttributes.QAttributesAdaptor(0, "B");
+        QAttributes bucketC = new QAttributes.QAttributesAdaptor(0, "C");
+
+        QueuableTask taskA = QueuableTaskProvider.wrapTask(bucketA, TaskRequestProvider.getTaskRequest(2, 1, 0));
+        QueuableTask taskB = QueuableTaskProvider.wrapTask(bucketB, TaskRequestProvider.getTaskRequest(1, 10, 0));
+        QueuableTask taskC = QueuableTaskProvider.wrapTask(bucketC, TaskRequestProvider.getTaskRequest(1, 20, 0));
+
+        queue.queueTask(taskA);
+        queue.queueTask(taskB);
+
+        queue.getUsageTracker().launchTask(taskA);
+        queue.getUsageTracker().launchTask(taskB);
+
+        // Adding this task breaks buckets queue ordering
+        queue.queueTask(taskC);
+        queue.getUsageTracker().launchTask(taskC);
+
+        // Now add another task to bucket A - this would trigger an exception if sorting order is incorrect,
+        // as was observed due to a previous bug
+        QueuableTask taskA2 = QueuableTaskProvider.wrapTask(bucketA, TaskRequestProvider.getTaskRequest(2, 1, 0));
+        queue.queueTask(taskA2);
+        queue.getUsageTracker().launchTask(taskA2);
+    }
+
     public static void main(String[] args) {
         List<Integer> list = Arrays.asList(10, 20, 30, 40, 50, 60);
         Comparator<Integer> comparator = new Comparator<Integer>() {
