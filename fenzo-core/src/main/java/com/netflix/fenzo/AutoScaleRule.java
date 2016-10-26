@@ -30,7 +30,7 @@ public interface AutoScaleRule {
      * @return the value of the designated host attribute, which is the name of the autoscaling group this rule
      *         applies to
      */
-    public String getRuleName();
+    String getRuleName();
 
     /**
      * Returns the minimum number of hosts, in the autoscale group this rule applies to, that Fenzo is to keep
@@ -39,7 +39,17 @@ public interface AutoScaleRule {
      *
      * @return the minimum number of idle hosts to maintain in this autoscale group
      */
-    public int getMinIdleHostsToKeep();
+    int getMinIdleHostsToKeep();
+
+    /**
+     * Returns the minimum number of hosts to expect in the autoscale group for this rule. Fenzo will not invoke
+     * scale down actions that will make the group size to go below this minimum size. A value of {@code 0} effectively
+     * disables this function.
+     * @return The minimum number of hosts to expect in the group, even if idle.
+     */
+    default int getMinSize() {
+        return 0;
+    }
 
     /**
      * Returns the maximum number of hosts, in the autoscale group this rule applies to, that Fenzo is to keep
@@ -48,7 +58,17 @@ public interface AutoScaleRule {
      *
      * @return the maximum number of idle hosts to maintain in this autoscale group
      */
-    public int getMaxIdleHostsToKeep();
+    int getMaxIdleHostsToKeep();
+
+    /**
+     * Returns the maximum number of hosts to expect in the autoscale group for this rule. Fenzo will not invoke
+     * scale up actions that could make the group size higher than this value. A value of {@link Integer#MAX_VALUE}
+     * effectively disables this function.
+     * @return The maximum number of hosts to expect in this group, even if no idle hosts remain.
+     */
+    default int getMaxSize() {
+        return Integer.MAX_VALUE;
+    }
 
     /**
      * Returns the amount of time to wait from the beginning of a scale up or scale down operation before
@@ -57,7 +77,7 @@ public interface AutoScaleRule {
      *
      * @return the cool down time, in seconds
      */
-    public long getCoolDownSecs();
+    long getCoolDownSecs();
 
     /**
      * Determines whether a host has too few resources to be considered an idle but potentially useful host.
@@ -67,5 +87,5 @@ public interface AutoScaleRule {
      * @param lease the lease object that representes the host
      * @return {@code true} if the idle machine has too few resources to count as idle, {@code false} otherwise
      */
-    public boolean idleMachineTooSmall(VirtualMachineLease lease);
+    boolean idleMachineTooSmall(VirtualMachineLease lease);
 }

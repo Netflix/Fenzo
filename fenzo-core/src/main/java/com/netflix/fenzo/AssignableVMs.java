@@ -17,14 +17,11 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Func1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,7 +54,7 @@ class AssignableVMs {
         }
     }
 
-    private final ConcurrentMap<String, AssignableVirtualMachine> virtualMachinesMap;
+    private final VMCollection vmCollection;
     private final Action1<VirtualMachineLease> leaseRejectAction;
     private final long leaseOfferExpirySecs;
     private static final Logger logger = LoggerFactory.getLogger(AssignableVMs.class);
@@ -81,9 +78,13 @@ class AssignableVMs {
 
     AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction,
                   long leaseOfferExpirySecs, int maxOffersToReject,
-                  String attrNameToGroupMaxResources, boolean singleLeaseMode) {
+                  String attrNameToGroupMaxResources, boolean singleLeaseMode, String autoScaleByAttributeName) {
         this.taskTracker = taskTracker;
-        virtualMachinesMap = new ConcurrentHashMap<>();
+        vmCollection = new VMCollection(
+                hostname -> new AssignableVirtualMachine(vmIdToHostnameMap, leaseIdToHostnameMap, hostname,
+                        leaseRejectAction, leaseOfferExpirySecs, taskTracker, singleLeaseMode),
+                autoScaleByAttributeName
+        );
         this.leaseRejectAction = leaseRejectAction;
         this.leaseOfferExpirySecs = leaseOfferExpirySecs;
         this.attrNameToGroupMaxResources = attrNameToGroupMaxResources;
@@ -94,49 +95,50 @@ class AssignableVMs {
         this.singleLeaseMode = singleLeaseMode;
     }
 
+    VMCollection getVmCollection() {
+        return vmCollection;
+    }
+
     Map<String, Map<VMResource, Double[]>> getResourceStatus() {
         Map<String, Map<VMResource, Double[]>> result = new HashMap<>();
-        for(AssignableVirtualMachine avm: virtualMachinesMap.values())
+        for(AssignableVirtualMachine avm: vmCollection.getAllVMs())
             result.put(avm.getHostname(), avm.getResourceStatus());
         return result;
     }
 
     void setTaskAssigned(TaskRequest request, String host) {
-        createAvmIfAbsent(host);
-        AssignableVirtualMachine avm = virtualMachinesMap.get(host);
-        avm.setAssignedTask(request);
+        vmCollection.getOrCreate(host).setAssignedTask(request);
     }
 
     void unAssignTask(String taskId, String host) {
-        AssignableVirtualMachine avm = virtualMachinesMap.get(host);
-        if(avm != null) {
-            avm.markTaskForUnassigning(taskId);
+        final Optional<AssignableVirtualMachine> vmByName = vmCollection.getVmByName(host);
+        if(vmByName.isPresent()) {
+            vmByName.get().markTaskForUnassigning(taskId);
         }
         else
             logger.warn("No VM for host " + host + " to unassign task " + taskId);
     }
 
     private int addLeases(List<VirtualMachineLease> leases) {
-        for(AssignableVirtualMachine avm: virtualMachinesMap.values())
+        for(AssignableVirtualMachine avm: vmCollection.getAllVMs())
             avm.resetResources();
         int rejected=0;
         for(VirtualMachineLease l: leases) {
-            String host = l.hostname();
-            createAvmIfAbsent(host);
-            if(!virtualMachinesMap.get(host).addLease(l))
+            if(vmCollection.addLease(l))
                 rejected++;
         }
-        for(AssignableVirtualMachine avm: virtualMachinesMap.values())
+        for(AssignableVirtualMachine avm: vmCollection.getAllVMs())
             avm.updateCurrTotalLease();
         return rejected;
     }
 
-    private void createAvmIfAbsent(String hostname) {
-        if(virtualMachinesMap.get(hostname) == null)
-            virtualMachinesMap.putIfAbsent(hostname,
-                    new AssignableVirtualMachine(vmIdToHostnameMap, leaseIdToHostnameMap, hostname,
-                            leaseRejectAction, leaseOfferExpirySecs, taskTracker, singleLeaseMode));
-    }
+    // TODO Remove after confirming new VMCollection class is ready
+//    private void createAvmIfAbsent(String hostname) {
+//        if(virtualMachinesMap.get(hostname) == null)
+//            virtualMachinesMap.putIfAbsent(hostname,
+//                    new AssignableVirtualMachine(vmIdToHostnameMap, leaseIdToHostnameMap, hostname,
+//                            leaseRejectAction, leaseOfferExpirySecs, taskTracker, singleLeaseMode));
+//    }
 
     void expireLease(String leaseId) {
         final String hostname = leaseIdToHostnameMap.get(leaseId);
@@ -148,35 +150,35 @@ class AssignableVMs {
     }
 
     private void internalExpireLease(String leaseId, String hostname) {
-        AssignableVirtualMachine avm = virtualMachinesMap.get(hostname);
-        if(avm != null) {
+        final Optional<AssignableVirtualMachine> vmByName = vmCollection.getVmByName(hostname);
+        if(vmByName.isPresent()) {
             if(logger.isDebugEnabled())
                 logger.debug("Expiring lease offer id " + leaseId + " on host " + hostname);
-            avm.expireLease(leaseId);
+            vmByName.get().expireLease(leaseId);
         }
     }
 
     void expireAllLeases(String hostname) {
-        final AssignableVirtualMachine avm = virtualMachinesMap.get(hostname);
-        if(avm!=null)
-            avm.expireAllLeases();
+        final Optional<AssignableVirtualMachine> vmByName = vmCollection.getVmByName(hostname);
+        if(vmByName.isPresent())
+            vmByName.get().expireAllLeases();
     }
 
     void expireAllLeases() {
-        for(AssignableVirtualMachine avm: virtualMachinesMap.values())
+        for(AssignableVirtualMachine avm: vmCollection.getAllVMs())
             avm.expireAllLeases();
     }
 
     void disableUntil(String host, long until) {
-        createAvmIfAbsent(host);
-        AssignableVirtualMachine avm = virtualMachinesMap.get(host);
-        avm.setDisabledUntil(until);
+        final Optional<AssignableVirtualMachine> vmByName = vmCollection.getVmByName(host);
+        if(vmByName.isPresent())
+            vmByName.get().setDisabledUntil(until);
     }
 
     void enableVM(String host) {
-        AssignableVirtualMachine avm = virtualMachinesMap.get(host);
-        if(avm != null)
-            avm.enable();
+        final Optional<AssignableVirtualMachine> vmByName = vmCollection.getVmByName(host);
+        if(vmByName.isPresent())
+            vmByName.get().enable();
         else
             logger.warn("Can't enable host " + host + ", no such host");
     }
@@ -218,8 +220,7 @@ class AssignableVMs {
         vmRejectLimiter.reset();
         resetTotalResources();
         // ToDo make this parallel maybe?
-        for(Map.Entry<String, AssignableVirtualMachine> entry: virtualMachinesMap.entrySet()) {
-            AssignableVirtualMachine avm = entry.getValue();
+        for(AssignableVirtualMachine avm: vmCollection.getAllVMs()) {
             avm.prepareForScheduling();
             if(isInActiveVmGroup(avm) && avm.isAssignableNow()) {
                 // for now, only add it if it is available right now
@@ -256,7 +257,7 @@ class AssignableVMs {
     }
 
     private void removeExpiredLeases() {
-        for(AssignableVirtualMachine avm: virtualMachinesMap.values())
+        for(AssignableVirtualMachine avm: vmCollection.getAllVMs())
             avm.removeExpiredLeases(!isInActiveVmGroup(avm));
     }
 
@@ -268,25 +269,25 @@ class AssignableVMs {
         for(VirtualMachineLease lease: randomized) {
             if(vmRejectLimiter.limitReached())
                 break;
-            AssignableVirtualMachine avm = virtualMachinesMap.get(lease.hostname());
-            rejected += avm.expireLimitedLeases(vmRejectLimiter);
+            final Optional<AssignableVirtualMachine> vmByName = vmCollection.getVmByName(lease.hostname());
+            if (vmByName.isPresent())
+                rejected += vmByName.get().expireLimitedLeases(vmRejectLimiter);
         }
         return rejected;
     }
 
     int getTotalNumVMs() {
-        return virtualMachinesMap.size();
+        return vmCollection.size();
     }
 
     void purgeInactiveVMs() {
-        for(String hostname: virtualMachinesMap.keySet()) {
-            AssignableVirtualMachine avm = virtualMachinesMap.get(hostname);
+        for(AssignableVirtualMachine avm: vmCollection.getAllVMs()) {
             if(avm != null) {
                 if(!avm.isActive()) {
-                    virtualMachinesMap.remove(hostname, avm);
+                    vmCollection.remove(avm);
                     if(avm.getCurrVMId() != null)
                         vmIdToHostnameMap.remove(avm.getCurrVMId(), avm.getHostname());
-                    logger.info("Removed inactive host " + hostname);
+                    logger.info("Removed inactive host " + avm.getHostname());
                 }
             }
         }
@@ -381,7 +382,7 @@ class AssignableVMs {
 
     List<VirtualMachineCurrentState> getVmCurrentStates() {
         List<VirtualMachineCurrentState> result = new ArrayList<>();
-        for(AssignableVirtualMachine avm: virtualMachinesMap.values())
+        for(AssignableVirtualMachine avm: vmCollection.getAllVMs())
             result.add(avm.getVmCurrentState());
         return result;
     }

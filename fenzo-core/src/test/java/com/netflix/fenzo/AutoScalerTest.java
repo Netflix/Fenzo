@@ -490,6 +490,13 @@ public class AutoScalerTest {
             Thread.sleep(1000);
         }
         Assert.assertEquals(0, latch.getCount());
+        final List<VirtualMachineCurrentState> vmCurrentStates = scheduler.getVmCurrentStates();
+        long now = System.currentTimeMillis();
+        for (VirtualMachineCurrentState s: vmCurrentStates) {
+            if (s.getDisabledUntil() > 0)
+                System.out.println("********** " + s.getHostname() + " disabled for " + (s.getDisabledUntil() - now) +
+                        " mSecs");
+        }
         // remove any existing leases in scheduler
         // now generate offers for hosts that were scale down and ensure they don't get used
         for(String hostname: scaleDownHostsRef.get()) {
