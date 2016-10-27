@@ -412,13 +412,14 @@ public class TaskScheduler {
         resAllocsEvaluator = new ResAllocsEvaluater(taskTracker, builder.resAllocs);
         assignableVMs = new AssignableVMs(taskTracker, builder.leaseRejectAction,
                 builder.leaseOfferExpirySecs, builder.maxOffersToReject, builder.autoScaleByAttributeName,
-                builder.singleOfferMode);
+                builder.singleOfferMode, builder.autoScaleByAttributeName);
         if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
 
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
                     builder.autoScaleDownBalancedByAttributeName,
                     builder.autoScaleRules, assignableVMs, null,
-                    builder.disableShortfallEvaluation, assignableVMs.getActiveVmGroups());
+                    builder.disableShortfallEvaluation, assignableVMs.getActiveVmGroups(),
+                    assignableVMs.getVmCollection());
             if(builder.autoscalerCallback != null)
                 autoScaler.setCallback(builder.autoscalerCallback);
             if(builder.delayAutoscaleDownBySecs > 0L)
