@@ -927,4 +927,168 @@ public class AutoScalerTest {
         Assert.assertFalse("Scale up not expected", scaleUpReceived.get());
         Assert.assertTrue("Scale down expected", scaleDownReceived.get());
     }
+
+    // Test that with a rule that has min size defined, we don't try to scale down below the min size, even though there are too many idle
+    @Test
+    public void testRuleWithMinSize() throws Exception {
+        final int minSize=10;
+        final int extra=2;
+        long cooldown=2;
+        AutoScaleRule rule = AutoScaleRuleProvider.createWithMinSize("cluster1", 2, 5, cooldown, 1.0, 1000, minSize);
+        Map<String, Protos.Attribute> attributes = new HashMap<>();
+        Protos.Attribute attribute = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue("cluster1")).build();
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        attributes.put(hostAttrName, attribute);
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        for(int l=0; l<minSize+extra; l++)
+            leases.add(LeaseProvider.getLeaseOffer("host"+l, 4, 4000, ports, attributes));
+        AtomicInteger scaleDown = new AtomicInteger();
+        Action1<AutoScaleAction> callback = autoScaleAction -> {
+            if (autoScaleAction instanceof ScaleDownAction) {
+                scaleDown.addAndGet(((ScaleDownAction)autoScaleAction).getHosts().size());
+            }
+        };
+        final TaskScheduler scheduler = getScheduler(true, callback, rule);
+        for (int i=0; i<cooldown+1; i++) {
+            scheduler.scheduleOnce(Collections.emptyList(), leases);
+            leases.clear();
+            Thread.sleep(1000);
+        }
+        Assert.assertEquals(extra, scaleDown.get());
+    }
+
+    // Test that with a rule that has min size defined, we don't try to scale down at all if total size < minSize, even though there are too many idle
+    @Test
+    public void testRuleWithMinSize2() throws Exception {
+        final int minSize=10;
+        long cooldown=2;
+        AutoScaleRule rule = AutoScaleRuleProvider.createWithMinSize("cluster1", 2, 5, cooldown, 1.0, 1000, minSize);
+        Map<String, Protos.Attribute> attributes = new HashMap<>();
+        Protos.Attribute attribute = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue("cluster1")).build();
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        attributes.put(hostAttrName, attribute);
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        for(int l=0; l<minSize-2; l++)
+            leases.add(LeaseProvider.getLeaseOffer("host"+l, 4, 4000, ports, attributes));
+        AtomicInteger scaleDown = new AtomicInteger();
+        Action1<AutoScaleAction> callback = autoScaleAction -> {
+            if (autoScaleAction instanceof ScaleDownAction) {
+                scaleDown.addAndGet(((ScaleDownAction)autoScaleAction).getHosts().size());
+            }
+        };
+        final TaskScheduler scheduler = getScheduler(true, callback, rule);
+        for (int i=0; i<cooldown+1; i++) {
+            scheduler.scheduleOnce(Collections.emptyList(), leases);
+            leases.clear();
+            Thread.sleep(1000);
+        }
+        Assert.assertEquals(0, scaleDown.get());
+    }
+
+    // Test that with a rule that has the max size defined, we don't try to scale up beyond the max, even if there's not enough idle
+    @Test
+    public void testRuleWithMaxSize() throws Exception {
+        final int maxSize=10;
+        final int leaveIdle=2;
+        final long cooldown=2;
+        final AutoScaleRule rule = AutoScaleRuleProvider.createWithMaxSize("cluster1", leaveIdle * 2, leaveIdle * 2 + 1, cooldown, 1, 1000, maxSize);
+        Map<String, Protos.Attribute> attributes = new HashMap<>();
+        Protos.Attribute attribute = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue("cluster1")).build();
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        attributes.put(hostAttrName, attribute);
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        for(int l=0; l<maxSize-leaveIdle; l++)
+            leases.add(LeaseProvider.getLeaseOffer("host"+l, 4, 4000, ports, attributes));
+        AtomicInteger scaleUp = new AtomicInteger();
+        Action1<AutoScaleAction> callback = autoScaleAction -> {
+            if (autoScaleAction instanceof ScaleUpAction) {
+                System.out.println("**************** scale up by " + ((ScaleUpAction) autoScaleAction).getScaleUpCount());
+                scaleUp.addAndGet(((ScaleUpAction) autoScaleAction).getScaleUpCount());
+            }
+        };
+        final TaskScheduler scheduler = getScheduler(true, callback, rule);
+        // create enough tasks to fill up the Vms
+        List<TaskRequest> tasks = new ArrayList<>();
+        for (int l=0; l<maxSize-leaveIdle; l++)
+            tasks.add(TaskRequestProvider.getTaskRequest(4, 4000, 1));
+        boolean first=true;
+        for (int i=0; i<cooldown+1; i++) {
+            final SchedulingResult result = scheduler.scheduleOnce(tasks, leases);
+            if (first) {
+                first = false;
+                leases.clear();
+                int assigned=0;
+                Assert.assertTrue(result.getResultMap().size()>0);
+                for(VMAssignmentResult r: result.getResultMap().values()) {
+                    for (TaskAssignmentResult task: r.getTasksAssigned()) {
+                        assigned++;
+                        scheduler.getTaskAssigner().call(task.getRequest(), r.getHostname());
+                    }
+                }
+                Assert.assertEquals(maxSize-leaveIdle, assigned);
+                tasks.clear();
+            }
+            Thread.sleep(1000);
+        }
+        Assert.assertEquals(leaveIdle, scaleUp.get());
+    }
+
+    // Test that with a rule that has the max size defined, we don't try to scale up at all if total size > maxSize, even if there's no idle left
+    @Test
+    public void testRuleWithMaxSize2() throws Exception {
+        final int maxSize=10;
+        final long cooldown=2;
+        final AutoScaleRule rule = AutoScaleRuleProvider.createWithMaxSize("cluster1", 2, 5, cooldown, 1, 1000, maxSize);
+        Map<String, Protos.Attribute> attributes = new HashMap<>();
+        Protos.Attribute attribute = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue("cluster1")).build();
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        attributes.put(hostAttrName, attribute);
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        for(int l=0; l<maxSize+2; l++)
+            leases.add(LeaseProvider.getLeaseOffer("host"+l, 4, 4000, ports, attributes));
+        AtomicInteger scaleUp = new AtomicInteger();
+        Action1<AutoScaleAction> callback = autoScaleAction -> {
+            if (autoScaleAction instanceof ScaleUpAction) {
+                System.out.println("**************** scale up by " + ((ScaleUpAction) autoScaleAction).getScaleUpCount());
+                scaleUp.addAndGet(((ScaleUpAction) autoScaleAction).getScaleUpCount());
+            }
+        };
+        final TaskScheduler scheduler = getScheduler(true, callback, rule);
+        // create enough tasks to fill up the Vms
+        List<TaskRequest> tasks = new ArrayList<>();
+        for (int l=0; l<maxSize+2; l++)
+            tasks.add(TaskRequestProvider.getTaskRequest(4, 4000, 1));
+        boolean first=true;
+        for (int i=0; i<cooldown+1; i++) {
+            final SchedulingResult result = scheduler.scheduleOnce(tasks, leases);
+            if (first) {
+                first = false;
+                leases.clear();
+                int assigned=0;
+                Assert.assertTrue(result.getResultMap().size()>0);
+                for(VMAssignmentResult r: result.getResultMap().values()) {
+                    for (TaskAssignmentResult task: r.getTasksAssigned()) {
+                        assigned++;
+                        scheduler.getTaskAssigner().call(task.getRequest(), r.getHostname());
+                    }
+                }
+                Assert.assertEquals(maxSize+2, assigned);
+                tasks.clear();
+            }
+            Thread.sleep(1000);
+        }
+        Assert.assertEquals(0, scaleUp.get());
+    }
 }

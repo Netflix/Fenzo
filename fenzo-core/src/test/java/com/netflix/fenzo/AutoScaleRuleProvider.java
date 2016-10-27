@@ -47,4 +47,74 @@ public class AutoScaleRuleProvider {
             }
         };
     }
+
+    static AutoScaleRule createWithMinSize(final String name, final int min, final int max, final long coolDownSecs,
+                                           final double cpuTooSmall, final double memoryTooSmall, int minSize) {
+        return new AutoScaleRule() {
+            @Override
+            public String getRuleName() {
+                return name;
+            }
+
+            @Override
+            public int getMinIdleHostsToKeep() {
+                return min;
+            }
+
+            @Override
+            public int getMaxIdleHostsToKeep() {
+                return max;
+            }
+
+            @Override
+            public long getCoolDownSecs() {
+                return coolDownSecs;
+            }
+
+            @Override
+            public boolean idleMachineTooSmall(VirtualMachineLease lease) {
+                return (lease.cpuCores()<cpuTooSmall || lease.memoryMB()<memoryTooSmall);
+            }
+
+            @Override
+            public int getMinSize() {
+                return minSize;
+            }
+        };
+    }
+
+    static AutoScaleRule createWithMaxSize(final String name, final int min, final int max, final long coolDownSecs,
+                                           final double cpuTooSmall, final double memoryTooSmall, int maxSize) {
+        return new AutoScaleRule() {
+            @Override
+            public String getRuleName() {
+                return name;
+            }
+
+            @Override
+            public int getMinIdleHostsToKeep() {
+                return min;
+            }
+
+            @Override
+            public int getMaxIdleHostsToKeep() {
+                return max;
+            }
+
+            @Override
+            public long getCoolDownSecs() {
+                return coolDownSecs;
+            }
+
+            @Override
+            public boolean idleMachineTooSmall(VirtualMachineLease lease) {
+                return (lease.cpuCores()<cpuTooSmall || lease.memoryMB()<memoryTooSmall);
+            }
+
+            @Override
+            public int getMaxSize() {
+                return maxSize;
+            }
+        };
+    }
 }

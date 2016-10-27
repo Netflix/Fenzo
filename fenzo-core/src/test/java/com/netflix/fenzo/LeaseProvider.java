@@ -188,14 +188,17 @@ class LeaseProvider {
     static VirtualMachineLease getConsumedLease(VMAssignmentResult result) {
         double cpus=0.0;
         double memory=0.0;
+        double network = 0.0;
         List<Integer> ports = new ArrayList<>();
         for(TaskAssignmentResult r: result.getTasksAssigned()) {
             cpus += r.getRequest().getCPUs();
             memory += r.getRequest().getMemory();
+            network += r.getRequest().getNetworkMbps();
             ports.addAll(r.getAssignedPorts());
         }
         double totalCpus=0.0;
         double totalMem=0.0;
+        double totalNetwork=0.0;
         List<VirtualMachineLease.Range> totPortRanges = new ArrayList<>();
         String hostname="";
         Map<String, Protos.Attribute> attributes = null;
@@ -204,11 +207,12 @@ class LeaseProvider {
             attributes = l.getAttributeMap();
             totalCpus += l.cpuCores();
             totalMem += l.memoryMB();
+            totalNetwork += l.networkMbps();
             totPortRanges.addAll(l.portRanges());
         }
         for(Integer port: ports)
             totPortRanges = getRangesAfterConsuming(totPortRanges, port);
-        return getLeaseOffer(hostname, totalCpus-cpus, totalMem-memory, 0.0, totPortRanges, attributes);
+        return getLeaseOffer(hostname, totalCpus-cpus, totalMem-memory, totalNetwork-network, totPortRanges, attributes);
     }
 
     static VirtualMachineLease getConsumedLease(VirtualMachineLease orig, double consumedCpu, double consumedMemory, List<Integer> consumedPorts) {

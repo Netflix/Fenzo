@@ -475,6 +475,7 @@ public class ResourceSetsTests {
             taskScheduler.getTaskAssigner().call(r.getRequest(), r.getHostname());
             taskId = r.getTaskId();
         }
+        Assert.assertEquals(tasks.size(), tasksAssigned);
         tasks.clear();
         tasks.add(TaskRequestProvider.getTaskRequest(
                 "grp", 0.1, 100, 0, 0, 0, null, null, Collections.singletonMap(sr2.getResName(), sr2)));

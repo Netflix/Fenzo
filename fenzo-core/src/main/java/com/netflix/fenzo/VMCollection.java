@@ -76,10 +76,13 @@ class VMCollection {
     }
 
     AssignableVirtualMachine getOrCreate(String host) {
-        return getOrCreate(host, defaultGroupName);
+        final Optional<AssignableVirtualMachine> vmByName = getVmByName(host);
+        if (vmByName.isPresent())
+            return vmByName.get();
+        return create(host, defaultGroupName);
     }
 
-    AssignableVirtualMachine getOrCreate(String host, String group) {
+    private AssignableVirtualMachine getOrCreate(String host, String group) {
         vms.putIfAbsent(group, new ConcurrentHashMap<>());
         final AssignableVirtualMachine avm = vms.get(group).get(host);
         if (avm != null)
