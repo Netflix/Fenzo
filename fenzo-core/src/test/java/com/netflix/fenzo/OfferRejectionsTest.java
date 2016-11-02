@@ -235,12 +235,9 @@ public class OfferRejectionsTest {
         final int leaseExpirySecs=2;
         final Set<String> hostsRejectedFrom = new HashSet<>();
         final TaskScheduler scheduler = new TaskScheduler.Builder()
-                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
-                    @Override
-                    public void call(VirtualMachineLease virtualMachineLease) {
-                        expireCount.incrementAndGet();
-                        hostsRejectedFrom.add(virtualMachineLease.hostname());
-                    }
+                .withLeaseRejectAction(virtualMachineLease -> {
+                    expireCount.incrementAndGet();
+                    hostsRejectedFrom.add(virtualMachineLease.hostname());
                 })
                 .withLeaseOfferExpirySecs(leaseExpirySecs)
                 .withMaxOffersToReject(1)

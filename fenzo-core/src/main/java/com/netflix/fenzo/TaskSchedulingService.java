@@ -18,6 +18,7 @@ package com.netflix.fenzo;
 
 import com.netflix.fenzo.functions.Action0;
 import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Func1;
 import com.netflix.fenzo.queues.*;
 import com.netflix.fenzo.queues.TaskQueue;
 import org.slf4j.Logger;
@@ -83,6 +84,7 @@ public class TaskSchedulingService {
     private final BlockingQueue<Action1<List<VirtualMachineCurrentState>>> vmCurrStateRequest = new LinkedBlockingQueue<>(10);
     private final AtomicLong lastSchedIterationAt = new AtomicLong();
     private final long maxSchedIterDelay;
+    private volatile Func1<QueuableTask, List<String>> taskToClusterAutoScalerMapGetter = null;
 
     private TaskSchedulingService(Builder builder) {
         taskScheduler = builder.taskScheduler;
@@ -140,6 +142,7 @@ public class TaskSchedulingService {
             removeTasks();
             final boolean newLeaseExists = leaseBlockingQueue.peek() != null;
             if ( qModified || newLeaseExists || doNextIteration()) {
+                taskScheduler.setTaskToClusterAutoScalerMapGetter(taskToClusterAutoScalerMapGetter);
                 lastSchedIterationAt.set(System.currentTimeMillis());
                 if (preHook != null)
                     preHook.call();
@@ -307,6 +310,20 @@ public class TaskSchedulingService {
      */
     public void removeTask(String taskId, QAttributes qAttributes, String hostname) {
         removeTasksQueue.offer(new RemoveTaskRequest(taskId, qAttributes, hostname));
+    }
+
+    /**
+     * Set the getter function that maps a given queuable task object to a list of names of VM groups for which
+     * cluster autoscaling rules have been set. This function will be called by autoscaler, if it was setup for
+     * the {@link TaskScheduler} using {@link TaskScheduler.Builder#withAutoScaleRule(AutoScaleRule)}, to determine if
+     * the autoscaling rule should be triggered for aggressive scale up. The function call is expected to return a list
+     * of autoscale group names to which the task can be launched, if there are resources available. If either this
+     * function is not set, or if the function returns no entries when called, the task is assumed to be able to run
+     * on any autoscale group.
+     * @param getter The function that takes a queuable task object and returns a list of autoscale group names
+     */
+    public void setTaskToClusterAutoScalerMapGetter(Func1<QueuableTask, List<String>> getter) {
+        taskToClusterAutoScalerMapGetter = getter;
     }
 
     public final static class Builder {
