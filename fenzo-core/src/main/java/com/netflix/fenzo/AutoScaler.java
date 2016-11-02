@@ -17,6 +17,8 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.queues.QueuableTask;
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,11 +85,12 @@ class AutoScaler {
     private final AssignableVMs assignableVMs;
     private long delayScaleUpBySecs =0L;
     private long delayScaleDownBySecs =0L;
+    private volatile Func1<QueuableTask, List<String>> taskToClustersGetter = null;
     private final ThreadPoolExecutor executor =
             new ThreadPoolExecutor(1, 1, Long.MAX_VALUE, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(100),
                      new ThreadPoolExecutor.DiscardOldestPolicy());
     private final AtomicBoolean isShutdown = new AtomicBoolean();
-    final ConcurrentMap<String, ScalingActivity> scalingActivityMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ScalingActivity> scalingActivityMap = new ConcurrentHashMap<>();
     final VMCollection vmCollection;
 
     AutoScaler(final String attributeName, String mapHostnameAttributeName, String scaleDownBalancedByAttributeName,
@@ -128,27 +131,29 @@ class AutoScaler {
         delayScaleDownBySecs = secs;
     }
 
+    void setTaskToClustersGetter(Func1<QueuableTask, List<String>> getter) {
+        this.taskToClustersGetter = getter;
+    }
+
     void scheduleAutoscale(final AutoScalerInput autoScalerInput) {
         if(isShutdown.get())
             return;
         try {
-            executor.submit(new Runnable() {
-                @Override
-                public void run() {
-                    if(isShutdown.get())
-                        return;
-                    autoScaleRules.prepare();
-                    Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
-                    if (!disableShortfallEvaluation) {
-                        Map<String, Integer> shortfall = shortfallEvaluator.getShortfall(hostAttributeGroupMap.keySet(), autoScalerInput.getFailures());
-                        for (Map.Entry<String, Integer> entry : shortfall.entrySet()) {
-                            hostAttributeGroupMap.get(entry.getKey()).shortFall = entry.getValue() == null ? 0 : entry.getValue();
-                        }
+            executor.submit(() -> {
+                if(isShutdown.get())
+                    return;
+                shortfallEvaluator.setTaskToClustersGetter(taskToClustersGetter);
+                autoScaleRules.prepare();
+                Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
+                if (!disableShortfallEvaluation) {
+                    Map<String, Integer> shortfall = shortfallEvaluator.getShortfall(hostAttributeGroupMap.keySet(), autoScalerInput.getFailures());
+                    for (Map.Entry<String, Integer> entry : shortfall.entrySet()) {
+                        hostAttributeGroupMap.get(entry.getKey()).shortFall = entry.getValue() == null ? 0 : entry.getValue();
                     }
-                    populateIdleResources(autoScalerInput.getIdleResourcesList(), hostAttributeGroupMap, attributeName);
-                    for (HostAttributeGroup hostAttributeGroup : hostAttributeGroupMap.values()) {
-                        processScalingNeeds(hostAttributeGroup, scalingActivityMap, assignableVMs);
-                    }
+                }
+                populateIdleResources(autoScalerInput.getIdleResourcesList(), hostAttributeGroupMap, attributeName);
+                for (HostAttributeGroup hostAttributeGroup : hostAttributeGroupMap.values()) {
+                    processScalingNeeds(hostAttributeGroup, scalingActivityMap, assignableVMs);
                 }
             });
         }

@@ -16,22 +16,27 @@
 
 package com.netflix.fenzo;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.queues.QueuableTask;
+
+import java.util.*;
 
 /**
  * Determines by how many hosts the system is currently undershooting its needs, based on task assignment
  * failures. This is used in autoscaling.
  */
 class ShortfallEvaluator {
-    private static final long TOO_OLD_THRESHOLD_MILLIS = 15 * 60000; // 15 mins
+    private static final long TOO_OLD_THRESHOLD_MILLIS = 10 * 60000; // 15 mins
     private final TaskScheduler phantomTaskScheduler;
     private final Map<String, Long> requestedForTasksSet = new HashMap<>();
+    private volatile Func1<QueuableTask, List<String>> taskToClustersGetter = null;
 
     ShortfallEvaluator(TaskScheduler phantomTaskScheduler) {
         this.phantomTaskScheduler = phantomTaskScheduler;
+    }
+
+    void setTaskToClustersGetter(Func1<QueuableTask, List<String>> getter) {
+        taskToClustersGetter = getter;
     }
 
     Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures) {
@@ -63,20 +68,41 @@ class ShortfallEvaluator {
         final HashMap<String, Integer> shortfallMap = new HashMap<>();
         if(attrKeys!=null && failures!=null && !failures.isEmpty()) {
             removeOldInserts();
-            int shortfall=0;
             long now = System.currentTimeMillis();
             for(TaskRequest r: failures) {
                 String tid = r.getId();
                 if(requestedForTasksSet.get(tid) == null) {
                     requestedForTasksSet.put(tid, now);
-                    shortfall++;
+                    fillShortfallMap(shortfallMap, attrKeys, r);
                 }
-            }
-            for(String key: attrKeys) {
-                shortfallMap.put(key, shortfall);
             }
         }
         return shortfallMap;
+    }
+
+    private void fillShortfallMap(HashMap<String, Integer> shortfallMap, Set<String> attrKeys, TaskRequest r) {
+        for (String k: attrKeys) {
+            if (matchesTask(r, k)) {
+                if (shortfallMap.get(k) == null)
+                    shortfallMap.put(k, 1);
+                else
+                    shortfallMap.put(k, shortfallMap.get(k) + 1);
+            }
+        }
+    }
+
+    private boolean matchesTask(TaskRequest r, String k) {
+        if (!(r instanceof QueuableTask) || taskToClustersGetter == null)
+            return true;
+        final List<String> strings = taskToClustersGetter.call((QueuableTask) r);
+        if (strings != null && !strings.isEmpty()) {
+            for (String s: strings)
+                if(k.equals(s))
+                    return true;
+            return false; // doesn't match
+        }
+        // matches anything
+        return true;
     }
 
     private void removeOldInserts() {

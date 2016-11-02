@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.queues.QueuableTask;
 import com.netflix.fenzo.sla.ResAllocs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -546,6 +547,11 @@ public class TaskScheduler {
 
     /* package */ void setUsingSchedulingService(boolean b) {
         usingSchedulingService = b;
+    }
+
+    /* package */ void setTaskToClusterAutoScalerMapGetter(Func1<QueuableTask, List<String>> getter) {
+        if (autoScaler != null)
+            autoScaler.setTaskToClustersGetter(getter);
     }
 
     /**

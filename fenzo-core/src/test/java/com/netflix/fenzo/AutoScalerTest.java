@@ -18,6 +18,11 @@ package com.netflix.fenzo;
 
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
 import com.netflix.fenzo.plugins.HostAttrValueConstraint;
+import com.netflix.fenzo.queues.QAttributes;
+import com.netflix.fenzo.queues.QueuableTask;
+import com.netflix.fenzo.queues.TaskQueue;
+import com.netflix.fenzo.queues.TaskQueues;
+import com.netflix.fenzo.queues.tiered.QueuableTaskProvider;
 import org.apache.mesos.Protos;
 import org.junit.After;
 import org.junit.Assert;
@@ -26,12 +31,7 @@ import org.junit.Test;
 import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.functions.Func1;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1090,5 +1090,100 @@ public class AutoScalerTest {
             Thread.sleep(1000);
         }
         Assert.assertEquals(0, scaleUp.get());
+    }
+
+    // Test that aggressive scale up gives a callback only for the cluster, among multiple clusters, that is mapped
+    // to by the mapper supplied to task scheduling service. The other cluster should not get scale up request for
+    // aggressive scale up.
+    @Test
+    public void testTask2ClustersGetterAggressiveScaleUp() throws Exception {
+        final long cooldownMillis=3000;
+        final AutoScaleRule rule1 = AutoScaleRuleProvider.createRule("cluster1", minIdle, maxIdle, cooldownMillis/1000L, 1, 1000);
+        final AutoScaleRule rule2 = AutoScaleRuleProvider.createRule("cluster2", minIdle, maxIdle, cooldownMillis/1000L, 1, 1000);
+        Map<String, Protos.Attribute> attributes1 = new HashMap<>();
+        Protos.Attribute attribute1 = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue("cluster1")).build();
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        attributes1.put(hostAttrName, attribute1);
+        Map<String, Protos.Attribute> attributes2 = new HashMap<>();
+        Protos.Attribute attribute2 = Protos.Attribute.newBuilder().setName(hostAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue("cluster2")).build();
+        attributes2.put(hostAttrName, attribute1);
+        final List<VirtualMachineLease> leases = new ArrayList<>();
+        for(int l=0; l<minIdle; l++)
+            leases.add(LeaseProvider.getLeaseOffer("host"+l, cpus1, memory1, ports, attributes1));
+        final Map<String, Integer> scaleUpRequests = new HashMap<>();
+        final CountDownLatch initialScaleUpLatch = new CountDownLatch(2);
+        final AtomicReference<CountDownLatch> scaleUpLatchRef = new AtomicReference<>();
+        Action1<AutoScaleAction> callback = autoScaleAction -> {
+            if (autoScaleAction instanceof ScaleUpAction) {
+                final ScaleUpAction action = (ScaleUpAction) autoScaleAction;
+                System.out.println("**************** scale up by " + action.getScaleUpCount());
+                scaleUpRequests.putIfAbsent(action.getRuleName(), 0);
+                scaleUpRequests.put(action.getRuleName(), scaleUpRequests.get(action.getRuleName()) + action.getScaleUpCount());
+                if (scaleUpLatchRef.get() != null)
+                    scaleUpLatchRef.get().countDown();
+            }
+        };
+        scaleUpLatchRef.set(initialScaleUpLatch);
+        final TaskScheduler scheduler = getScheduler(false, callback, rule1, rule2);
+        final TaskQueue queue = TaskQueues.createTieredQueue(2);
+        int numTasks = minIdle * cpus1; // minIdle number of hosts each with cpu1 number of cpus
+        final CountDownLatch latch = new CountDownLatch(numTasks);
+        final AtomicReference<List<Exception>> exceptions = new AtomicReference<>();
+        final TaskSchedulingService schedulingService = new TaskSchedulingService.Builder()
+                .withMaxDelayMillis(100)
+                .withLoopIntervalMillis(20)
+                .withTaskQuue(queue)
+                .withTaskScheduler(scheduler)
+                .withSchedulingResultCallback(schedulingResult -> {
+                    final List<Exception> elist = schedulingResult.getExceptions();
+                    if (elist != null && !elist.isEmpty())
+                        exceptions.set(elist);
+                    final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
+                    if (resultMap != null && !resultMap.isEmpty()) {
+                        for (VMAssignmentResult vmar: resultMap.values()) {
+                            vmar.getTasksAssigned().forEach(t -> latch.countDown());
+                        }
+                    }
+                })
+                .build();
+        schedulingService.setTaskToClusterAutoScalerMapGetter(task -> Collections.singletonList("cluster1"));
+        schedulingService.start();
+        schedulingService.addLeases(leases);
+        for (int i=0; i<numTasks; i++)
+            queue.queueTask(
+                    QueuableTaskProvider.wrapTask(
+                            new QAttributes.QAttributesAdaptor(0, "default"),
+                            TaskRequestProvider.getTaskRequest(1, 10, 1)
+                    )
+            );
+        if (!latch.await(10, TimeUnit.SECONDS))
+            Assert.fail("Timeout waiting for tasks to get assigned");
+        // wait for scale up to happen
+        if (!initialScaleUpLatch.await(cooldownMillis+1000, TimeUnit.MILLISECONDS))
+            Assert.fail("Timeout waiting for initial scale up request");
+        Assert.assertEquals(2, scaleUpRequests.size());
+        scaleUpRequests.clear();
+        scaleUpLatchRef.set(null);
+        // now submit more tasks for aggressive scale up to trigger
+        int laterTasksSize = numTasks*3;
+        for (int i=0; i<laterTasksSize; i++) {
+            queue.queueTask(
+                    QueuableTaskProvider.wrapTask(
+                            new QAttributes.QAttributesAdaptor(0, "default"),
+                            TaskRequestProvider.getTaskRequest(1, 10, 1)
+                    )
+            );
+        }
+        // wait for less than cooldown time to get aggressive scale up requests
+        Thread.sleep(cooldownMillis/2);
+        // expect to get scale up request only for cluster1 VMs
+        Assert.assertEquals(1, scaleUpRequests.size());
+        Assert.assertEquals("cluster1", scaleUpRequests.keySet().iterator().next());
+        Assert.assertEquals(laterTasksSize, scaleUpRequests.values().iterator().next().intValue());
     }
 }
