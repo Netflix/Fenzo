@@ -22,8 +22,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class AssignableVMs {
@@ -54,12 +56,21 @@ class AssignableVMs {
         }
     }
 
+    private static class HostDisablePair {
+        private final String host;
+        private final Long until;
+
+        HostDisablePair(String host, Long until) {
+            this.host = host;
+            this.until = until;
+        }
+    }
+
     private final VMCollection vmCollection;
-    private final Action1<VirtualMachineLease> leaseRejectAction;
-    private final long leaseOfferExpirySecs;
     private static final Logger logger = LoggerFactory.getLogger(AssignableVMs.class);
     private final ConcurrentMap<String, String> leaseIdToHostnameMap = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> vmIdToHostnameMap = new ConcurrentHashMap<>();
+    private final BlockingQueue<HostDisablePair> disableRequests = new LinkedBlockingQueue<>();
     private final TaskTracker taskTracker;
     private final String attrNameToGroupMaxResources;
     private final Map<String, Map<VMResource, Double>> maxResourcesMap;
@@ -74,7 +85,6 @@ class AssignableVMs {
     private final ActiveVmGroups activeVmGroups;
     private String activeVmGroupAttributeName=null;
     private final List<String> unknownLeaseIdsToExpire = new ArrayList<>();
-    private final boolean singleLeaseMode;
 
     AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction,
                   long leaseOfferExpirySecs, int maxOffersToReject,
@@ -85,14 +95,11 @@ class AssignableVMs {
                         leaseRejectAction, leaseOfferExpirySecs, taskTracker, singleLeaseMode),
                 autoScaleByAttributeName
         );
-        this.leaseRejectAction = leaseRejectAction;
-        this.leaseOfferExpirySecs = leaseOfferExpirySecs;
         this.attrNameToGroupMaxResources = attrNameToGroupMaxResources;
         maxResourcesMap = new HashMap<>();
         totalResourcesMap = new HashMap<>();
         vmRejectLimiter = new VMRejectLimiter(maxOffersToReject, leaseOfferExpirySecs);  // ToDo make this configurable?
         activeVmGroups = new ActiveVmGroups();
-        this.singleLeaseMode = singleLeaseMode;
     }
 
     VMCollection getVmCollection() {
@@ -170,9 +177,19 @@ class AssignableVMs {
     }
 
     void disableUntil(String host, long until) {
-        final Optional<AssignableVirtualMachine> vmByName = vmCollection.getVmByName(host);
-        if(vmByName.isPresent())
-            vmByName.get().setDisabledUntil(until);
+        disableRequests.offer(new HostDisablePair(host, until));
+    }
+
+    private void disableVMs() {
+        if (disableRequests.peek() == null)
+            return;
+        List<HostDisablePair> disablePairs = new LinkedList<>();
+        disableRequests.drainTo(disablePairs);
+        for (HostDisablePair hostDisablePair: disablePairs) {
+            final Optional<AssignableVirtualMachine> vmByName = vmCollection.getVmByName(hostDisablePair.host);
+            if (vmByName.isPresent())
+                vmByName.get().setDisabledUntil(hostDisablePair.until);
+        }
     }
 
     void enableVM(String host) {
@@ -212,6 +229,7 @@ class AssignableVMs {
     }
 
     List<AssignableVirtualMachine> prepareAndGetOrderedVMs(List<VirtualMachineLease> newLeases, AtomicInteger rejectedCount) {
+        disableVMs();
         expireAnyUnknownLeaseIds();
         removeExpiredLeases();
         rejectedCount.addAndGet(addLeases(newLeases));
