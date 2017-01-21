@@ -420,6 +420,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     boolean isActive() {
         return !leasesMap.isEmpty() ||
                 hasPreviouslyAssignedTasks() ||
+                !assignmentResults.isEmpty() ||
                 !leasesToExpire.isEmpty() ||
                 !workersToUnAssign.isEmpty() ||
                 System.currentTimeMillis() < disabledUntil;
