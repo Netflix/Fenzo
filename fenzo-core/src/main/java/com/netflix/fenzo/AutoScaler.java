@@ -86,6 +86,7 @@ class AutoScaler {
     private long delayScaleUpBySecs =0L;
     private long delayScaleDownBySecs =0L;
     private volatile Func1<QueuableTask, List<String>> taskToClustersGetter = null;
+    private volatile double scaleUpFactor = 1.0;
     private final ThreadPoolExecutor executor =
             new ThreadPoolExecutor(1, 1, Long.MAX_VALUE, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(100),
                      new ThreadPoolExecutor.DiscardOldestPolicy());
@@ -135,6 +136,10 @@ class AutoScaler {
         this.taskToClustersGetter = getter;
     }
 
+    void setScaleUpFactor(double scaleUpFactor) {
+        this.scaleUpFactor = scaleUpFactor;
+    }
+
     void scheduleAutoscale(final AutoScalerInput autoScalerInput) {
         if(isShutdown.get())
             return;
@@ -143,6 +148,7 @@ class AutoScaler {
                 if(isShutdown.get())
                     return;
                 shortfallEvaluator.setTaskToClustersGetter(taskToClustersGetter);
+                shortfallEvaluator.setScaleUpFactor(scaleUpFactor);
                 autoScaleRules.prepare();
                 Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
                 if (!disableShortfallEvaluation) {

@@ -30,6 +30,7 @@ class ShortfallEvaluator {
     private final TaskScheduler phantomTaskScheduler;
     private final Map<String, Long> requestedForTasksSet = new HashMap<>();
     private volatile Func1<QueuableTask, List<String>> taskToClustersGetter = null;
+    private volatile double scaleUpFactor;
 
     ShortfallEvaluator(TaskScheduler phantomTaskScheduler) {
         this.phantomTaskScheduler = phantomTaskScheduler;
@@ -37,6 +38,10 @@ class ShortfallEvaluator {
 
     void setTaskToClustersGetter(Func1<QueuableTask, List<String>> getter) {
         taskToClustersGetter = getter;
+    }
+
+    void setScaleUpFactor(double scaleUpFactor) {
+        this.scaleUpFactor = scaleUpFactor;
     }
 
     Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures) {
@@ -66,22 +71,34 @@ class ShortfallEvaluator {
         // timeout and unqueueTask it from there so we catch this scenario and ask for the resources again for that task.
 
         final HashMap<String, Integer> shortfallMap = new HashMap<>();
-        if(attrKeys!=null && failures!=null && !failures.isEmpty()) {
+        if (attrKeys != null && failures != null && !failures.isEmpty()) {
             removeOldInserts();
             long now = System.currentTimeMillis();
-            for(TaskRequest r: failures) {
+            for (TaskRequest r : failures) {
                 String tid = r.getId();
-                if(requestedForTasksSet.get(tid) == null) {
+                if (requestedForTasksSet.get(tid) == null) {
                     requestedForTasksSet.put(tid, now);
                     fillShortfallMap(shortfallMap, attrKeys, r);
                 }
             }
         }
-        return shortfallMap;
+
+        return adjustByScaleUpFactory(shortfallMap);
+    }
+
+    private Map<String, Integer> adjustByScaleUpFactory(HashMap<String, Integer> shortfallMap) {
+        if (scaleUpFactor <= 0 || scaleUpFactor == 1.0 || shortfallMap.isEmpty()) {
+            return shortfallMap;
+        }
+        Map<String, Integer> corrected = new HashMap<>();
+        for (Map.Entry<String, Integer> entry : shortfallMap.entrySet()) {
+            corrected.put(entry.getKey(), (int) Math.ceil(entry.getValue() * scaleUpFactor));
+        }
+        return corrected;
     }
 
     private void fillShortfallMap(HashMap<String, Integer> shortfallMap, Set<String> attrKeys, TaskRequest r) {
-        for (String k: attrKeys) {
+        for (String k : attrKeys) {
             if (matchesTask(r, k)) {
                 if (shortfallMap.get(k) == null)
                     shortfallMap.put(k, 1);
@@ -96,8 +113,8 @@ class ShortfallEvaluator {
             return true;
         final List<String> strings = taskToClustersGetter.call((QueuableTask) r);
         if (strings != null && !strings.isEmpty()) {
-            for (String s: strings)
-                if(k.equals(s))
+            for (String s : strings)
+                if (k.equals(s))
                     return true;
             return false; // doesn't match
         }
@@ -108,8 +125,8 @@ class ShortfallEvaluator {
     private void removeOldInserts() {
         long tooOld = System.currentTimeMillis() - TOO_OLD_THRESHOLD_MILLIS;
         Set<String> tasks = new HashSet<>(requestedForTasksSet.keySet());
-        for(String t: tasks) {
-            if(requestedForTasksSet.get(t) < tooOld)
+        for (String t : tasks) {
+            if (requestedForTasksSet.get(t) < tooOld)
                 requestedForTasksSet.remove(t);
         }
     }

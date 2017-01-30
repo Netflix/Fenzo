@@ -554,6 +554,15 @@ public class TaskScheduler {
             autoScaler.setTaskToClustersGetter(getter);
     }
 
+    /* package */ void setScaleUpFactor(double scaleUpFactor) {
+        if(autoScaler != null) {
+            if(scaleUpFactor <= 0) {
+                throw new IllegalArgumentException("Scale up factor must be grater than zero");
+            }
+            autoScaler.setScaleUpFactor(scaleUpFactor);
+        }
+    }
+
     /**
      * Schedule a list of task requests by using any newly-added resource leases in addition to any
      * previously-unused leases. This is the main scheduling method that attempts to assign resources to task

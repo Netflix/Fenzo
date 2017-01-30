@@ -85,6 +85,7 @@ public class TaskSchedulingService {
     private final AtomicLong lastSchedIterationAt = new AtomicLong();
     private final long maxSchedIterDelay;
     private volatile Func1<QueuableTask, List<String>> taskToClusterAutoScalerMapGetter = null;
+    private volatile double scaleUpFactor = 1.0;
 
     private TaskSchedulingService(Builder builder) {
         taskScheduler = builder.taskScheduler;
@@ -143,6 +144,7 @@ public class TaskSchedulingService {
             final boolean newLeaseExists = leaseBlockingQueue.peek() != null;
             if ( qModified || newLeaseExists || doNextIteration()) {
                 taskScheduler.setTaskToClusterAutoScalerMapGetter(taskToClusterAutoScalerMapGetter);
+                taskScheduler.setScaleUpFactor(scaleUpFactor);
                 lastSchedIterationAt.set(System.currentTimeMillis());
                 if (preHook != null)
                     preHook.call();
@@ -324,6 +326,14 @@ public class TaskSchedulingService {
      */
     public void setTaskToClusterAutoScalerMapGetter(Func1<QueuableTask, List<String>> getter) {
         taskToClusterAutoScalerMapGetter = getter;
+    }
+
+    /**
+     * Set scale up factor for the aggressive auto-scaler. The computed number of instances during shortfall
+     * analysis is multiplied by the scale up factor, and the resulting value is set in scale up action.
+     */
+    public void setScaleUpFactor(double scaleUpFactor) {
+        this.scaleUpFactor = scaleUpFactor;
     }
 
     public final static class Builder {
