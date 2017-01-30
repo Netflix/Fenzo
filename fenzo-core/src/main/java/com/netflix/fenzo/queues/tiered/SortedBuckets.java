@@ -98,20 +98,26 @@ class SortedBuckets {
 
     private void removeBucketAndResort(String bucketName) {
         // workaround the problem: linear traversal of the list to remove the bucket and re-sort if needed
+        // also check on uniqueness of bucket names in the list
+        final HashSet<String> names = new HashSet<>();
         if (!buckets.isEmpty()) {
             final Iterator<QueueBucket> iterator = buckets.iterator();
             QueueBucket prev = null;
             boolean isSorted = true;
             while (iterator.hasNext()) {
                 QueueBucket b = iterator.next();
-                if (b.getName().equals(bucketName)) {
+                if (!names.add(b.getName())) {
+                    logger.error("Bucket " + b.getName() + " already existed in the list, removing");
+                    iterator.remove();
+                }
+                else if (b.getName().equals(bucketName)) {
                     iterator.remove();
                     if (!isSorted)
                         break; // no need to check further
                 } else {
                     if (prev != null) {
                         final int compare = comparator.compare(prev, b);
-                        isSorted = compare <= 0;
+                        isSorted = isSorted && compare <= 0;
                     }
                     prev = b;
                 }
@@ -121,6 +127,7 @@ class SortedBuckets {
                 resort();
             }
         }
+        names.clear();
     }
 
     private String getBucketsListString() {
