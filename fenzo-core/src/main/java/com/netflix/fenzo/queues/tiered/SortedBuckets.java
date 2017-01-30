@@ -17,6 +17,8 @@
 package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.queues.UsageTrackedQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -39,6 +41,7 @@ import java.util.*;
 class SortedBuckets {
     // TODO performance can be improved by changing List<> here to a two level map - outer map will have keys
     // of bucket's resource usage and values will be a Map<String, QueueBucket>.
+    private static final Logger logger = LoggerFactory.getLogger(SortedBuckets.class);
     private final List<QueueBucket> buckets;
     private final Map<String, QueueBucket> bucketMap;
     private final Comparator<QueueBucket> comparator;
@@ -81,11 +84,55 @@ class SortedBuckets {
             remPos = findWalkingLeft(buckets, index, bucketName, bucket.getDominantUsageShare());
         if (remPos < 0)
             remPos = findWalkingRight(buckets, index, bucketName, bucket.getDominantUsageShare());
-        if (remPos < 0)
-            throw new IllegalStateException("Unexpected: bucket with name=" + bucketName + " not found to remove");
-        buckets.remove(remPos);
+        if (remPos < 0) {
+            logger.error("Unexpected: bucket with name=" + bucketName + " not found to remove, traversing " +
+                    buckets.size() + " buckets to remove it");
+            logger.warn("Invalid sorted buckets list: " + getBucketsListString());
+            removeBucketAndResort(bucketName);
+        }
+        else
+            buckets.remove(remPos);
         bucketMap.remove(bucketName);
         return bucket;
+    }
+
+    private void removeBucketAndResort(String bucketName) {
+        // workaround the problem: linear traversal of the list to remove the bucket and re-sort if needed
+        // also check on uniqueness of bucket names in the list
+        final HashSet<String> names = new HashSet<>();
+        if (!buckets.isEmpty()) {
+            final Iterator<QueueBucket> iterator = buckets.iterator();
+            QueueBucket prev = null;
+            boolean isSorted = true;
+            while (iterator.hasNext()) {
+                QueueBucket b = iterator.next();
+                if (!names.add(b.getName())) {
+                    logger.error("Bucket " + b.getName() + " already existed in the list, removing");
+                    isSorted = false;
+                    iterator.remove();
+                }
+                else if (b.getName().equals(bucketName)) {
+                    iterator.remove();
+                } else {
+                    if (prev != null) {
+                        final int compare = comparator.compare(prev, b);
+                        isSorted = isSorted && compare <= 0;
+                    }
+                    prev = b;
+                }
+            }
+            logger.warn("Re-sorting buckets list");
+            resort();
+        }
+    }
+
+    private String getBucketsListString() {
+        StringBuilder builder = new StringBuilder("[");
+        for (QueueBucket b: buckets) {
+            builder.append(b.getName()).append(":").append(b.getDominantUsageShare()).append(", ");
+        }
+        builder.append("]");
+        return builder.toString();
     }
 
     QueueBucket get(String bucketName) {
