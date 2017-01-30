@@ -328,14 +328,6 @@ public class TaskSchedulingService {
         taskToClusterAutoScalerMapGetter = getter;
     }
 
-    /**
-     * Set scale up factor for the aggressive auto-scaler. The computed number of instances during shortfall
-     * analysis is multiplied by the scale up factor, and the resulting value is set in scale up action.
-     */
-    public void setScaleUpFactor(double scaleUpFactor) {
-        this.scaleUpFactor = scaleUpFactor;
-    }
-
     public final static class Builder {
 
         private TaskScheduler taskScheduler = null;

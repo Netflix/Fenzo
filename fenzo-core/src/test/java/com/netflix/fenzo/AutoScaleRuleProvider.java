@@ -16,10 +16,13 @@
 
 package com.netflix.fenzo;
 
+import java.util.function.Function;
+
 public class AutoScaleRuleProvider {
 
     static AutoScaleRule createRule(final String name, final int min, final int max, final long coolDownSecs,
-                                    final double cpuTooSmall, final double memoryTooSmall) {
+                                    final double cpuTooSmall, final double memoryTooSmall,
+                                    Function<Integer, Integer> shortfallAdjustingFunc) {
         return new AutoScaleRule() {
             @Override
             public String getRuleName() {
@@ -42,10 +45,20 @@ public class AutoScaleRuleProvider {
             }
 
             @Override
+            public int getShortfallAdjustedAgents(int numberOfAgents) {
+                return shortfallAdjustingFunc.apply(numberOfAgents);
+            }
+
+            @Override
             public boolean idleMachineTooSmall(VirtualMachineLease lease) {
-                return (lease.cpuCores()<cpuTooSmall || lease.memoryMB()<memoryTooSmall);
+                return (lease.cpuCores() < cpuTooSmall || lease.memoryMB() < memoryTooSmall);
             }
         };
+    }
+
+    static AutoScaleRule createRule(final String name, final int min, final int max, final long coolDownSecs,
+                                    final double cpuTooSmall, final double memoryTooSmall) {
+        return createRule(name, min, max, coolDownSecs, cpuTooSmall, memoryTooSmall, Function.identity());
     }
 
     static AutoScaleRule createWithMinSize(final String name, final int min, final int max, final long coolDownSecs,
@@ -73,7 +86,7 @@ public class AutoScaleRuleProvider {
 
             @Override
             public boolean idleMachineTooSmall(VirtualMachineLease lease) {
-                return (lease.cpuCores()<cpuTooSmall || lease.memoryMB()<memoryTooSmall);
+                return (lease.cpuCores() < cpuTooSmall || lease.memoryMB() < memoryTooSmall);
             }
 
             @Override
@@ -108,7 +121,7 @@ public class AutoScaleRuleProvider {
 
             @Override
             public boolean idleMachineTooSmall(VirtualMachineLease lease) {
-                return (lease.cpuCores()<cpuTooSmall || lease.memoryMB()<memoryTooSmall);
+                return (lease.cpuCores() < cpuTooSmall || lease.memoryMB() < memoryTooSmall);
             }
 
             @Override

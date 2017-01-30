@@ -30,7 +30,6 @@ class ShortfallEvaluator {
     private final TaskScheduler phantomTaskScheduler;
     private final Map<String, Long> requestedForTasksSet = new HashMap<>();
     private volatile Func1<QueuableTask, List<String>> taskToClustersGetter = null;
-    private volatile double scaleUpFactor;
 
     ShortfallEvaluator(TaskScheduler phantomTaskScheduler) {
         this.phantomTaskScheduler = phantomTaskScheduler;
@@ -40,11 +39,7 @@ class ShortfallEvaluator {
         taskToClustersGetter = getter;
     }
 
-    void setScaleUpFactor(double scaleUpFactor) {
-        this.scaleUpFactor = scaleUpFactor;
-    }
-
-    Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures) {
+    Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures, AutoScaleRules autoScaleRules) {
         // A naive approach to figuring out shortfall of hosts to satisfy the tasks that failed assignments is,
         // strictly speaking, not possible by just attempting to add up required resources for the tasks and then mapping
         // that to the number of hosts required to satisfy that many resources. Several things can make that evaluation
@@ -83,16 +78,19 @@ class ShortfallEvaluator {
             }
         }
 
-        return adjustByScaleUpFactory(shortfallMap);
+        return adjustAgentScaleUp(shortfallMap, autoScaleRules);
     }
 
-    private Map<String, Integer> adjustByScaleUpFactory(HashMap<String, Integer> shortfallMap) {
-        if (scaleUpFactor <= 0 || scaleUpFactor == 1.0 || shortfallMap.isEmpty()) {
-            return shortfallMap;
-        }
-        Map<String, Integer> corrected = new HashMap<>();
+    private Map<String, Integer> adjustAgentScaleUp(HashMap<String, Integer> shortfallMap, AutoScaleRules autoScaleRules) {
+        Map<String, Integer> corrected = new HashMap<>(shortfallMap);
         for (Map.Entry<String, Integer> entry : shortfallMap.entrySet()) {
-            corrected.put(entry.getKey(), (int) Math.ceil(entry.getValue() * scaleUpFactor));
+            AutoScaleRule rule = autoScaleRules.get(entry.getKey());
+            if (rule != null) {
+                int adjustedValue = rule.getShortfallAdjustedAgents(entry.getValue());
+                if (adjustedValue > 0) {
+                    corrected.put(entry.getKey(), adjustedValue);
+                }
+            }
         }
         return corrected;
     }
