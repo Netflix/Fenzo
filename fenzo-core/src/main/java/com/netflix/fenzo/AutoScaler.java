@@ -86,7 +86,6 @@ class AutoScaler {
     private long delayScaleUpBySecs =0L;
     private long delayScaleDownBySecs =0L;
     private volatile Func1<QueuableTask, List<String>> taskToClustersGetter = null;
-    private volatile double scaleUpFactor = 1.0;
     private final ThreadPoolExecutor executor =
             new ThreadPoolExecutor(1, 1, Long.MAX_VALUE, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(100),
                      new ThreadPoolExecutor.DiscardOldestPolicy());
@@ -134,10 +133,6 @@ class AutoScaler {
 
     void setTaskToClustersGetter(Func1<QueuableTask, List<String>> getter) {
         this.taskToClustersGetter = getter;
-    }
-
-    void setScaleUpFactor(double scaleUpFactor) {
-        this.scaleUpFactor = scaleUpFactor;
     }
 
     void scheduleAutoscale(final AutoScalerInput autoScalerInput) {
