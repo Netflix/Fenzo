@@ -113,8 +113,6 @@ class SortedBuckets {
                 }
                 else if (b.getName().equals(bucketName)) {
                     iterator.remove();
-                    if (!isSorted)
-                        break; // no need to check further
                 } else {
                     if (prev != null) {
                         final int compare = comparator.compare(prev, b);
@@ -123,12 +121,9 @@ class SortedBuckets {
                     prev = b;
                 }
             }
-            if (!isSorted) {
-                logger.warn("Re-sorting buckets list");
-                resort();
-            }
+            logger.warn("Re-sorting buckets list");
+            resort();
         }
-        names.clear();
     }
 
     private String getBucketsListString() {
