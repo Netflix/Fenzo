@@ -108,6 +108,7 @@ class SortedBuckets {
                 QueueBucket b = iterator.next();
                 if (!names.add(b.getName())) {
                     logger.error("Bucket " + b.getName() + " already existed in the list, removing");
+                    isSorted = false;
                     iterator.remove();
                 }
                 else if (b.getName().equals(bucketName)) {
