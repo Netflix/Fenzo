@@ -71,6 +71,16 @@ public interface AutoScaleRule {
     }
 
     /**
+     * Returns adjusted number of agents. By default the same amount as passed in the constructor is returned.
+     * During shortfall analysis, it is assumed that one tasks fits into one agent. This may result in too
+     * excessive scale-up, especially if the upper bound on the task size is known in advance, and it requires
+     * far less resources than a whole server.
+     */
+    default int getShortfallAdjustedAgents(int numberOfAgents) {
+        return numberOfAgents;
+    }
+
+    /**
      * Returns the amount of time to wait from the beginning of a scale up or scale down operation before
      * initiating another autoscale operation (a.k.a the "cool down" time). Suppress autoscale actions for this
      * many seconds after a previous autoscale action.

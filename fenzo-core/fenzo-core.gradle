@@ -3,5 +3,6 @@ dependencies {
     compile ("com.fasterxml.jackson.core:jackson-databind:latest.release")
     compile ("org.json:json:20140107")
     testCompile ("junit:junit-dep:latest.release")
+    testCompile("org.mockito:mockito-core:latest.release")
     testRuntime ("org.slf4j:slf4j-log4j12:latest.release")
 }

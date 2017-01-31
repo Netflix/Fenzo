@@ -146,7 +146,7 @@ class AutoScaler {
                 autoScaleRules.prepare();
                 Map<String, HostAttributeGroup> hostAttributeGroupMap = setupHostAttributeGroupMap(autoScaleRules, scalingActivityMap);
                 if (!disableShortfallEvaluation) {
-                    Map<String, Integer> shortfall = shortfallEvaluator.getShortfall(hostAttributeGroupMap.keySet(), autoScalerInput.getFailures());
+                    Map<String, Integer> shortfall = shortfallEvaluator.getShortfall(hostAttributeGroupMap.keySet(), autoScalerInput.getFailures(), autoScaleRules);
                     for (Map.Entry<String, Integer> entry : shortfall.entrySet()) {
                         hostAttributeGroupMap.get(entry.getKey()).shortFall = entry.getValue() == null ? 0 : entry.getValue();
                     }

@@ -39,7 +39,7 @@ class ShortfallEvaluator {
         taskToClustersGetter = getter;
     }
 
-    Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures) {
+    Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures, AutoScaleRules autoScaleRules) {
         // A naive approach to figuring out shortfall of hosts to satisfy the tasks that failed assignments is,
         // strictly speaking, not possible by just attempting to add up required resources for the tasks and then mapping
         // that to the number of hosts required to satisfy that many resources. Several things can make that evaluation
@@ -66,22 +66,37 @@ class ShortfallEvaluator {
         // timeout and unqueueTask it from there so we catch this scenario and ask for the resources again for that task.
 
         final HashMap<String, Integer> shortfallMap = new HashMap<>();
-        if(attrKeys!=null && failures!=null && !failures.isEmpty()) {
+        if (attrKeys != null && failures != null && !failures.isEmpty()) {
             removeOldInserts();
             long now = System.currentTimeMillis();
-            for(TaskRequest r: failures) {
+            for (TaskRequest r : failures) {
                 String tid = r.getId();
-                if(requestedForTasksSet.get(tid) == null) {
+                if (requestedForTasksSet.get(tid) == null) {
                     requestedForTasksSet.put(tid, now);
                     fillShortfallMap(shortfallMap, attrKeys, r);
                 }
             }
         }
-        return shortfallMap;
+
+        return adjustAgentScaleUp(shortfallMap, autoScaleRules);
+    }
+
+    private Map<String, Integer> adjustAgentScaleUp(HashMap<String, Integer> shortfallMap, AutoScaleRules autoScaleRules) {
+        Map<String, Integer> corrected = new HashMap<>(shortfallMap);
+        for (Map.Entry<String, Integer> entry : shortfallMap.entrySet()) {
+            AutoScaleRule rule = autoScaleRules.get(entry.getKey());
+            if (rule != null) {
+                int adjustedValue = rule.getShortfallAdjustedAgents(entry.getValue());
+                if (adjustedValue > 0) {
+                    corrected.put(entry.getKey(), adjustedValue);
+                }
+            }
+        }
+        return corrected;
     }
 
     private void fillShortfallMap(HashMap<String, Integer> shortfallMap, Set<String> attrKeys, TaskRequest r) {
-        for (String k: attrKeys) {
+        for (String k : attrKeys) {
             if (matchesTask(r, k)) {
                 if (shortfallMap.get(k) == null)
                     shortfallMap.put(k, 1);
@@ -96,8 +111,8 @@ class ShortfallEvaluator {
             return true;
         final List<String> strings = taskToClustersGetter.call((QueuableTask) r);
         if (strings != null && !strings.isEmpty()) {
-            for (String s: strings)
-                if(k.equals(s))
+            for (String s : strings)
+                if (k.equals(s))
                     return true;
             return false; // doesn't match
         }
@@ -108,8 +123,8 @@ class ShortfallEvaluator {
     private void removeOldInserts() {
         long tooOld = System.currentTimeMillis() - TOO_OLD_THRESHOLD_MILLIS;
         Set<String> tasks = new HashSet<>(requestedForTasksSet.keySet());
-        for(String t: tasks) {
-            if(requestedForTasksSet.get(t) < tooOld)
+        for (String t : tasks) {
+            if (requestedForTasksSet.get(t) < tooOld)
                 requestedForTasksSet.remove(t);
         }
     }
