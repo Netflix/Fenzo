@@ -644,7 +644,11 @@ public class TaskScheduler {
             if((lastVMPurgeAt + purgeVMsIntervalSecs*1000) < System.currentTimeMillis()) {
                 lastVMPurgeAt = System.currentTimeMillis();
                 logger.info("Purging inactive VMs");
-                assignableVMs.purgeInactiveVMs();
+                assignableVMs.purgeInactiveVMs( // explicitly exclude VMs that have assignments
+                        schedulingResult.getResultMap() == null?
+                                Collections.emptySet() :
+                                new HashSet<>(schedulingResult.getResultMap().keySet())
+                );
             }
             schedulingResult.setRuntime(System.currentTimeMillis() - start);
             return schedulingResult;
