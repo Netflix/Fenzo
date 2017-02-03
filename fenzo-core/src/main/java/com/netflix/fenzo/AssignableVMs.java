@@ -298,14 +298,16 @@ class AssignableVMs {
         return vmCollection.size();
     }
 
-    void purgeInactiveVMs() {
+    void purgeInactiveVMs(Set<String> excludeVms) {
         for(AssignableVirtualMachine avm: vmCollection.getAllVMs()) {
             if(avm != null) {
-                if(!avm.isActive()) {
-                    vmCollection.remove(avm);
-                    if(avm.getCurrVMId() != null)
-                        vmIdToHostnameMap.remove(avm.getCurrVMId(), avm.getHostname());
-                    logger.info("Removed inactive host " + avm.getHostname());
+                if (!excludeVms.contains(avm.getHostname())) {
+                    if (!avm.isActive()) {
+                        vmCollection.remove(avm);
+                        if (avm.getCurrVMId() != null)
+                            vmIdToHostnameMap.remove(avm.getCurrVMId(), avm.getHostname());
+                        logger.info("Removed inactive host " + avm.getHostname());
+                    }
                 }
             }
         }
