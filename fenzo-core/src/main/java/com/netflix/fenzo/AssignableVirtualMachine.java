@@ -116,7 +116,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private double currUsedDisk=0.0;
     private VirtualMachineLease currTotalLease=null;
     private PortRanges currPortRanges = new PortRanges();
-    private Map<String, Protos.Attribute> currAttributesMap = new HashMap<>();
+    private volatile Map<String, Protos.Attribute> currAttributesMap = Collections.emptyMap();
     private final Map<String, PreferentialNamedConsumableResourceSet> resourceSets = new HashMap<>();
     // previouslyAssignedTasksMap contains tasks on this VM before current scheduling iteration started. This is
     // available for optimization of scheduling assignments for such things as locality with other similar tasks, etc.
@@ -193,8 +193,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             currPortRanges.addRanges(l.portRanges());
         if (l.getAttributeMap() != null) {
             // always replace attributes map with the latest
-            currAttributesMap.clear();
-            currAttributesMap.putAll(l.getAttributeMap());
+            currAttributesMap = Collections.unmodifiableMap(new HashMap<>(l.getAttributeMap()));
         }
         for(Map.Entry<String, Protos.Attribute> entry: currAttributesMap.entrySet()) {
             switch (entry.getKey()) {
@@ -316,7 +315,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             }
             @Override
             public Map<String, Protos.Attribute> getAttributeMap() {
-                return Collections.unmodifiableMap(currAttributesMap);
+                return currAttributesMap;
             }
             @Override
             public Double getScalarValue(String name) {

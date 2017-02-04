@@ -64,11 +64,14 @@ public class VMLeaseObject implements VirtualMachineLease {
                             " in offer, hostname=" + hostname + ", offerId=" + offer.getId());
             }
         }
-        attributeMap = new HashMap<>();
         if(offer.getAttributesCount()>0) {
+            Map<String, Protos.Attribute> attributeMap = new HashMap<>();
             for(Protos.Attribute attribute: offer.getAttributesList()) {
                 attributeMap.put(attribute.getName(), attribute);
             }
+            this.attributeMap = Collections.unmodifiableMap(attributeMap);
+        } else {
+            this.attributeMap = Collections.emptyMap();
         }
     }
     @Override
