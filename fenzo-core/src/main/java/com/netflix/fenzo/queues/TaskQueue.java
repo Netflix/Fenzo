@@ -54,4 +54,13 @@ public interface TaskQueue extends TaskIterator {
      * @param task A task to add to the queue.
      */
     void queueTask(QueuableTask task);
+
+    /**
+     * Set SLA for the queue. The queue implementation determines the implementation of {@link TaskQueueSla} that is
+     * accepted.
+     * @param sla The SLA to set for the queue.
+     * @throws IllegalArgumentException if the implementation of the {@link TaskQueueSla} is incompatible with the
+     * queue implementation.
+     */
+    void setSla(TaskQueueSla sla) throws IllegalArgumentException;
 }

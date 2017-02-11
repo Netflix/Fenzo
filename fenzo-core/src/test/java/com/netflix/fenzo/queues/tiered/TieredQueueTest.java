@@ -24,8 +24,16 @@ import com.netflix.fenzo.queues.QAttributes;
 import com.netflix.fenzo.queues.QueuableTask;
 import com.netflix.fenzo.queues.TaskQueue;
 import com.netflix.fenzo.TaskSchedulingService;
+import com.netflix.fenzo.sla.ResAllocs;
+import com.netflix.fenzo.sla.ResAllocsBuilder;
 import junit.framework.Assert;
 import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class TieredQueueTest {
 
@@ -80,7 +88,9 @@ public class TieredQueueTest {
         QAttributes tier1bktC = new QAttributes.QAttributesAdaptor(0, "C");
 
         final TaskScheduler scheduler = getScheduler();
-        final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler);
+        final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler,
+                schedulingResult -> System.out.println("Got scheduling result with " +
+                        schedulingResult.getResultMap().size() + " results"));
 
         int A1=0;
         int B1=0;
@@ -131,22 +141,101 @@ public class TieredQueueTest {
         Assert.assertEquals(0, C1);
     }
 
-    private TaskSchedulingService getSchedulingService(TaskQueue queue, TaskScheduler scheduler) {
+    // Test weighted DRF across buckets of a tier when SLAs are given
+    @Test
+    public void testTierSlas() throws Exception {
+        InternalTaskQueue queue = new TieredQueue(3);
+        QAttributes tier1bktA = new QAttributes.QAttributesAdaptor(0, "A");
+        QAttributes tier1bktB = new QAttributes.QAttributesAdaptor(0, "B");
+        QAttributes tier1bktC = new QAttributes.QAttributesAdaptor(0, "C");
+        Map<Integer, Map<String, ResAllocs>> tierAllocs = getTierAllocsForThreeBuckets(tier1bktA, tier1bktB, tier1bktC);
+        queue.setSla(new TieredQueueSlas(tierAllocs));
+        final AtomicInteger countA = new AtomicInteger();
+        final AtomicInteger countB = new AtomicInteger();
+        final AtomicInteger countC = new AtomicInteger();
+        final CountDownLatch latch = new CountDownLatch(40);
+        final TaskSchedulingService schedulingService = getSchedulingService(queue, getScheduler(),
+                result -> {
+                    if (!result.getResultMap().isEmpty()) {
+                        for (Map.Entry<String, VMAssignmentResult> entry: result.getResultMap().entrySet()) {
+                            for (TaskAssignmentResult t: entry.getValue().getTasksAssigned()) {
+                                latch.countDown();
+                                switch (((QueuableTask) t.getRequest()).getQAttributes().getBucketName()) {
+                                    case "A":
+                                        countA.incrementAndGet();
+                                        break;
+                                    case "B":
+                                        countB.incrementAndGet();
+                                        break;
+                                    case "C":
+                                        countC.incrementAndGet();
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                }
+        );
+        // create 25 1-cpu tasks for each bucket
+        for (int i=0; i<25; i++)
+            queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        for (int i=0; i<25; i++)
+            queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktB, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        for (int i=0; i<25; i++)
+            queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktC, TaskRequestProvider.getTaskRequest(1, 100, 1)));
+        schedulingService.addLeases(LeaseProvider.getLeases(10, 4.0, 4000.0, 4000.0, 1, 100));
+        schedulingService.start();
+        Assert.assertTrue("Timeout waiting for assignments", latch.await(2, TimeUnit.SECONDS));
+        Assert.assertEquals(10, countA.get());
+        Assert.assertEquals(10, countC.get());
+        Assert.assertEquals(20, countB.get());
+    }
+
+    // Returns a map with key=tier number (only uses tier 0) and value of a map with keys=bucket names (A, B, and C),
+    // and values of ResAllocs. A has 10 cpus, B has 20 cpus, and C has 10 cpus. Memory, network and disk are 100x the
+    // the number of cpus.
+    private Map<Integer, Map<String, ResAllocs>> getTierAllocsForThreeBuckets(QAttributes A, QAttributes B, QAttributes C) {
+        Map<Integer, Map<String, ResAllocs>> tierAllocs = new HashMap<>();
+        tierAllocs.put(0, new HashMap<>());
+        tierAllocs.get(0).put(A.getBucketName(),
+                new ResAllocsBuilder(A.getBucketName())
+                .withCores(10)
+                .withMemory(1000)
+                .withNetworkMbps(1000)
+                .withDisk(1000)
+                .build()
+        );
+        tierAllocs.get(0).put(B.getBucketName(),
+                new ResAllocsBuilder(B.getBucketName())
+                        .withCores(20)
+                        .withMemory(2000)
+                        .withNetworkMbps(2000)
+                        .withDisk(2000)
+                        .build()
+        );
+        tierAllocs.get(0).put(C.getBucketName(),
+                new ResAllocsBuilder(C.getBucketName())
+                        .withCores(10)
+                        .withMemory(1000)
+                        .withNetworkMbps(1000)
+                        .withDisk(1000)
+                        .build()
+        );
+        return tierAllocs;
+    }
+
+    private TaskSchedulingService getSchedulingService(TaskQueue queue, TaskScheduler scheduler,
+                                                       Action1<SchedulingResult> resultCallback) {
         return new TaskSchedulingService.Builder()
                 .withTaskQuue(queue)
-                .withLoopIntervalMillis(1000L)
+                .withLoopIntervalMillis(100L)
                 .withPreSchedulingLoopHook(new Action0() {
                     @Override
                     public void call() {
                         System.out.println("Pre-scheduling hook");
                     }
                 })
-                .withSchedulingResultCallback(new Action1<SchedulingResult>() {
-                    @Override
-                    public void call(SchedulingResult schedulingResult) {
-                        System.out.println("Got scheduling result with " + schedulingResult.getResultMap().size() + " results");
-                    }
-                })
+                .withSchedulingResultCallback(resultCallback)
                 .withTaskScheduler(scheduler)
                 .build();
     }

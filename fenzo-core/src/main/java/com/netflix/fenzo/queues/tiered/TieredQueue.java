@@ -17,13 +17,16 @@
 package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.VMResource;
+import com.netflix.fenzo.functions.Func1;
 import com.netflix.fenzo.queues.*;
+import com.netflix.fenzo.sla.ResAllocs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BiFunction;
 
 /**
  * A tiered queuing system where queues are arranged in multiple tiers and then among multiple buckets within each tier.
@@ -41,6 +44,8 @@ public class TieredQueue implements InternalTaskQueue {
     private Iterator<Tier> iterator = null;
     private Tier currTier = null;
     private final BlockingQueue<QueuableTask> tasksToQueue;
+    private final TierSlas tierSlas = new TierSlas();
+    private final BiFunction<Integer, String, Double> allocsShareGetter = tierSlas::getBucketAllocation;
 
     /**
      * Construct a tiered queue system with the given number of tiers.
@@ -49,7 +54,7 @@ public class TieredQueue implements InternalTaskQueue {
     public TieredQueue(int numTiers) {
         tiers = new ArrayList<>(numTiers);
         for ( int i=0; i<numTiers; i++ )
-            tiers.add(new Tier(i));
+            tiers.add(new Tier(i, allocsShareGetter));
         tasksToQueue = new LinkedBlockingQueue<>();
     }
 
@@ -58,18 +63,20 @@ public class TieredQueue implements InternalTaskQueue {
         tasksToQueue.offer(task);
     }
 
+    @Override
+    public void setSla(TaskQueueSla sla) throws IllegalArgumentException {
+        if (sla != null && !(sla instanceof TieredQueueSlas)) {
+            throw new IllegalArgumentException("Queue SLA must be an instance of " + TieredQueueSlas.class.getName() +
+                    ", can't accept " + sla.getClass().getName());
+        }
+        tierSlas.setAllocations((TieredQueueSlas) sla);
+    }
+
     private void addInternal(QueuableTask task) throws TaskQueueException {
         final int tierNumber = task.getQAttributes().getTierNumber();
         if ( tierNumber >= tiers.size() )
             throw new InvalidTierNumberException(tierNumber, tiers.size());
         tiers.get(tierNumber).queueTask(task);
-    }
-
-    private void addRunningInternal(QueuableTask t) throws TaskQueueException {
-        final int number = t.getQAttributes().getTierNumber();
-        if (number >= tiers.size())
-            throw new InvalidTierNumberException(number, tiers.size());
-        tiers.get(number).launchTask(t);
     }
 
     /**
