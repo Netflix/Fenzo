@@ -17,29 +17,86 @@
 package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.sla.ResAllocs;
+import com.netflix.fenzo.sla.ResAllocsBuilder;
 
+import java.util.HashMap;
 import java.util.Map;
 
-public interface TierSla {
+/* package */ class TierSla {
+
+    // small allocation for a bucket with no defiend allocation
+    static final double eps = 0.001;
+
+    private final Map<String, ResAllocs> allocsMap = new HashMap<>();
+    private double totalCpu = 0.0;
+    private double totalMem = 0.0;
+    private double totalNetwork = 0.0;
+    private double totalDisk = 0.0;
+
+    void setAlloc(String bucket, ResAllocs value) {
+        final ResAllocs prev = allocsMap.put(bucket, value);
+        if (prev != null)
+            subtract(prev);
+        add(value);
+    }
+
+    private void add(ResAllocs value) {
+        totalCpu += value.getCores();
+        totalMem += value.getMemory();
+        totalNetwork += value.getNetworkMbps();
+        totalDisk += value.getDisk();
+    }
+
+    private void subtract(ResAllocs value) {
+        totalCpu -= value.getCores();
+        totalMem -= value.getMemory();
+        totalNetwork -= value.getNetworkMbps();
+        totalDisk -= value.getDisk();
+    }
+
+    void clear() {
+        allocsMap.clear();
+        totalCpu = 0.0;
+        totalMem = 0.0;
+        totalNetwork = 0.0;
+        totalDisk = 0.0;
+    }
 
     /**
-     * Get the tier number that this sla is associated with.
-     * @return The tier number.
+     * Evaluate the allocation share of a bucket among all the buckets for which allocations are defined. If there are
+     * no allocations setup, return 1.0, implying 100%. If no allocation is setup for the given <code>bucket</code>,
+     * return a small value. Otherwise, calculate the share percentage of each resource cpu, memory, network, and disk
+     * from the total and return the maximum of these shares.
+     * @param bucket Name of the bucket.
+     * @return Allocation share for the bucket.
      */
-    int getTierNumber();
+    double evalAllocationShare(String bucket) {
+        if (allocsMap.isEmpty()) {
+            return 1.0; // special case if there are no allocations setup
+        }
+        final ResAllocs resAllocs = allocsMap.get(bucket);
+        if (resAllocs == null)
+            return totalCpu < (1.0 / eps)? eps : 1.0 / totalCpu; // arbitrarily base it on cpus
+        double val = totalCpu < 1.0? eps : resAllocs.getCores() / totalCpu;
+        val = Math.max(val, totalMem < 1.0? eps : resAllocs.getMemory() / totalMem);
+        val = Math.max(val, totalNetwork < 1.0? eps: resAllocs.getNetworkMbps() / totalNetwork);
+        return Math.max(val, totalDisk < 1.0? eps : resAllocs.getDisk() / totalDisk);
+    }
+
+    Map<String, ResAllocs> getAllocsMap() {
+        return allocsMap;
+    }
 
     /**
-     * Get the map with keys containing the tier bucket names and values containing the corresponding resource
-     * allocations that is set as the initial allocations for the tier bucket. A tier bucket not containing a non-null
-     * entry in the map is said to have no resource allocations set.
-     * @return Map of bucket names to initial resource allocations.
+     * Get the resource allocation representing the total resources allocated across all buckets of this tier.
+     * @return Total allocations.
      */
-    Map<String, ResAllocs> getInitialAllocsMap();
-
-    /**
-     * Get the resolved map of resource allocations for this tier. The resource allocations are resolved using the
-     * initial allocations map and the total resources possibly available for this tier.
-     * @return Map of bucket names to resolved resource allocations.
-     */
-    Map<String, ResAllocs> getResolvedAllocsMap();
+    ResAllocs getTotalAllocations() {
+        return new ResAllocsBuilder("")
+                .withCores(totalCpu)
+                .withMemory(totalMem)
+                .withNetworkMbps(totalNetwork)
+                .withDisk(totalDisk)
+                .build();
+    }
 }

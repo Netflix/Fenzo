@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.function.BiFunction;
 
 /**
  * This class represents a tier of the multi-tiered queue that {@link TieredQueue} represents. The tier holds one or
@@ -36,14 +37,16 @@ class Tier implements UsageTrackedQueue {
     private final ResUsage totals;
     private final SortedBuckets sortedBuckets;
     private Map<VMResource, Double> currTotalResourcesMap = new HashMap<>();
+    private final BiFunction<Integer, String, Double> allocsShareGetter;
 
-    Tier(int tierNumber) {
+    Tier(int tierNumber, BiFunction<Integer, String, Double> allocsShareGetter) {
         totals = new ResUsage();
         this.tierNumber = tierNumber;
         // TODO: need to consider the impact of this comparator to any others we may want, like simple round robin.
         // Use DRF sorting. Except, note that it is undefined when two entities compare to 0 (equal values) which
         // one gets ahead of the other.
         sortedBuckets = new SortedBuckets(totals);
+        this.allocsShareGetter = allocsShareGetter;
     }
 
     private QueueBucket getOrCreateBucket(QueuableTask t) {
@@ -52,7 +55,7 @@ class Tier implements UsageTrackedQueue {
         final String bucketName = t.getQAttributes().getBucketName();
         QueueBucket bucket = sortedBuckets.get(bucketName);
         if (bucket == null) {
-            bucket = new QueueBucket(tierNumber, bucketName);
+            bucket = new QueueBucket(tierNumber, bucketName, allocsShareGetter);
             sortedBuckets.add(bucket);
         }
         return bucket;
@@ -103,7 +106,7 @@ class Tier implements UsageTrackedQueue {
         final String bucketName = t.getQAttributes().getBucketName();
         QueueBucket bucket = sortedBuckets.remove(bucketName);
         if (bucket == null) {
-            bucket = new QueueBucket(tierNumber, bucketName);
+            bucket = new QueueBucket(tierNumber, bucketName, allocsShareGetter);
         }
         try {
             if (bucket.launchTask(t)) {
