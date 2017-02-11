@@ -21,7 +21,7 @@ import com.netflix.fenzo.sla.ResAllocs;
 import java.util.*;
 
 /* package */ class TierSlas {
-    private Map<Integer, TierSla> resAllocsMap = new HashMap<>();
+    private volatile Map<Integer, TierSla> resAllocsMap = new HashMap<>();
 
     double getBucketAllocation(int tier, String bucketName) {
         final TierSla tierSla = resAllocsMap.get(tier);
@@ -30,25 +30,17 @@ import java.util.*;
 
     void setAllocations(TieredQueueSlas slas) {
         final Map<Integer, Map<String, ResAllocs>> tierSlasMap = slas.getSlas() == null? Collections.emptyMap() : slas.getSlas();
-        final Set<Integer> tiers = new HashSet<>(resAllocsMap.keySet());
-        for (Map.Entry<Integer, Map<String, ResAllocs>> entry: tierSlasMap.entrySet()) {
-            tiers.remove(entry.getKey());
-            TierSla tierSla = resAllocsMap.get(entry.getKey());
-            if (tierSla == null) {
-                tierSla = new TierSla();
-                resAllocsMap.put(entry.getKey(), tierSla);
-            }
-            final Map<String, ResAllocs> tierAllocs = entry.getValue();
-            final Set<String> buckets = new HashSet<>(tierSla.getAllocsMap().keySet());
-            for (Map.Entry<String, ResAllocs> e: tierAllocs.entrySet()) {
-                buckets.remove(e.getKey());
-                tierSla.setAlloc(e.getKey(), e.getValue());
-            }
-            for (String b: buckets) { // clear out buckets that aren't in the new tierAllocs
-                tierSla.setAlloc(b, null); // TODO remove instead? OR replace entire one instead of mutating
+        Map<Integer, TierSla> tmpResAllocsMap = new HashMap<>();
+        if (!tierSlasMap.isEmpty()) {
+            for (Map.Entry<Integer, Map<String, ResAllocs>> entry: tierSlasMap.entrySet()) {
+                final Map<String, ResAllocs> tierAllocs = entry.getValue();
+                TierSla tierSla = new TierSla();
+                tmpResAllocsMap.put(entry.getKey(), tierSla);
+                for (Map.Entry<String, ResAllocs> e: tierAllocs.entrySet()) {
+                    tierSla.setAlloc(e.getKey(), e.getValue());
+                }
             }
         }
-        for (Integer t: tiers) // clear out tiers that aren't in the new slas
-            resAllocsMap.remove(t);
+        resAllocsMap = tmpResAllocsMap;
     }
 }

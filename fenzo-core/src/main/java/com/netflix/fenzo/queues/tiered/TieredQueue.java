@@ -44,6 +44,7 @@ public class TieredQueue implements InternalTaskQueue {
     private Iterator<Tier> iterator = null;
     private Tier currTier = null;
     private final BlockingQueue<QueuableTask> tasksToQueue;
+    private final BlockingQueue<TieredQueueSlas> slasQueue;
     private final TierSlas tierSlas = new TierSlas();
     private final BiFunction<Integer, String, Double> allocsShareGetter = tierSlas::getBucketAllocation;
 
@@ -56,6 +57,7 @@ public class TieredQueue implements InternalTaskQueue {
         for ( int i=0; i<numTiers; i++ )
             tiers.add(new Tier(i, allocsShareGetter));
         tasksToQueue = new LinkedBlockingQueue<>();
+        slasQueue = new LinkedBlockingQueue<>();
     }
 
     @Override
@@ -69,7 +71,15 @@ public class TieredQueue implements InternalTaskQueue {
             throw new IllegalArgumentException("Queue SLA must be an instance of " + TieredQueueSlas.class.getName() +
                     ", can't accept " + sla.getClass().getName());
         }
-        tierSlas.setAllocations((TieredQueueSlas) sla);
+        slasQueue.offer(sla == null? new TieredQueueSlas(Collections.emptyMap()) : (TieredQueueSlas)sla);
+    }
+
+    private void setSlaInternal() {
+        if (slasQueue.peek() != null) {
+            List<TieredQueueSlas> slas = new ArrayList<>();
+            slasQueue.drainTo(slas);
+            tierSlas.setAllocations(slas.get(slas.size()-1)); // set the last one
+        }
     }
 
     private void addInternal(QueuableTask task) throws TaskQueueException {
@@ -114,6 +124,7 @@ public class TieredQueue implements InternalTaskQueue {
 
     @Override
     public boolean reset() throws TaskQueueMultiException {
+        setSlaInternal();
         iterator = null;
         boolean queueChanged = false;
         List<Exception> exceptions = new LinkedList<>();
