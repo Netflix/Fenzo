@@ -16,9 +16,8 @@
 
 package com.netflix.fenzo.queues.tiered;
 
-import com.netflix.fenzo.sla.ResAllocs;
-
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 /* package */ class TierSlas {
     private volatile Map<Integer, TierSla> resAllocsMap = new HashMap<>();
@@ -29,18 +28,6 @@ import java.util.*;
     }
 
     void setAllocations(TieredQueueSlas slas) {
-        final Map<Integer, Map<String, ResAllocs>> tierSlasMap = slas.getSlas() == null? Collections.emptyMap() : slas.getSlas();
-        Map<Integer, TierSla> tmpResAllocsMap = new HashMap<>();
-        if (!tierSlasMap.isEmpty()) {
-            for (Map.Entry<Integer, Map<String, ResAllocs>> entry: tierSlasMap.entrySet()) {
-                final Map<String, ResAllocs> tierAllocs = entry.getValue();
-                TierSla tierSla = new TierSla();
-                tmpResAllocsMap.put(entry.getKey(), tierSla);
-                for (Map.Entry<String, ResAllocs> e: tierAllocs.entrySet()) {
-                    tierSla.setAlloc(e.getKey(), e.getValue());
-                }
-            }
-        }
-        resAllocsMap = tmpResAllocsMap;
+        resAllocsMap = slas.getSlas();
     }
 }
