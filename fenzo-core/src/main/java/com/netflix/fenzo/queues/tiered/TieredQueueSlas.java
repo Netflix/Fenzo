@@ -19,16 +19,28 @@ package com.netflix.fenzo.queues.tiered;
 import com.netflix.fenzo.queues.TaskQueueSla;
 import com.netflix.fenzo.sla.ResAllocs;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class TieredQueueSlas implements TaskQueueSla {
-    private final Map<Integer, Map<String, ResAllocs>> slas;
+    private final Map<Integer, TierSla> slas;
 
     public TieredQueueSlas(Map<Integer, Map<String, ResAllocs>> slas) {
-        this.slas = slas;
+        Map<Integer, TierSla> tmpResAllocsMap = new HashMap<>();
+        if (!slas.isEmpty()) {
+            for (Map.Entry<Integer, Map<String, ResAllocs>> entry: slas.entrySet()) {
+                final Map<String, ResAllocs> tierAllocs = entry.getValue();
+                TierSla tierSla = new TierSla();
+                tmpResAllocsMap.put(entry.getKey(), tierSla);
+                for (Map.Entry<String, ResAllocs> e: tierAllocs.entrySet()) {
+                    tierSla.setAlloc(e.getKey(), e.getValue());
+                }
+            }
+        }
+        this.slas = tmpResAllocsMap;
     }
 
-    public Map<Integer, Map<String, ResAllocs>> getSlas() {
+    /* package */ Map<Integer, TierSla> getSlas() {
         return slas;
     }
 }

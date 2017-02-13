@@ -54,14 +54,6 @@ import java.util.Map;
         totalDisk -= value.getDisk();
     }
 
-    void clear() {
-        allocsMap.clear();
-        totalCpu = 0.0;
-        totalMem = 0.0;
-        totalNetwork = 0.0;
-        totalDisk = 0.0;
-    }
-
     /**
      * Evaluate the allocation share of a bucket among all the buckets for which allocations are defined. If there are
      * no allocations setup, return 1.0, implying 100%. If no allocation is setup for the given <code>bucket</code>,
@@ -81,22 +73,5 @@ import java.util.Map;
         val = Math.max(val, totalMem < 1.0? eps : resAllocs.getMemory() / totalMem);
         val = Math.max(val, totalNetwork < 1.0? eps: resAllocs.getNetworkMbps() / totalNetwork);
         return Math.max(val, totalDisk < 1.0? eps : resAllocs.getDisk() / totalDisk);
-    }
-
-    Map<String, ResAllocs> getAllocsMap() {
-        return allocsMap;
-    }
-
-    /**
-     * Get the resource allocation representing the total resources allocated across all buckets of this tier.
-     * @return Total allocations.
-     */
-    ResAllocs getTotalAllocations() {
-        return new ResAllocsBuilder("")
-                .withCores(totalCpu)
-                .withMemory(totalMem)
-                .withNetworkMbps(totalNetwork)
-                .withDisk(totalDisk)
-                .build();
     }
 }
