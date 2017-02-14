@@ -34,7 +34,7 @@ public class SortedBucketsTest {
 
     @Test
     public void testSorting() throws Exception {
-        UsageTrackedQueue.ResUsage parentUsage = new UsageTrackedQueue.ResUsage();
+        UsageTrackedQueue.ResUsage parentUsage = new UsageTrackedQueue.ResUsage("testBucket");
         QAttributes tier1bktA = new QAttributes.QAttributesAdaptor(1, "Parent");
         parentUsage.addUsage(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(100, 1000, 100)));
         SortedBuckets sortedBuckets = new SortedBuckets(parentUsage);

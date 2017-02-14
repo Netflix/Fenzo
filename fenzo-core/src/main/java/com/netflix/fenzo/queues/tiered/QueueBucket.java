@@ -18,6 +18,9 @@ package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
+import com.netflix.fenzo.queues.TaskQueue;
+import com.netflix.fenzo.sla.ResAllocs;
+import com.netflix.fenzo.sla.ResAllocsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,17 +44,22 @@ class QueueBucket implements UsageTrackedQueue {
     // that scheduler's taskTracker will trigger call into assignTask() during the scheduling iteration.
     private final LinkedHashMap<String, QueuableTask> assignedTasks;
     private Iterator<Map.Entry<String, QueuableTask>> iterator = null;
+
     private Map<VMResource, Double> totalResourcesMap = Collections.emptyMap();
+    private ResAllocs totalResAllocs;
+
     private final BiFunction<Integer, String, Double> allocsShareGetter;
+    private boolean belowGuaranteedConsumption;
 
     QueueBucket(int tierNumber, String name, BiFunction<Integer, String, Double> allocsShareGetter) {
         this.tierNumber = tierNumber;
         this.name = name;
-        totals = new ResUsage();
+        totals = new ResUsage(name);
+        totalResAllocs = ResAllocsUtil.emptyOf(name);
         queuedTasks = new LinkedHashMap<>();
         launchedTasks = new LinkedHashMap<>();
         assignedTasks = new LinkedHashMap<>();
-        this.allocsShareGetter = allocsShareGetter == null?
+        this.allocsShareGetter = allocsShareGetter == null ?
                 (integer, s) -> 1.0 :
                 allocsShareGetter;
     }
@@ -130,6 +138,14 @@ class QueueBucket implements UsageTrackedQueue {
                 Math.max(TierSla.eps / 10.0, allocsShareGetter.apply(tierNumber, name));
     }
 
+    public ResAllocs getUsedOrGuaranteed() {
+        return ResAllocsUtil.ceilingOf(totalResAllocs, totals.asResAllocs());
+    }
+
+    public boolean isBelowGuaranteedConsumption() {
+        return ResAllocsUtil.isLess(totals.asResAllocs(), totalResAllocs);
+    }
+
     @Override
     public void reset() {
         iterator = null;
@@ -148,6 +164,12 @@ class QueueBucket implements UsageTrackedQueue {
     @Override
     public void setTotalResources(Map<VMResource, Double> totalResourcesMap) {
         this.totalResourcesMap = totalResourcesMap;
+        this.totalResAllocs = new ResAllocsBuilder(name)
+                .withCores(totalResourcesMap.getOrDefault(VMResource.CPU, 0.0))
+                .withMemory(totalResourcesMap.getOrDefault(VMResource.Memory, 0.0))
+                .withNetworkMbps(totalResourcesMap.getOrDefault(VMResource.Network, 0.0))
+                .withDisk(totalResourcesMap.getOrDefault(VMResource.Disk, 0.0))
+                .build();
     }
 
     int size() {
