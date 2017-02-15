@@ -17,21 +17,31 @@
 package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.sla.ResAllocs;
-import com.netflix.fenzo.sla.ResAllocsBuilder;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /* package */ class TierSla {
 
     // small allocation for a bucket with no defiend allocation
     static final double eps = 0.001;
 
+    private ResAllocs tierAlloc;
+
     private final Map<String, ResAllocs> allocsMap = new HashMap<>();
     private double totalCpu = 0.0;
     private double totalMem = 0.0;
     private double totalNetwork = 0.0;
     private double totalDisk = 0.0;
+
+    void setTierAlloc(ResAllocs tierAlloc) {
+        this.tierAlloc = tierAlloc;
+    }
+
+    public ResAllocs getTierAlloc() {
+        return tierAlloc;
+    }
 
     void setAlloc(String bucket, ResAllocs value) {
         final ResAllocs prev = allocsMap.put(bucket, value);
@@ -52,6 +62,10 @@ import java.util.Map;
         totalMem -= value.getMemory();
         totalNetwork -= value.getNetworkMbps();
         totalDisk -= value.getDisk();
+    }
+
+    Optional<ResAllocs> getResAllocs(String bucket) {
+        return Optional.ofNullable(allocsMap.get(bucket));
     }
 
     /**

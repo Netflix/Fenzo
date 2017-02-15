@@ -18,11 +18,13 @@ package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
+import com.netflix.fenzo.queues.ResourceUsage.LeafResourceUsage;
+import com.netflix.fenzo.queues.TaskQueue;
+import com.netflix.fenzo.queues.tiered.TieredResourceUsage.GuaranteedResAllocs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.function.BiFunction;
 
 /**
  * A queue bucket is a collection of tasks in one bucket. Generally, all tasks in the bucket are associated
@@ -41,19 +43,20 @@ class QueueBucket implements UsageTrackedQueue {
     // that scheduler's taskTracker will trigger call into assignTask() during the scheduling iteration.
     private final LinkedHashMap<String, QueuableTask> assignedTasks;
     private Iterator<Map.Entry<String, QueuableTask>> iterator = null;
-    private Map<VMResource, Double> totalResourcesMap = Collections.emptyMap();
-    private final BiFunction<Integer, String, Double> allocsShareGetter;
 
-    QueueBucket(int tierNumber, String name, BiFunction<Integer, String, Double> allocsShareGetter) {
+    private Map<VMResource, Double> totalResourcesMap = Collections.emptyMap();
+    private final TierSlas tierSlas;
+    private LeafResourceUsage<GuaranteedResAllocs, QueuableTask> bucketUsage;
+
+    QueueBucket(int tierNumber, String name, TierSlas tierSlas, LeafResourceUsage<GuaranteedResAllocs, QueuableTask> bucketUsage) {
         this.tierNumber = tierNumber;
         this.name = name;
-        totals = new ResUsage();
+        totals = new ResUsage(name);
+        this.tierSlas = tierSlas;
+        this.bucketUsage = bucketUsage;
         queuedTasks = new LinkedHashMap<>();
         launchedTasks = new LinkedHashMap<>();
         assignedTasks = new LinkedHashMap<>();
-        this.allocsShareGetter = allocsShareGetter == null?
-                (integer, s) -> 1.0 :
-                allocsShareGetter;
     }
 
     @Override
@@ -91,6 +94,7 @@ class QueueBucket implements UsageTrackedQueue {
             throw new TaskQueueException("Task already launched, id=" + t.getId());
         assignedTasks.put(t.getId(), t);
         totals.addUsage(t);
+        bucketUsage.add(t);
     }
 
     @Override
@@ -104,6 +108,7 @@ class QueueBucket implements UsageTrackedQueue {
         launchedTasks.put(t.getId(), t);
         if (removed == null) { // queueTask usage only if it was not assigned, happens when initializing tasks that were running previously
             totals.addUsage(t);
+            bucketUsage.add(t);
             return true;
         }
         return false;
@@ -118,8 +123,10 @@ class QueueBucket implements UsageTrackedQueue {
             removed = assignedTasks.remove(id);
             if (removed == null)
                 removed = launchedTasks.remove(id);
-            if (removed != null)
+            if (removed != null) {
                 totals.remUsage(removed);
+                bucketUsage.remove(removed);
+            }
         }
         return removed;
     }
@@ -127,7 +134,14 @@ class QueueBucket implements UsageTrackedQueue {
     @Override
     public double getDominantUsageShare() {
         return totals.getDominantResUsageFrom(totalResourcesMap) /
-                Math.max(TierSla.eps / 10.0, allocsShareGetter.apply(tierNumber, name));
+                Math.max(TierSla.eps / 10.0, tierSlas.getBucketAllocation(tierNumber, name));
+    }
+
+    public boolean isBelowGuaranteedConsumption() {
+        return tierSlas.getTierSla(tierNumber)
+                .flatMap(tierSla -> tierSla.getResAllocs(name))
+                .map(bucketRes -> ResAllocsUtil.isLess(totals.asResAllocs(), bucketRes))
+                .orElse(true);
     }
 
     @Override
