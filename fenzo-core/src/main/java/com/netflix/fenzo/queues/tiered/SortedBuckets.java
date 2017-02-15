@@ -16,7 +16,6 @@
 
 package com.netflix.fenzo.queues.tiered;
 
-import com.netflix.fenzo.queues.UsageTrackedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,21 +41,15 @@ class SortedBuckets {
     // TODO performance can be improved by changing List<> here to a two level map - outer map will have keys
     // of bucket's resource usage and values will be a Map<String, QueueBucket>.
     private static final Logger logger = LoggerFactory.getLogger(SortedBuckets.class);
+
     private final List<QueueBucket> buckets;
     private final Map<String, QueueBucket> bucketMap;
     private final Comparator<QueueBucket> comparator;
-    private final UsageTrackedQueue.ResUsage parentUsage;
 
-    SortedBuckets(final UsageTrackedQueue.ResUsage parentUsage) {
+    SortedBuckets() {
         buckets = new ArrayList<>();
         bucketMap = new HashMap<>();
-        comparator = new Comparator<QueueBucket>() {
-            @Override
-            public int compare(QueueBucket o1, QueueBucket o2) {
-                return Double.compare(o1.getDominantUsageShare(), o2.getDominantUsageShare());
-            }
-        };
-        this.parentUsage = parentUsage;
+        comparator = Comparator.comparingDouble(QueueBucket::getDominantUsageShare);
     }
 
     boolean add(QueueBucket bucket) {

@@ -17,16 +17,13 @@
 package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.VMResource;
-import com.netflix.fenzo.functions.Func1;
 import com.netflix.fenzo.queues.*;
-import com.netflix.fenzo.sla.ResAllocs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.BiFunction;
 
 /**
  * A tiered queuing system where queues are arranged in multiple tiers and then among multiple buckets within each tier.
@@ -46,7 +43,6 @@ public class TieredQueue implements InternalTaskQueue {
     private final BlockingQueue<QueuableTask> tasksToQueue;
     private final BlockingQueue<TieredQueueSlas> slasQueue;
     private final TierSlas tierSlas = new TierSlas();
-    private final BiFunction<Integer, String, Double> allocsShareGetter = tierSlas::getBucketAllocation;
 
     /**
      * Construct a tiered queue system with the given number of tiers.
@@ -55,7 +51,7 @@ public class TieredQueue implements InternalTaskQueue {
     public TieredQueue(int numTiers) {
         tiers = new ArrayList<>(numTiers);
         for ( int i=0; i<numTiers; i++ )
-            tiers.add(new Tier(i, allocsShareGetter));
+            tiers.add(new Tier(i, tierSlas));
         tasksToQueue = new LinkedBlockingQueue<>();
         slasQueue = new LinkedBlockingQueue<>();
     }

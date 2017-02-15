@@ -5,18 +5,37 @@ import com.netflix.fenzo.sla.ResAllocs;
 import com.netflix.fenzo.sla.ResAllocsBuilder;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Collection of helper functions for {@link com.netflix.fenzo.sla.ResAllocs} data type.
  */
 public final class ResAllocsUtil {
 
-    public static ResAllocs addAll(List<ResAllocs> resToAdd) {
+    public static ResAllocs add(ResAllocs first, QueuableTask second) {
+        return new ResAllocsBuilder(first.getTaskGroupName())
+                .withCores(first.getCores() + second.getCPUs())
+                .withMemory(first.getMemory() + second.getMemory())
+                .withNetworkMbps(first.getNetworkMbps() + second.getNetworkMbps())
+                .withDisk(first.getDisk() + second.getDisk())
+                .build();
+    }
+
+    public static ResAllocs add(ResAllocs first, ResAllocs second) {
+        return new ResAllocsBuilder(first.getTaskGroupName())
+                .withCores(first.getCores() + second.getCores())
+                .withMemory(first.getMemory() + second.getMemory())
+                .withNetworkMbps(first.getNetworkMbps() + second.getNetworkMbps())
+                .withDisk(first.getDisk() + second.getDisk())
+                .build();
+    }
+
+    public static Optional<ResAllocs> addAll(List<ResAllocs> resToAdd) {
         if (resToAdd.isEmpty()) {
-            throw new IllegalArgumentException("Empty list provided");
+            return Optional.empty();
         }
         if (resToAdd.size() == 1) {
-            return resToAdd.get(0);
+            return Optional.of(resToAdd.get(0));
         }
         double cores = 0;
         double memory = 0;
@@ -28,11 +47,21 @@ public final class ResAllocsUtil {
             network += r.getNetworkMbps();
             disk += r.getDisk();
         }
-        return new ResAllocsBuilder(resToAdd.get(0).getTaskGroupName())
+        ResAllocs total = new ResAllocsBuilder(resToAdd.get(0).getTaskGroupName())
                 .withCores(cores)
                 .withMemory(memory)
                 .withNetworkMbps(network)
                 .withDisk(disk)
+                .build();
+        return Optional.of(total);
+    }
+
+    public static ResAllocs subtract(ResAllocs first, QueuableTask second) {
+        return new ResAllocsBuilder(first.getTaskGroupName())
+                .withCores(first.getCores() - second.getCPUs())
+                .withMemory(first.getMemory() - second.getMemory())
+                .withNetworkMbps(first.getNetworkMbps() - second.getNetworkMbps())
+                .withDisk(first.getDisk() - second.getDisk())
                 .build();
     }
 
