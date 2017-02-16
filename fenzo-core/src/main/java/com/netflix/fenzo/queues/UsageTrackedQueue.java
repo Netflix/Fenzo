@@ -17,6 +17,7 @@
 package com.netflix.fenzo.queues;
 
 import com.netflix.fenzo.VMResource;
+import com.netflix.fenzo.sla.ResAllocs;
 
 import java.util.Collection;
 import java.util.Map;
@@ -42,10 +43,41 @@ import java.util.Map;
 public interface UsageTrackedQueue {
 
     class ResUsage {
+        private final ResAllocs resAllocsWrapper;
+
         private double cpus=0.0;
         private double memory=0.0;
         private double networkMbps=0.0;
         private double disk=0.0;
+
+        public ResUsage() {
+            resAllocsWrapper = new ResAllocs() {
+                @Override
+                public String getTaskGroupName() {
+                    return "usage";
+                }
+
+                @Override
+                public double getCores() {
+                    return cpus;
+                }
+
+                @Override
+                public double getMemory() {
+                    return memory;
+                }
+
+                @Override
+                public double getNetworkMbps() {
+                    return networkMbps;
+                }
+
+                @Override
+                public double getDisk() {
+                    return disk;
+                }
+            };
+        }
 
         public void addUsage(QueuableTask task) {
             cpus += task.getCPUs();
@@ -59,6 +91,10 @@ public interface UsageTrackedQueue {
             memory -= task.getMemory();
             networkMbps -= task.getNetworkMbps();
             disk -= task.getDisk();
+        }
+
+        public ResAllocs getResAllocsWrapper() {
+            return resAllocsWrapper;
         }
 
         public double getCpus() {

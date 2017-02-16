@@ -18,6 +18,9 @@ package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
+import com.netflix.fenzo.queues.TaskQueue;
+import com.netflix.fenzo.sla.ResAllocs;
+import com.netflix.fenzo.sla.ResAllocsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +37,15 @@ class Tier implements UsageTrackedQueue {
 
     private static final Logger logger = LoggerFactory.getLogger(Tier.class);
     private final int tierNumber;
+
+    private TierSla tierSla;
     private final ResUsage totals;
+
+    private ResAllocs tierResources = null;
+    private ResAllocs effectiveUsedResources = null;
+    private ResAllocs remainingResources = null;
+    private final Map<String, ResAllocs> lastEffectiveUsedResources = new HashMap<>();
+
     private final SortedBuckets sortedBuckets;
     private Map<VMResource, Double> currTotalResourcesMap = new HashMap<>();
     private final BiFunction<Integer, String, Double> allocsShareGetter;
@@ -49,6 +60,23 @@ class Tier implements UsageTrackedQueue {
         this.allocsShareGetter = allocsShareGetter;
     }
 
+    void reset(TierSla tierSla) {
+        this.tierSla = tierSla;
+
+        sortedBuckets.getSortedList().forEach(bucket -> bucket.reset(tierSla.getBucketAllocs(bucket.getName())));
+
+        this.tierResources = tierSla.getTierAllocs();
+
+        this.effectiveUsedResources = ResAllocsUtil.emptyOf("tier#" + tierNumber);
+        this.lastEffectiveUsedResources.clear();
+        for (QueueBucket bucket : sortedBuckets.getSortedList()) {
+            effectiveUsedResources = ResAllocsUtil.add(effectiveUsedResources, bucket.getEffectiveUsage());
+            lastEffectiveUsedResources.put(bucket.getName(), bucket.getEffectiveUsage());
+        }
+
+        this.remainingResources = ResAllocsUtil.subtract(tierResources, effectiveUsedResources);
+    }
+
     private QueueBucket getOrCreateBucket(QueuableTask t) {
         if (t == null)
             throw new NullPointerException();
@@ -57,8 +85,13 @@ class Tier implements UsageTrackedQueue {
         if (bucket == null) {
             bucket = new QueueBucket(tierNumber, bucketName, allocsShareGetter);
             sortedBuckets.add(bucket);
+            bucket.reset(tierSla.getBucketAllocs(bucketName));
         }
         return bucket;
+    }
+
+    public int getTierNumber() {
+        return tierNumber;
     }
 
     @Override
@@ -68,10 +101,12 @@ class Tier implements UsageTrackedQueue {
 
     @Override
     public QueuableTask nextTaskToLaunch() throws TaskQueueException {
-        for (QueueBucket bucket: sortedBuckets.getSortedList()) {
+        for (QueueBucket bucket : sortedBuckets.getSortedList()) {
             final QueuableTask task = bucket.nextTaskToLaunch();
             if (task != null) {
-                return task;
+                if (bucket.isBelowGuaranteedCapacity() || !ResAllocsUtil.isLess(remainingResources, task)) {
+                    return task;
+                }
             }
         }
         return null;
@@ -88,9 +123,8 @@ class Tier implements UsageTrackedQueue {
             throw new TaskQueueException("Invalid to not find bucket to assign task id=" + t.getId());
         try {
             bucket.assignTask(t);
-            totals.addUsage(t);
-        }
-        finally {
+            addUsage(bucket, t);
+        } finally {
             sortedBuckets.add(bucket);
         }
     }
@@ -110,11 +144,10 @@ class Tier implements UsageTrackedQueue {
         }
         try {
             if (bucket.launchTask(t)) {
-                totals.addUsage(t);
+                addUsage(bucket, t);
                 return true;
             }
-        }
-        finally {
+        } finally {
             sortedBuckets.add(bucket);
         }
         return false;
@@ -126,7 +159,7 @@ class Tier implements UsageTrackedQueue {
         List<QueueBucket> list = new ArrayList<>(sortedBuckets.getSortedList());
         if (list.size() > 1) {
             QueueBucket prev = list.get(0);
-            for (int i=1; i<list.size(); i++) {
+            for (int i = 1; i < list.size(); i++) {
                 if (list.get(i).getDominantUsageShare() < prev.getDominantUsageShare()) {
                     final String msg = "Incorrect sorting order : " + getSortedListString();
                     throw new TaskQueueException(msg);
@@ -147,14 +180,33 @@ class Tier implements UsageTrackedQueue {
         try {
             removed = bucket.removeTask(id, qAttributes);
             if (removed != null) {
-                totals.remUsage(removed);
+                removeUsage(bucket, removed);
             }
-        }
-        finally {
+        } finally {
             if (bucket.size() > 0)
                 sortedBuckets.add(bucket);
         }
         return removed;
+    }
+
+    private void addUsage(QueueBucket bucket, QueuableTask t) {
+        totals.addUsage(t);
+        updateEffectiveBucketTotals(bucket);
+    }
+
+    private void removeUsage(QueueBucket bucket, QueuableTask removed) {
+        totals.remUsage(removed);
+        updateEffectiveBucketTotals(bucket);
+    }
+
+    private void updateEffectiveBucketTotals(QueueBucket bucket) {
+        ResAllocs lastEffective = lastEffectiveUsedResources.get(bucket.getName());
+        if (lastEffective != null) {
+            effectiveUsedResources = ResAllocsUtil.subtract(effectiveUsedResources, lastEffective);
+        }
+        lastEffectiveUsedResources.put(bucket.getName(), bucket.getEffectiveUsage());
+        effectiveUsedResources = ResAllocsUtil.add(effectiveUsedResources, bucket.getEffectiveUsage());
+        remainingResources = ResAllocsUtil.subtract(tierResources, effectiveUsedResources);
     }
 
     @Override
@@ -171,14 +223,14 @@ class Tier implements UsageTrackedQueue {
                 logger.error(e.getMessage());
             }
         }
-        for (QueueBucket bucket: sortedBuckets.getSortedList()) {
+        for (QueueBucket bucket : sortedBuckets.getSortedList()) {
             bucket.reset();
         }
     }
 
     private String getSortedListString() {
         StringBuilder b = new StringBuilder("Tier " + tierNumber + " sortedBs: [");
-        for (QueueBucket bucket: sortedBuckets.getSortedList()) {
+        for (QueueBucket bucket : sortedBuckets.getSortedList()) {
             b.append(bucket.getName()).append(" (").append(bucket.getDominantUsageShare()).append("), ");
         }
         b.append("]");
@@ -190,7 +242,7 @@ class Tier implements UsageTrackedQueue {
         if (totalResMapChanged(currTotalResourcesMap, totalResourcesMap)) {
             currTotalResourcesMap.clear();
             currTotalResourcesMap.putAll(totalResourcesMap);
-            for (QueueBucket b: sortedBuckets.getSortedList()) {
+            for (QueueBucket b : sortedBuckets.getSortedList()) {
                 b.setTotalResources(totalResourcesMap);
             }
             logger.info("Re-sorting buckets in tier " + tierNumber + " after totals changed");
@@ -202,10 +254,10 @@ class Tier implements UsageTrackedQueue {
         if (currTotalResourcesMap.size() != totalResourcesMap.size())
             return true;
         Set<VMResource> curr = new HashSet<>(currTotalResourcesMap.keySet());
-        for (VMResource r: totalResourcesMap.keySet()) {
+        for (VMResource r : totalResourcesMap.keySet()) {
             final Double c = currTotalResourcesMap.get(r);
             final Double n = totalResourcesMap.get(r);
-            if ((c == null && n != null) || (c != null && n == null) || (n != null &&!n.equals(c)))
+            if ((c == null && n != null) || (c != null && n == null) || (n != null && !n.equals(c)))
                 return true;
             curr.remove(r);
         }
@@ -215,10 +267,10 @@ class Tier implements UsageTrackedQueue {
     @Override
     public Map<TaskQueue.TaskState, Collection<QueuableTask>> getAllTasks() throws TaskQueueException {
         Map<TaskQueue.TaskState, Collection<QueuableTask>> result = new HashMap<>();
-        for (QueueBucket bucket: sortedBuckets.getSortedList()) {
+        for (QueueBucket bucket : sortedBuckets.getSortedList()) {
             final Map<TaskQueue.TaskState, Collection<QueuableTask>> allTasks = bucket.getAllTasks();
             if (!allTasks.isEmpty()) {
-                for (TaskQueue.TaskState s: TaskQueue.TaskState.values()) {
+                for (TaskQueue.TaskState s : TaskQueue.TaskState.values()) {
                     final Collection<QueuableTask> q = allTasks.get(s);
                     if (q != null && !q.isEmpty()) {
                         Collection<QueuableTask> resQ = result.get(s);

@@ -29,6 +29,7 @@ import com.netflix.fenzo.sla.ResAllocsBuilder;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -153,7 +154,7 @@ public class TieredQueueTest {
         bucketWeights.put("A", 1.0);
         bucketWeights.put("B", 2.0);
         bucketWeights.put("C", 1.0);
-        queue.setSla(new TieredQueueSlas(getTierAllocsForBuckets(bucketWeights)));
+        queue.setSla(new TieredQueueSlas(Collections.emptyMap(), getTierAllocsForBuckets(bucketWeights)));
         final AtomicInteger countA = new AtomicInteger();
         final AtomicInteger countB = new AtomicInteger();
         final AtomicInteger countC = new AtomicInteger();
@@ -181,7 +182,7 @@ public class TieredQueueTest {
         bucketWeights.put("A", 1.0);
         bucketWeights.put("B", 2.0);
         bucketWeights.put("C", 1.0);
-        queue.setSla(new TieredQueueSlas(getTierAllocsForBuckets(bucketWeights)));
+        queue.setSla(new TieredQueueSlas(Collections.emptyMap(), getTierAllocsForBuckets(bucketWeights)));
         final AtomicInteger countA = new AtomicInteger();
         final AtomicInteger countB = new AtomicInteger();
         final AtomicInteger countC = new AtomicInteger();
@@ -201,7 +202,7 @@ public class TieredQueueTest {
         bucketWeights.put("A", 1.0);
         bucketWeights.put("B", 1.0);
         bucketWeights.put("C", 2.0);
-        queue.setSla(new TieredQueueSlas(getTierAllocsForBuckets(bucketWeights)));
+        queue.setSla(new TieredQueueSlas(Collections.emptyMap(), getTierAllocsForBuckets(bucketWeights)));
         // reset latch to new one
         latchRef.set(new CountDownLatch(40));
         // reset counters
@@ -225,7 +226,7 @@ public class TieredQueueTest {
         bucketWeights.put("A", 1.0);
         bucketWeights.put("B", 2.0);
         bucketWeights.put("C", 1.0);
-        queue.setSla(new TieredQueueSlas(getTierAllocsForBuckets(bucketWeights)));
+        queue.setSla(new TieredQueueSlas(Collections.emptyMap(), getTierAllocsForBuckets(bucketWeights)));
         final AtomicInteger countA = new AtomicInteger();
         final AtomicInteger countB = new AtomicInteger();
         final AtomicInteger countC = new AtomicInteger();
@@ -250,7 +251,7 @@ public class TieredQueueTest {
         bucketWeights.put("A", 1.0);
         bucketWeights.put("B", 2.0);
         bucketWeights.put("C", 1.0);
-        queue.setSla(new TieredQueueSlas(getTierAllocsForBuckets(bucketWeights)));
+        queue.setSla(new TieredQueueSlas(Collections.emptyMap(), getTierAllocsForBuckets(bucketWeights)));
         final AtomicInteger countA = new AtomicInteger();
         final AtomicInteger countB = new AtomicInteger();
         final AtomicInteger countC = new AtomicInteger();

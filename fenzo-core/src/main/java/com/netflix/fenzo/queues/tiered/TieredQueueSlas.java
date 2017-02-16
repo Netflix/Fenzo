@@ -25,18 +25,33 @@ import java.util.Map;
 public class TieredQueueSlas implements TaskQueueSla {
     private final Map<Integer, TierSla> slas;
 
-    public TieredQueueSlas(Map<Integer, Map<String, ResAllocs>> slas) {
+    public TieredQueueSlas(Map<Integer, ResAllocs> tierCapacities, Map<Integer, Map<String, ResAllocs>> slas) {
         Map<Integer, TierSla> tmpResAllocsMap = new HashMap<>();
+
         if (!slas.isEmpty()) {
-            for (Map.Entry<Integer, Map<String, ResAllocs>> entry: slas.entrySet()) {
+            for (Map.Entry<Integer, Map<String, ResAllocs>> entry : slas.entrySet()) {
+                Integer tierIndex = entry.getKey();
+                if (!tierCapacities.containsKey(tierIndex)) {
+                    throw new IllegalArgumentException("Total capacity not defined for tear " + tierIndex);
+                }
                 final Map<String, ResAllocs> tierAllocs = entry.getValue();
                 TierSla tierSla = new TierSla();
-                tmpResAllocsMap.put(entry.getKey(), tierSla);
-                for (Map.Entry<String, ResAllocs> e: tierAllocs.entrySet()) {
+                tierSla.setTierAllocs(tierCapacities.get(tierIndex));
+                tmpResAllocsMap.put(tierIndex, tierSla);
+                for (Map.Entry<String, ResAllocs> e : tierAllocs.entrySet()) {
                     tierSla.setAlloc(e.getKey(), e.getValue());
                 }
             }
         }
+
+        tierCapacities.forEach((tierIndex, capacity) -> {
+            if (!tmpResAllocsMap.containsKey(tierIndex)) {
+                TierSla tierSla = new TierSla();
+                tierSla.setTierAllocs(tierCapacities.get(tierIndex));
+                tmpResAllocsMap.put(tierIndex, tierSla);
+            }
+        });
+
         this.slas = tmpResAllocsMap;
     }
 
