@@ -113,18 +113,22 @@ public interface UsageTrackedQueue {
             return disk;
         }
 
-        public double getDominantResUsageFrom(Map<VMResource, Double> totals) {
-            Double tval = totals.get(VMResource.CPU);
-            double max = tval != null && tval > 0.0? cpus / tval : cpus;
-            tval = totals.get(VMResource.Memory);
-            double tmp = tval != null && tval > 0.0? memory / tval : memory;
+        public double getDominantResUsageFrom(ResAllocs totalResources) {
+            double tCPU = totalResources.getCores();
+            double max = tCPU > 0.0 ? cpus / tCPU : cpus;
+
+            double tMemory = totalResources.getMemory();
+            double tmp = tMemory > 0.0? memory / tMemory : memory;
             max = Math.max(max, tmp);
-            tval = totals.get(VMResource.Network);
-            tmp = tval != null && tval > 0.0? networkMbps / tval : networkMbps;
+
+            double tNetwork = totalResources.getNetworkMbps();
+            tmp = tNetwork > 0.0? networkMbps / tNetwork : networkMbps;
             max = Math.max(max, tmp);
-            tval = totals.get(VMResource.Disk);
-            tmp = tval != null && tval > 0.0? disk / tval : disk;
+
+            double tDisk = totalResources.getDisk();
+            tmp = tDisk > 0.0? disk / tDisk : disk;
             max = Math.max(max, tmp);
+
             return max;
         }
     }

@@ -1,6 +1,9 @@
 package com.netflix.fenzo.sla;
 
+import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.QueuableTask;
+
+import java.util.Map;
 
 /**
  * Collection of helper functions for {@link com.netflix.fenzo.sla.ResAllocs} data type.
@@ -68,5 +71,14 @@ public final class ResAllocsUtil {
 
     public static ResAllocs emptyOf(String name) {
         return new ResAllocsBuilder(name).build();
+    }
+
+    public static ResAllocs toResAllocs(String name, Map<VMResource, Double> resourceMap) {
+        return new ResAllocsBuilder(name)
+                .withCores(resourceMap.getOrDefault(VMResource.CPU, 0.0))
+                .withMemory(resourceMap.getOrDefault(VMResource.Memory, 0.0))
+                .withNetworkMbps(resourceMap.getOrDefault(VMResource.Network, 0.0))
+                .withDisk(resourceMap.getOrDefault(VMResource.Disk, 0.0))
+                .build();
     }
 }

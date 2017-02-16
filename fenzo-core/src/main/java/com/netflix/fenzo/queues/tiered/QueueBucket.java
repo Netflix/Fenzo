@@ -37,6 +37,7 @@ class QueueBucket implements UsageTrackedQueue {
     private final String name;
 
     private final ResUsage totals;
+    private final ResAllocs emptyBucketGuarantees;
     private ResAllocs bucketGuarantees;
     private ResAllocs effectiveUsage;
 
@@ -48,13 +49,17 @@ class QueueBucket implements UsageTrackedQueue {
     // that scheduler's taskTracker will trigger call into assignTask() during the scheduling iteration.
     private final LinkedHashMap<String, QueuableTask> assignedTasks;
     private Iterator<Map.Entry<String, QueuableTask>> iterator = null;
-    private Map<VMResource, Double> totalResourcesMap = Collections.emptyMap();
+    private ResAllocs tierResources;
     private final BiFunction<Integer, String, Double> allocsShareGetter;
+    private final ResUsage tierUsage;
 
-    QueueBucket(int tierNumber, String name, BiFunction<Integer, String, Double> allocsShareGetter) {
+    QueueBucket(int tierNumber, String name, ResUsage tierUsage, BiFunction<Integer, String, Double> allocsShareGetter) {
         this.tierNumber = tierNumber;
         this.name = name;
+        this.tierUsage = tierUsage;
         totals = new ResUsage();
+        this.emptyBucketGuarantees = ResAllocsUtil.emptyOf(name);
+        bucketGuarantees = emptyBucketGuarantees;
         queuedTasks = new LinkedHashMap<>();
         launchedTasks = new LinkedHashMap<>();
         assignedTasks = new LinkedHashMap<>();
@@ -63,8 +68,8 @@ class QueueBucket implements UsageTrackedQueue {
                 allocsShareGetter;
     }
 
-    void reset(ResAllocs bucketGuarantees) {
-        this.bucketGuarantees = bucketGuarantees;
+    void setBucketGuarantees(ResAllocs bucketGuarantees) {
+        this.bucketGuarantees = bucketGuarantees == null ? emptyBucketGuarantees : bucketGuarantees;
         updateEffectiveUsage();
     }
 
@@ -152,7 +157,9 @@ class QueueBucket implements UsageTrackedQueue {
 
     @Override
     public double getDominantUsageShare() {
-        return totals.getDominantResUsageFrom(totalResourcesMap) /
+        // If total tier capacity is not available, use current tier allocation as a base for share computation.
+        ResAllocs total = tierResources == null ? tierUsage.getResAllocsWrapper() : tierResources;
+        return totals.getDominantResUsageFrom(total) /
                 Math.max(TierSla.eps / 10.0, allocsShareGetter.apply(tierNumber, name));
     }
 
@@ -181,7 +188,11 @@ class QueueBucket implements UsageTrackedQueue {
 
     @Override
     public void setTotalResources(Map<VMResource, Double> totalResourcesMap) {
-        this.totalResourcesMap = totalResourcesMap;
+        this.tierResources = ResAllocsUtil.toResAllocs("tier", totalResourcesMap);
+    }
+
+    public void setTotalResources(ResAllocs tierResources) {
+        this.tierResources = tierResources;
     }
 
     int size() {

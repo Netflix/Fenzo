@@ -27,7 +27,7 @@ import java.util.Map;
     // small allocation for a bucket with no defiend allocation
     static final double eps = 0.001;
 
-    private ResAllocs tierAllocs;
+    private ResAllocs tierCapacity;
 
     private final Map<String, ResAllocs> allocsMap = new HashMap<>();
     private double totalCpu = 0.0;
@@ -35,8 +35,8 @@ import java.util.Map;
     private double totalNetwork = 0.0;
     private double totalDisk = 0.0;
 
-    void setTierAllocs(ResAllocs tierAllocs) {
-        this.tierAllocs = tierAllocs;
+    void setTierCapacity(ResAllocs tierCapacity) {
+        this.tierCapacity  = tierCapacity;
     }
 
     void setAlloc(String bucket, ResAllocs value) {
@@ -60,8 +60,8 @@ import java.util.Map;
         totalDisk -= value.getDisk();
     }
 
-    public ResAllocs getTierAllocs() {
-        return tierAllocs;
+    public ResAllocs getTierCapacity() {
+        return tierCapacity;
     }
 
     ResAllocs getBucketAllocs(String bucketName) {

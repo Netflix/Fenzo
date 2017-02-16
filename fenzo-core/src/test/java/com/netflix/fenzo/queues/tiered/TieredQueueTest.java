@@ -164,7 +164,7 @@ public class TieredQueueTest {
         createTasksForBuckets(queue, 25, "A", "B", "C");
         schedulingService.addLeases(LeaseProvider.getLeases(10, 4.0, 4000.0, 4000.0, 1, 100));
         schedulingService.start();
-        Assert.assertTrue("Timeout waiting for assignments", latch.await(2, TimeUnit.SECONDS));
+        Assert.assertTrue("Timeout waiting for assignments", latch.await(2, TimeUnit.HOURS));
         Assert.assertEquals(10, countA.get());
         Assert.assertEquals(20, countB.get());
         Assert.assertEquals(10, countC.get());

@@ -37,12 +37,13 @@ class Tier implements UsageTrackedQueue {
 
     private static final Logger logger = LoggerFactory.getLogger(Tier.class);
     private final int tierNumber;
+    private final String tierName;
 
     private TierSla tierSla;
     private final ResUsage totals;
 
     private ResAllocs tierResources = null;
-    private ResAllocs effectiveUsedResources = null;
+    private ResAllocs effectiveUsedResources;
     private ResAllocs remainingResources = null;
     private final Map<String, ResAllocs> lastEffectiveUsedResources = new HashMap<>();
 
@@ -51,8 +52,12 @@ class Tier implements UsageTrackedQueue {
     private final BiFunction<Integer, String, Double> allocsShareGetter;
 
     Tier(int tierNumber, BiFunction<Integer, String, Double> allocsShareGetter) {
-        totals = new ResUsage();
         this.tierNumber = tierNumber;
+        this.tierName = "tier#" + tierNumber;
+
+        this.totals = new ResUsage();
+        this.effectiveUsedResources = ResAllocsUtil.emptyOf(tierName);
+
         // TODO: need to consider the impact of this comparator to any others we may want, like simple round robin.
         // Use DRF sorting. Except, note that it is undefined when two entities compare to 0 (equal values) which
         // one gets ahead of the other.
@@ -60,14 +65,18 @@ class Tier implements UsageTrackedQueue {
         this.allocsShareGetter = allocsShareGetter;
     }
 
-    void reset(TierSla tierSla) {
+    void setTierSla(TierSla tierSla) {
         this.tierSla = tierSla;
 
-        sortedBuckets.getSortedList().forEach(bucket -> bucket.reset(tierSla.getBucketAllocs(bucket.getName())));
+        if (tierSla == null) {
+            sortedBuckets.getSortedList().forEach(bucket -> bucket.setBucketGuarantees(null));
+            tierResources = ResAllocsUtil.emptyOf(tierName);
+        } else {
+            sortedBuckets.getSortedList().forEach(bucket -> bucket.setBucketGuarantees(tierSla.getBucketAllocs(bucket.getName())));
+            this.tierResources = tierSla.getTierCapacity();
+        }
 
-        this.tierResources = tierSla.getTierAllocs();
-
-        this.effectiveUsedResources = ResAllocsUtil.emptyOf("tier#" + tierNumber);
+        this.effectiveUsedResources = ResAllocsUtil.emptyOf(tierName);
         this.lastEffectiveUsedResources.clear();
         for (QueueBucket bucket : sortedBuckets.getSortedList()) {
             effectiveUsedResources = ResAllocsUtil.add(effectiveUsedResources, bucket.getEffectiveUsage());
@@ -75,6 +84,8 @@ class Tier implements UsageTrackedQueue {
         }
 
         this.remainingResources = ResAllocsUtil.subtract(tierResources, effectiveUsedResources);
+
+        sortedBuckets.resort();
     }
 
     private QueueBucket getOrCreateBucket(QueuableTask t) {
@@ -83,9 +94,9 @@ class Tier implements UsageTrackedQueue {
         final String bucketName = t.getQAttributes().getBucketName();
         QueueBucket bucket = sortedBuckets.get(bucketName);
         if (bucket == null) {
-            bucket = new QueueBucket(tierNumber, bucketName, allocsShareGetter);
+            bucket = new QueueBucket(tierNumber, bucketName, totals, allocsShareGetter);
             sortedBuckets.add(bucket);
-            bucket.reset(tierSla.getBucketAllocs(bucketName));
+            bucket.setBucketGuarantees(tierSla == null ? null : tierSla.getBucketAllocs(bucketName));
         }
         return bucket;
     }
@@ -104,7 +115,10 @@ class Tier implements UsageTrackedQueue {
         for (QueueBucket bucket : sortedBuckets.getSortedList()) {
             final QueuableTask task = bucket.nextTaskToLaunch();
             if (task != null) {
-                if (bucket.isBelowGuaranteedCapacity() || !ResAllocsUtil.isLess(remainingResources, task)) {
+                if (bucket.isBelowGuaranteedCapacity()) {
+                    return task;
+                }
+                if (remainingResources == null || !ResAllocsUtil.isLess(remainingResources, task)) {
                     return task;
                 }
             }
@@ -140,7 +154,7 @@ class Tier implements UsageTrackedQueue {
         final String bucketName = t.getQAttributes().getBucketName();
         QueueBucket bucket = sortedBuckets.remove(bucketName);
         if (bucket == null) {
-            bucket = new QueueBucket(tierNumber, bucketName, allocsShareGetter);
+            bucket = new QueueBucket(tierNumber, bucketName, totals, allocsShareGetter);
         }
         try {
             if (bucket.launchTask(t)) {
@@ -206,7 +220,12 @@ class Tier implements UsageTrackedQueue {
         }
         lastEffectiveUsedResources.put(bucket.getName(), bucket.getEffectiveUsage());
         effectiveUsedResources = ResAllocsUtil.add(effectiveUsedResources, bucket.getEffectiveUsage());
-        remainingResources = ResAllocsUtil.subtract(tierResources, effectiveUsedResources);
+
+        if (tierResources == null) {
+            remainingResources = null;
+        } else {
+            remainingResources = ResAllocsUtil.subtract(tierResources, effectiveUsedResources);
+        }
     }
 
     @Override
@@ -243,7 +262,7 @@ class Tier implements UsageTrackedQueue {
             currTotalResourcesMap.clear();
             currTotalResourcesMap.putAll(totalResourcesMap);
             for (QueueBucket b : sortedBuckets.getSortedList()) {
-                b.setTotalResources(totalResourcesMap);
+                b.setTotalResources(tierResources);
             }
             logger.info("Re-sorting buckets in tier " + tierNumber + " after totals changed");
             sortedBuckets.resort();
