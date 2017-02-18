@@ -18,6 +18,7 @@ package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.queues.TaskQueueSla;
 import com.netflix.fenzo.sla.ResAllocs;
+import com.netflix.fenzo.sla.ResAllocsUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,19 +26,45 @@ import java.util.Map;
 public class TieredQueueSlas implements TaskQueueSla {
     private final Map<Integer, TierSla> slas;
 
-    public TieredQueueSlas(Map<Integer, Map<String, ResAllocs>> slas) {
+    public TieredQueueSlas(Map<Integer, ResAllocs> tierCapacities, Map<Integer, Map<String, ResAllocs>> slas) {
         Map<Integer, TierSla> tmpResAllocsMap = new HashMap<>();
+
         if (!slas.isEmpty()) {
-            for (Map.Entry<Integer, Map<String, ResAllocs>> entry: slas.entrySet()) {
+            for (Map.Entry<Integer, Map<String, ResAllocs>> entry : slas.entrySet()) {
+                int tierNumber = entry.getKey();
                 final Map<String, ResAllocs> tierAllocs = entry.getValue();
+
                 TierSla tierSla = new TierSla();
-                tmpResAllocsMap.put(entry.getKey(), tierSla);
-                for (Map.Entry<String, ResAllocs> e: tierAllocs.entrySet()) {
+                tierSla.setTierCapacity(getOrComputeTierCapacity(tierNumber, tierCapacities.get(tierNumber), tierAllocs));
+
+                for (Map.Entry<String, ResAllocs> e : tierAllocs.entrySet()) {
                     tierSla.setAlloc(e.getKey(), e.getValue());
                 }
+
+                tmpResAllocsMap.put(tierNumber, tierSla);
             }
         }
+
+        tierCapacities.forEach((tierIndex, capacity) -> {
+            if (!tmpResAllocsMap.containsKey(tierIndex)) {
+                TierSla tierSla = new TierSla();
+                tierSla.setTierCapacity(tierCapacities.get(tierIndex));
+                tmpResAllocsMap.put(tierIndex, tierSla);
+            }
+        });
+
         this.slas = tmpResAllocsMap;
+    }
+
+    private ResAllocs getOrComputeTierCapacity(int tierNumber, ResAllocs tierCapacity, Map<String, ResAllocs> queueAllocs) {
+        if (tierCapacity != null) {
+            return tierCapacity;
+        }
+        String tierName = "tier#" + tierNumber;
+        if (queueAllocs.isEmpty()) {
+            return ResAllocsUtil.emptyOf(tierName);
+        }
+        return queueAllocs.values().stream().reduce(ResAllocsUtil.emptyOf(tierName), ResAllocsUtil::add);
     }
 
     /* package */ Map<Integer, TierSla> getSlas() {

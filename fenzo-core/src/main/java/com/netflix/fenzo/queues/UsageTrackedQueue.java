@@ -17,6 +17,7 @@
 package com.netflix.fenzo.queues;
 
 import com.netflix.fenzo.VMResource;
+import com.netflix.fenzo.sla.ResAllocs;
 
 import java.util.Collection;
 import java.util.Map;
@@ -42,10 +43,41 @@ import java.util.Map;
 public interface UsageTrackedQueue {
 
     class ResUsage {
+        private final ResAllocs resAllocsWrapper;
+
         private double cpus=0.0;
         private double memory=0.0;
         private double networkMbps=0.0;
         private double disk=0.0;
+
+        public ResUsage() {
+            resAllocsWrapper = new ResAllocs() {
+                @Override
+                public String getTaskGroupName() {
+                    return "usage";
+                }
+
+                @Override
+                public double getCores() {
+                    return cpus;
+                }
+
+                @Override
+                public double getMemory() {
+                    return memory;
+                }
+
+                @Override
+                public double getNetworkMbps() {
+                    return networkMbps;
+                }
+
+                @Override
+                public double getDisk() {
+                    return disk;
+                }
+            };
+        }
 
         public void addUsage(QueuableTask task) {
             cpus += task.getCPUs();
@@ -59,6 +91,10 @@ public interface UsageTrackedQueue {
             memory -= task.getMemory();
             networkMbps -= task.getNetworkMbps();
             disk -= task.getDisk();
+        }
+
+        public ResAllocs getResAllocsWrapper() {
+            return resAllocsWrapper;
         }
 
         public double getCpus() {
@@ -77,18 +113,22 @@ public interface UsageTrackedQueue {
             return disk;
         }
 
-        public double getDominantResUsageFrom(Map<VMResource, Double> totals) {
-            Double tval = totals.get(VMResource.CPU);
-            double max = tval != null && tval > 0.0? cpus / tval : cpus;
-            tval = totals.get(VMResource.Memory);
-            double tmp = tval != null && tval > 0.0? memory / tval : memory;
+        public double getDominantResUsageFrom(ResAllocs totalResources) {
+            double tCPU = totalResources.getCores();
+            double max = tCPU > 0.0 ? cpus / tCPU : cpus;
+
+            double tMemory = totalResources.getMemory();
+            double tmp = tMemory > 0.0? memory / tMemory : memory;
             max = Math.max(max, tmp);
-            tval = totals.get(VMResource.Network);
-            tmp = tval != null && tval > 0.0? networkMbps / tval : networkMbps;
+
+            double tNetwork = totalResources.getNetworkMbps();
+            tmp = tNetwork > 0.0? networkMbps / tNetwork : networkMbps;
             max = Math.max(max, tmp);
-            tval = totals.get(VMResource.Disk);
-            tmp = tval != null && tval > 0.0? disk / tval : disk;
+
+            double tDisk = totalResources.getDisk();
+            tmp = tDisk > 0.0? disk / tDisk : disk;
             max = Math.max(max, tmp);
+
             return max;
         }
     }

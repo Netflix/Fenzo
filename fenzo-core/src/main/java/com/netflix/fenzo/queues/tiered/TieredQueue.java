@@ -17,9 +17,7 @@
 package com.netflix.fenzo.queues.tiered;
 
 import com.netflix.fenzo.VMResource;
-import com.netflix.fenzo.functions.Func1;
 import com.netflix.fenzo.queues.*;
-import com.netflix.fenzo.sla.ResAllocs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +69,7 @@ public class TieredQueue implements InternalTaskQueue {
             throw new IllegalArgumentException("Queue SLA must be an instance of " + TieredQueueSlas.class.getName() +
                     ", can't accept " + sla.getClass().getName());
         }
-        slasQueue.offer(sla == null? new TieredQueueSlas(Collections.emptyMap()) : (TieredQueueSlas)sla);
+        slasQueue.offer(sla == null? new TieredQueueSlas(Collections.emptyMap(), Collections.emptyMap()) : (TieredQueueSlas)sla);
     }
 
     private void setSlaInternal() {
@@ -79,6 +77,8 @@ public class TieredQueue implements InternalTaskQueue {
             List<TieredQueueSlas> slas = new ArrayList<>();
             slasQueue.drainTo(slas);
             tierSlas.setAllocations(slas.get(slas.size()-1)); // set the last one
+
+            tiers.forEach(tier -> tier.setTierSla(tierSlas.getTierSla(tier.getTierNumber())));
         }
     }
 

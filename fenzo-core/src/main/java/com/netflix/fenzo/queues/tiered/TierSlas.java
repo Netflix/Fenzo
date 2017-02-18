@@ -22,9 +22,13 @@ import java.util.Map;
 /* package */ class TierSlas {
     private volatile Map<Integer, TierSla> resAllocsMap = new HashMap<>();
 
+    TierSla getTierSla(int tierIndex) {
+        return resAllocsMap.get(tierIndex);
+    }
+
     double getBucketAllocation(int tier, String bucketName) {
         final TierSla tierSla = resAllocsMap.get(tier);
-        return tierSla == null? 1.0 : tierSla.evalAllocationShare(bucketName);
+        return tierSla == null ? 1.0 : tierSla.evalAllocationShare(bucketName);
     }
 
     void setAllocations(TieredQueueSlas slas) {
