@@ -69,8 +69,26 @@ public final class ResAllocsUtil {
         return true;
     }
 
+    public static ResAllocs empty() {
+        return emptyOf("anonymous");
+    }
+
     public static ResAllocs emptyOf(String name) {
-        return new ResAllocsBuilder(name).build();
+        return new ResAllocsBuilder(name)
+                .withCores(0)
+                .withMemory(0)
+                .withNetworkMbps(0)
+                .withDisk(0)
+                .build();
+    }
+
+    public static ResAllocs rename(String newName, ResAllocs allocs) {
+        return new ResAllocsBuilder(newName)
+                .withCores(allocs.getCores())
+                .withMemory(allocs.getMemory())
+                .withNetworkMbps(allocs.getNetworkMbps())
+                .withDisk(allocs.getDisk())
+                .build();
     }
 
     public static ResAllocs toResAllocs(String name, Map<VMResource, Double> resourceMap) {
