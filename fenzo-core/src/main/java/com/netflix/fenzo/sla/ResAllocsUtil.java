@@ -69,6 +69,13 @@ public final class ResAllocsUtil {
         return true;
     }
 
+    public static boolean hasEqualResources(ResAllocs first, ResAllocs second) {
+        return first.getCores() == second.getCores()
+                && first.getMemory() == second.getMemory()
+                && first.getNetworkMbps() == second.getNetworkMbps()
+                && first.getDisk() == second.getDisk();
+    }
+
     public static ResAllocs empty() {
         return emptyOf("anonymous");
     }

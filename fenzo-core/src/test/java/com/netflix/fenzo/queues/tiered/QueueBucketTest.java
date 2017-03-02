@@ -7,7 +7,7 @@ import org.junit.Test;
 
 import java.util.function.BiFunction;
 
-import static com.netflix.fenzo.queues.tiered.FenzoMatchers.hasEqualResources;
+import static com.netflix.fenzo.sla.ResAllocsUtil.hasEqualResources;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;

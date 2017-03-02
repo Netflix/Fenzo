@@ -8,7 +8,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.netflix.fenzo.queues.tiered.FenzoMatchers.hasEqualResources;
+import static com.netflix.fenzo.sla.ResAllocsUtil.hasEqualResources;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 

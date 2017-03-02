@@ -27,10 +27,27 @@ public class SampleDataGenerator {
         return this;
     }
 
+    public SampleDataGenerator updateTier(int tier, ResAllocs tierCapacity) {
+        TierState tierState = tiers.get(tier);
+        if (tierState == null) {
+            throw new IllegalArgumentException("Tier " + tier + " not defined");
+        }
+        tierState.updateTer(tierCapacity);
+        return this;
+    }
+
     public SampleDataGenerator addBucket(int tierNumber, String bucketName, ResAllocs bucketCapacity) {
         TierState tierState = tiers.computeIfAbsent(tierNumber, k -> new TierState(tierNumber, ResAllocsUtil.empty()));
         tierState.addBucket(bucketName, bucketCapacity);
         return this;
+    }
+
+    public void removeBucket(int tierNumber, String bucketName) {
+        TierState tierState = tiers.get(tierNumber);
+        if (tierState == null) {
+            throw new IllegalArgumentException("Tier " + tierNumber + " not defined");
+        }
+        tierState.removeBucket(bucketName);
     }
 
     public static ResAllocs createResAllocs(int multiplier) {
@@ -74,17 +91,13 @@ public class SampleDataGenerator {
 
     public class TierState {
         private final int tierNumber;
-        private final ResAllocs tierCapacity;
+        private ResAllocs tierCapacity;
         private Map<String, ResAllocs> bucketCapacities;
 
         private TierState(int tierNumber, ResAllocs tierCapacity) {
             this.tierNumber = tierNumber;
             this.tierCapacity = tierCapacity;
             this.bucketCapacities = new HashMap<>();
-        }
-
-        private void addBucket(String name, ResAllocs bucketCapacity) {
-            bucketCapacities.put(name, ResAllocsUtil.rename(name, bucketCapacity));
         }
 
         public int getTierNumber() {
@@ -97,6 +110,20 @@ public class SampleDataGenerator {
 
         public Map<String, ResAllocs> getBucketCapacities() {
             return bucketCapacities;
+        }
+
+        private void addBucket(String name, ResAllocs bucketCapacity) {
+            bucketCapacities.put(name, ResAllocsUtil.rename(name, bucketCapacity));
+        }
+
+        private void removeBucket(String bucketName) {
+            if (bucketCapacities.remove(bucketName) == null) {
+                throw new IllegalArgumentException("Unknown bucket " + bucketName);
+            }
+        }
+
+        private void updateTer(ResAllocs tierCapacity) {
+            this.tierCapacity = tierCapacity;
         }
     }
 
