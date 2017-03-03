@@ -41,17 +41,17 @@ public class ResAllocsUtilTest {
     }
 
     @Test
-    public void testLess() throws Exception {
+    public void testIsBounded() throws Exception {
         ResAllocs reference = generator.createResAllocs(2);
-        assertThat(ResAllocsUtil.isLess(generator.createResAllocs(2), reference), is(false));
-        assertThat(ResAllocsUtil.isLess(generator.createResAllocs(3), reference), is(false));
-        assertThat(ResAllocsUtil.isLess(generator.createResAllocs(1), reference), is(true));
+        assertThat(ResAllocsUtil.isBounded(generator.createResAllocs(1), reference), is(true));
+        assertThat(ResAllocsUtil.isBounded(generator.createResAllocs(2), reference), is(true));
+        assertThat(ResAllocsUtil.isBounded(generator.createResAllocs(3), reference), is(false));
 
         // Task variant
         QueuableTask taskReference = generator.createTask(reference);
-        assertThat(ResAllocsUtil.isLess(generator.createResAllocs(2), taskReference), is(false));
-        assertThat(ResAllocsUtil.isLess(generator.createResAllocs(3), taskReference), is(false));
-        assertThat(ResAllocsUtil.isLess(generator.createResAllocs(1), taskReference), is(true));
+        assertThat(ResAllocsUtil.isBounded(generator.createResAllocs(1), taskReference), is(true));
+        assertThat(ResAllocsUtil.isBounded(generator.createResAllocs(2), taskReference), is(true));
+        assertThat(ResAllocsUtil.isBounded(generator.createResAllocs(3), taskReference), is(false));
     }
 
     @Test

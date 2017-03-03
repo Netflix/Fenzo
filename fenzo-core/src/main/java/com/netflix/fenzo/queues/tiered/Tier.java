@@ -121,10 +121,10 @@ class Tier implements UsageTrackedQueue {
         for (QueueBucket bucket : sortedBuckets.getSortedList()) {
             final QueuableTask task = bucket.nextTaskToLaunch();
             if (task != null) {
-                if (bucket.isBelowGuaranteedCapacity()) {
+                if (bucket.hasGuaranteedCapacityFor(task)) {
                     return task;
                 }
-                if (remainingResources == null || !ResAllocsUtil.isLess(remainingResources, task)) {
+                if (remainingResources == null || ResAllocsUtil.isBounded(task, remainingResources)) {
                     return task;
                 }
             }
