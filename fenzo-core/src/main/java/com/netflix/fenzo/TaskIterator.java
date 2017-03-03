@@ -16,14 +16,16 @@
 
 package com.netflix.fenzo;
 
-import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.queues.Assignable;
 import com.netflix.fenzo.queues.TaskQueueException;
 
 public interface TaskIterator {
     /**
      * Get the next task from queue, or {@code null} if no more tasks exist.
-     * @return The next task.
+     * @return The next task or a task with an assignment failure, if the task cannot be scheduled due to some
+     *         internal constraints (for example exceeds allowed resource usage for a queue).
+     *         Returns {@code null} if there are no tasks left to assign resources to.
      * @throws TaskQueueException if there were errors retrieving the next task from the queue.
      */
-    TaskRequest next() throws TaskQueueException;
+    Assignable<? extends TaskRequest> next() throws TaskQueueException;
 }

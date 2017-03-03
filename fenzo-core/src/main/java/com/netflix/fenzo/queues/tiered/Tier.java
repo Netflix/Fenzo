@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo.queues.tiered;
 
+import com.netflix.fenzo.AssignmentFailure;
 import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
 import com.netflix.fenzo.queues.TaskQueue;
@@ -117,16 +118,23 @@ class Tier implements UsageTrackedQueue {
     }
 
     @Override
-    public QueuableTask nextTaskToLaunch() throws TaskQueueException {
+    public Assignable<QueuableTask> nextTaskToLaunch() throws TaskQueueException {
         for (QueueBucket bucket : sortedBuckets.getSortedList()) {
-            final QueuableTask task = bucket.nextTaskToLaunch();
-            if (task != null) {
+            final Assignable<QueuableTask> taskOrFailure = bucket.nextTaskToLaunch();
+            if (taskOrFailure != null) {
+                if (taskOrFailure.hasFailure()) {
+                    return taskOrFailure;
+                }
+                QueuableTask task = taskOrFailure.getTask();
                 if (bucket.hasGuaranteedCapacityFor(task)) {
-                    return task;
+                    return taskOrFailure;
                 }
                 if (remainingResources == null || ResAllocsUtil.isBounded(task, remainingResources)) {
-                    return task;
+                    return taskOrFailure;
                 }
+                return Assignable.error(task, new AssignmentFailure(VMResource.ResAllocs, 0, 0, 0,
+                        "No guaranteed capacity left for queue " + bucket.getName()
+                                + ", and no spare capacity is available"));
             }
         }
         return null;

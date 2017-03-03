@@ -1,5 +1,6 @@
 package com.netflix.fenzo.queues.tiered;
 
+import com.netflix.fenzo.queues.Assignable;
 import com.netflix.fenzo.queues.QueuableTask;
 import com.netflix.fenzo.queues.TaskQueueException;
 import com.netflix.fenzo.sla.ResAllocs;
@@ -49,10 +50,13 @@ public class TierTest {
         List<String> queue1Tasks = queue(5, createResAllocs(BUCKET_1, 1));
 
         Set<String> scheduledTasks = new HashSet<>();
-        for (int i = 0; i < 6; i++) {
-            QueuableTask next = tier.nextTaskToLaunch();
-            scheduledTasks.add(next.getId());
-            tier.assignTask(next);
+        for (int i = 0; i < 10; i++) {
+            Assignable<QueuableTask> taskOrFailure = tier.nextTaskToLaunch();
+            if (!taskOrFailure.hasFailure()) {
+                QueuableTask next = taskOrFailure.getTask();
+                scheduledTasks.add(next.getId());
+                tier.assignTask(next);
+            }
         }
         Set<String> expected = new HashSet<>();
         expected.addAll(queue0Tasks.subList(0, 2));
@@ -79,10 +83,11 @@ public class TierTest {
         tier.reset();
         List<String> queue0Tasks = queue(5, createResAllocs(BUCKET_0, 1));
         for (int i = 0; i < 2; i++) {
-            QueuableTask next = tier.nextTaskToLaunch();
+            Assignable<QueuableTask> next = tier.nextTaskToLaunch();
             assertThat(next, is(notNullValue()));
-            assertThat(queue0Tasks.contains(next.getId()), is(true));
-            tier.assignTask(next);
+            assertThat(next.hasFailure(), is(false));
+            assertThat(queue0Tasks.contains(next.getTask().getId()), is(true));
+            tier.assignTask(next.getTask());
         }
     }
 
@@ -100,6 +105,7 @@ public class TierTest {
         // Release bucket
         generator.removeBucket(0, BUCKET_0);
         tier.setTierSla(generator.getTierSla(0));
+        tier.reset();
 
         assertThat(consumeAll(), is(equalTo(2)));
 
@@ -117,10 +123,12 @@ public class TierTest {
 
     private int consumeAll() throws TaskQueueException {
         int counter = 0;
-        QueuableTask task;
-        while ((task = tier.nextTaskToLaunch()) != null) {
-            tier.assignTask(task);
-            counter++;
+        Assignable<QueuableTask> taskOrFailure;
+        while ((taskOrFailure = tier.nextTaskToLaunch()) != null) {
+            if (!taskOrFailure.hasFailure()) {
+                tier.assignTask(taskOrFailure.getTask());
+                counter++;
+            }
         }
         return counter;
     }

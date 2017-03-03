@@ -85,14 +85,14 @@ class QueueBucket implements UsageTrackedQueue {
     }
 
     @Override
-    public QueuableTask nextTaskToLaunch() throws TaskQueueException {
+    public Assignable<QueuableTask> nextTaskToLaunch() throws TaskQueueException {
         if (iterator == null) {
             iterator = queuedTasks.entrySet().iterator();
             if (!assignedTasks.isEmpty())
                 throw new TaskQueueException(assignedTasks.size() + " tasks still assigned but not launched");
         }
         if (iterator.hasNext())
-            return iterator.next().getValue();
+            return Assignable.success(iterator.next().getValue());
         return null;
     }
 

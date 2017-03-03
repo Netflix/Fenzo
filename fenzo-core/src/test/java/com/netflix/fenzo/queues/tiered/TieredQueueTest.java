@@ -19,10 +19,7 @@ package com.netflix.fenzo.queues.tiered;
 import com.netflix.fenzo.*;
 import com.netflix.fenzo.functions.Action0;
 import com.netflix.fenzo.functions.Action1;
-import com.netflix.fenzo.queues.InternalTaskQueue;
-import com.netflix.fenzo.queues.QAttributes;
-import com.netflix.fenzo.queues.QueuableTask;
-import com.netflix.fenzo.queues.TaskQueue;
+import com.netflix.fenzo.queues.*;
 import com.netflix.fenzo.TaskSchedulingService;
 import com.netflix.fenzo.sla.ResAllocs;
 import com.netflix.fenzo.sla.ResAllocsBuilder;
@@ -63,8 +60,9 @@ public class TieredQueueTest {
         queue.queueTask(QueuableTaskProvider.wrapTask(tier3bktE, TaskRequestProvider.getTaskRequest(1, 100, 1)));
 
         queue.reset();
-        QueuableTask t;
-        while ((t = (QueuableTask)queue.next()) != null) {
+        Assignable<QueuableTask> taskOrFailure;
+        while ((taskOrFailure = (Assignable<QueuableTask>)queue.next()) != null) {
+            QueuableTask t = taskOrFailure.getTask();
             switch (t.getQAttributes().getTierNumber()) {
                 case 0:
                     tier1--;
@@ -123,8 +121,9 @@ public class TieredQueueTest {
             queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktC, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
 
         queue.reset();
-        QueuableTask t;
-        while ((t = (QueuableTask)queue.next()) != null) {
+        Assignable<QueuableTask> taskOrFailure;
+        while ((taskOrFailure = (Assignable<QueuableTask>)queue.next()) != null) {
+            QueuableTask t = taskOrFailure.getTask();
             switch (t.getQAttributes().getBucketName()) {
                 case "A":
                     A1--;
