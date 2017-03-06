@@ -3,11 +3,12 @@ package com.netflix.fenzo.queues.tiered;
 import com.netflix.fenzo.queues.QueuableTask;
 import com.netflix.fenzo.queues.UsageTrackedQueue.ResUsage;
 import com.netflix.fenzo.sla.ResAllocs;
+import com.netflix.fenzo.sla.ResAllocsBuilder;
 import org.junit.Test;
 
 import java.util.function.BiFunction;
 
-import static com.netflix.fenzo.queues.tiered.FenzoMatchers.hasEqualResources;
+import static com.netflix.fenzo.sla.ResAllocsUtil.hasEqualResources;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -22,6 +23,10 @@ public class QueueBucketTest {
 
     private final SampleDataGenerator generator = new SampleDataGenerator();
 
+    private final QueuableTask smallTask = generator.createTask(
+            new ResAllocsBuilder(BUCKET_NAME).withCores(1).withMemory(1).withDisk(1).withNetworkMbps(1).build()
+    );
+
     private final ResUsage tierUsage = new ResUsage();
 
     private final BiFunction<Integer, String, Double> allocsShareGetter = mock(BiFunction.class);
@@ -35,22 +40,22 @@ public class QueueBucketTest {
 
         // No usage
         assertThat(hasEqualResources(queueBucket.getEffectiveUsage(), bucketCapacity), is(true));
-        assertThat(queueBucket.isBelowGuaranteedCapacity(), is(true));
+        assertThat(queueBucket.hasGuaranteedCapacityFor(smallTask), is(true));
 
         // Half usage
         queueBucket.launchTask(generator.createTask(generator.createResAllocs("task#0", 1)));
         assertThat(hasEqualResources(queueBucket.getEffectiveUsage(), bucketCapacity), is(true));
-        assertThat(queueBucket.isBelowGuaranteedCapacity(), is(true));
+        assertThat(queueBucket.hasGuaranteedCapacityFor(smallTask), is(true));
 
         // Full bucket usage
         queueBucket.launchTask(generator.createTask(generator.createResAllocs("task#1", 1)));
         assertThat(hasEqualResources(queueBucket.getEffectiveUsage(), bucketCapacity), is(true));
-        assertThat(queueBucket.isBelowGuaranteedCapacity(), is(false));
+        assertThat(queueBucket.hasGuaranteedCapacityFor(smallTask), is(false));
 
         // Above bucket usage
         queueBucket.launchTask(generator.createTask(generator.createResAllocs("task#2", 1)));
         assertThat(hasEqualResources(queueBucket.getEffectiveUsage(), generator.createResAllocs(3)), is(true));
-        assertThat(queueBucket.isBelowGuaranteedCapacity(), is(false));
+        assertThat(queueBucket.hasGuaranteedCapacityFor(smallTask), is(false));
     }
 
     @Test

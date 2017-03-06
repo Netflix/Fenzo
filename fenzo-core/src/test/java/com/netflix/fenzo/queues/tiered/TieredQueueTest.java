@@ -19,10 +19,7 @@ package com.netflix.fenzo.queues.tiered;
 import com.netflix.fenzo.*;
 import com.netflix.fenzo.functions.Action0;
 import com.netflix.fenzo.functions.Action1;
-import com.netflix.fenzo.queues.InternalTaskQueue;
-import com.netflix.fenzo.queues.QAttributes;
-import com.netflix.fenzo.queues.QueuableTask;
-import com.netflix.fenzo.queues.TaskQueue;
+import com.netflix.fenzo.queues.*;
 import com.netflix.fenzo.TaskSchedulingService;
 import com.netflix.fenzo.sla.ResAllocs;
 import com.netflix.fenzo.sla.ResAllocsBuilder;
@@ -37,6 +34,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static java.util.Collections.singletonMap;
 
 public class TieredQueueTest {
 
@@ -61,8 +60,9 @@ public class TieredQueueTest {
         queue.queueTask(QueuableTaskProvider.wrapTask(tier3bktE, TaskRequestProvider.getTaskRequest(1, 100, 1)));
 
         queue.reset();
-        QueuableTask t;
-        while ((t = (QueuableTask)queue.next()) != null) {
+        Assignable<QueuableTask> taskOrFailure;
+        while ((taskOrFailure = (Assignable<QueuableTask>)queue.next()) != null) {
+            QueuableTask t = taskOrFailure.getTask();
             switch (t.getQAttributes().getTierNumber()) {
                 case 0:
                     tier1--;
@@ -121,8 +121,9 @@ public class TieredQueueTest {
             queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktC, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
 
         queue.reset();
-        QueuableTask t;
-        while ((t = (QueuableTask)queue.next()) != null) {
+        Assignable<QueuableTask> taskOrFailure;
+        while ((taskOrFailure = (Assignable<QueuableTask>)queue.next()) != null) {
+            QueuableTask t = taskOrFailure.getTask();
             switch (t.getQAttributes().getBucketName()) {
                 case "A":
                     A1--;
@@ -164,7 +165,7 @@ public class TieredQueueTest {
         createTasksForBuckets(queue, 25, "A", "B", "C");
         schedulingService.addLeases(LeaseProvider.getLeases(10, 4.0, 4000.0, 4000.0, 1, 100));
         schedulingService.start();
-        Assert.assertTrue("Timeout waiting for assignments", latch.await(2, TimeUnit.HOURS));
+        Assert.assertTrue("Timeout waiting for assignments", latch.await(2, TimeUnit.SECONDS));
         Assert.assertEquals(10, countA.get());
         Assert.assertEquals(20, countB.get());
         Assert.assertEquals(10, countC.get());
@@ -182,7 +183,14 @@ public class TieredQueueTest {
         bucketWeights.put("A", 1.0);
         bucketWeights.put("B", 2.0);
         bucketWeights.put("C", 1.0);
-        queue.setSla(new TieredQueueSlas(Collections.emptyMap(), getTierAllocsForBuckets(bucketWeights)));
+
+        ResAllocs tier1Capacity = new ResAllocsBuilder("tier#0")
+                .withCores(10 * 4)
+                .withMemory(10 * 4000)
+                .withNetworkMbps(10 * 4000)
+                .build();
+        queue.setSla(new TieredQueueSlas(singletonMap(1, tier1Capacity), getTierAllocsForBuckets(bucketWeights)));
+
         final AtomicInteger countA = new AtomicInteger();
         final AtomicInteger countB = new AtomicInteger();
         final AtomicInteger countC = new AtomicInteger();
@@ -202,7 +210,15 @@ public class TieredQueueTest {
         bucketWeights.put("A", 1.0);
         bucketWeights.put("B", 1.0);
         bucketWeights.put("C", 2.0);
-        queue.setSla(new TieredQueueSlas(Collections.emptyMap(), getTierAllocsForBuckets(bucketWeights)));
+
+        // Double the tier capacity
+        ResAllocs doubledTier1Capacity = new ResAllocsBuilder("tier#0")
+                .withCores(20 * 4)
+                .withMemory(20 * 4000)
+                .withNetworkMbps(20 * 4000)
+                .build();
+        queue.setSla(new TieredQueueSlas(singletonMap(0, doubledTier1Capacity), getTierAllocsForBuckets(bucketWeights)));
+
         // reset latch to new one
         latchRef.set(new CountDownLatch(40));
         // reset counters
@@ -251,7 +267,14 @@ public class TieredQueueTest {
         bucketWeights.put("A", 1.0);
         bucketWeights.put("B", 2.0);
         bucketWeights.put("C", 1.0);
-        queue.setSla(new TieredQueueSlas(Collections.emptyMap(), getTierAllocsForBuckets(bucketWeights)));
+
+        ResAllocs tier1Capacity = new ResAllocsBuilder("tier#0")
+                .withCores(70 * 4)
+                .withMemory(70 * 4000)
+                .withNetworkMbps(70 * 4000)
+                .build();
+        queue.setSla(new TieredQueueSlas(singletonMap(0, tier1Capacity), getTierAllocsForBuckets(bucketWeights)));
+
         final AtomicInteger countA = new AtomicInteger();
         final AtomicInteger countB = new AtomicInteger();
         final AtomicInteger countC = new AtomicInteger();

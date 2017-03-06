@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo.queues.tiered;
 
+import com.netflix.fenzo.AssignmentFailure;
 import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
 import com.netflix.fenzo.queues.TaskQueue;
@@ -73,6 +74,9 @@ class Tier implements UsageTrackedQueue {
             tierResources = ResAllocsUtil.emptyOf(tierName);
         } else {
             sortedBuckets.getSortedList().forEach(bucket -> bucket.setBucketGuarantees(tierSla.getBucketAllocs(bucket.getName())));
+
+            // Always create a bucket, if there is SLA defined for it for proper accounting
+            tierSla.getAllocsMap().keySet().forEach(this::getOrCreateBucket);
             this.tierResources = tierSla.getTierCapacity();
         }
 
@@ -91,7 +95,10 @@ class Tier implements UsageTrackedQueue {
     private QueueBucket getOrCreateBucket(QueuableTask t) {
         if (t == null)
             throw new NullPointerException();
-        final String bucketName = t.getQAttributes().getBucketName();
+        return getOrCreateBucket(t.getQAttributes().getBucketName());
+    }
+
+    private QueueBucket getOrCreateBucket(String bucketName) {
         QueueBucket bucket = sortedBuckets.get(bucketName);
         if (bucket == null) {
             bucket = new QueueBucket(tierNumber, bucketName, totals, allocsShareGetter);
@@ -111,16 +118,23 @@ class Tier implements UsageTrackedQueue {
     }
 
     @Override
-    public QueuableTask nextTaskToLaunch() throws TaskQueueException {
+    public Assignable<QueuableTask> nextTaskToLaunch() throws TaskQueueException {
         for (QueueBucket bucket : sortedBuckets.getSortedList()) {
-            final QueuableTask task = bucket.nextTaskToLaunch();
-            if (task != null) {
-                if (bucket.isBelowGuaranteedCapacity()) {
-                    return task;
+            final Assignable<QueuableTask> taskOrFailure = bucket.nextTaskToLaunch();
+            if (taskOrFailure != null) {
+                if (taskOrFailure.hasFailure()) {
+                    return taskOrFailure;
                 }
-                if (remainingResources == null || !ResAllocsUtil.isLess(remainingResources, task)) {
-                    return task;
+                QueuableTask task = taskOrFailure.getTask();
+                if (bucket.hasGuaranteedCapacityFor(task)) {
+                    return taskOrFailure;
                 }
+                if (remainingResources == null || ResAllocsUtil.isBounded(task, remainingResources)) {
+                    return taskOrFailure;
+                }
+                return Assignable.error(task, new AssignmentFailure(VMResource.ResAllocs, 0, 0, 0,
+                        "No guaranteed capacity left for queue " + bucket.getName()
+                                + ", and no spare capacity is available"));
             }
         }
         return null;
@@ -197,7 +211,7 @@ class Tier implements UsageTrackedQueue {
                 removeUsage(bucket, removed);
             }
         } finally {
-            if (bucket.size() > 0)
+            if (bucket.size() > 0 || (tierSla != null && tierSla.getBucketAllocs(bucket.getName()) != null))
                 sortedBuckets.add(bucket);
         }
         return removed;

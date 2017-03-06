@@ -148,10 +148,12 @@ public interface UsageTrackedQueue {
      * must be called to mark the end of the scheduling iteration, after which other queue modification methods such as
      * {@link #queueTask(QueuableTask)}, {@link #launchTask(QueuableTask)}, and {@link #removeTask(String, QAttributes)}
      * can be called.
-     * @return A task to assign resources to, or {@code null} if there are no tasks left to assign resources to.
+     * @return The next task or a task with an assignment failure, if the task cannot be scheduled due to some
+     *         internal constraints (for example exceeds allowed resource usage for a queue).
+     *         Returns {@code null} if there are no tasks left to assign resources to.
      * @throws TaskQueueException if there was an error getting next task from the queue.
      */
-    QueuableTask nextTaskToLaunch() throws TaskQueueException;
+    Assignable<QueuableTask> nextTaskToLaunch() throws TaskQueueException;
 
     /**
      * Mark the given task to be assigned resources. Assignment is a step within a scheduling iteration. The resources

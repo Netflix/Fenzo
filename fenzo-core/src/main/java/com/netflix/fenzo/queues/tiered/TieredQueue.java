@@ -93,28 +93,30 @@ public class TieredQueue implements InternalTaskQueue {
      * This implementation dynamically picks the next task to consider for resource assignment based on tiers and then
      * based on current dominant resource usage. The usage is updated with each resource assignment during the
      * scheduling iteration, in addition to updating with all running jobs from before.
-     * @return The next task to assign resources to, or {@code null} if none remain for consideration.
+     * @return The next task to assign resources to, a task with assignment failure if the task cannot be scheduled due to some
+     *         internal constraints (for example exceeds allowed resource usage for a queue). Returns {@code null} if none
+     *         remain for consideration.
      * @throws TaskQueueException if there is an unknown error getting the next task to launch from any of the tiers or
      * queue buckets.
      */
     @Override
-    public QueuableTask next() throws TaskQueueException {
+    public Assignable<QueuableTask> next() throws TaskQueueException {
         if (iterator == null) {
             iterator = tiers.iterator();
             currTier = null;
         }
         if (currTier != null) {
-            final QueuableTask task = currTier.nextTaskToLaunch();
-            if (task != null)
-                return task;
+            final Assignable<QueuableTask> taskOrFailure = currTier.nextTaskToLaunch();
+            if (taskOrFailure != null)
+                return taskOrFailure;
             currTier = null; // currTier all done
         }
         while (currTier == null && iterator.hasNext()) {
             if(iterator.hasNext()) {
                 currTier = iterator.next();
-                final QueuableTask task = currTier.nextTaskToLaunch();
-                if (task != null)
-                    return task;
+                final Assignable<QueuableTask> taskOrFailure = currTier.nextTaskToLaunch();
+                if (taskOrFailure != null)
+                    return taskOrFailure;
                 else
                     currTier = null; // currTier is done
             }
@@ -161,7 +163,7 @@ public class TieredQueue implements InternalTaskQueue {
             }
 
             @Override
-            public QueuableTask nextTaskToLaunch() {
+            public Assignable<QueuableTask> nextTaskToLaunch() {
                 return null;
             }
 

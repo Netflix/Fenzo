@@ -85,14 +85,14 @@ class QueueBucket implements UsageTrackedQueue {
     }
 
     @Override
-    public QueuableTask nextTaskToLaunch() throws TaskQueueException {
+    public Assignable<QueuableTask> nextTaskToLaunch() throws TaskQueueException {
         if (iterator == null) {
             iterator = queuedTasks.entrySet().iterator();
             if (!assignedTasks.isEmpty())
                 throw new TaskQueueException(assignedTasks.size() + " tasks still assigned but not launched");
         }
         if (iterator.hasNext())
-            return iterator.next().getValue();
+            return Assignable.success(iterator.next().getValue());
         return null;
     }
 
@@ -163,8 +163,15 @@ class QueueBucket implements UsageTrackedQueue {
                 Math.max(TierSla.eps / 10.0, allocsShareGetter.apply(tierNumber, name));
     }
 
-    public boolean isBelowGuaranteedCapacity() {
-        return ResAllocsUtil.isLess(totals.getResAllocsWrapper(), bucketGuarantees);
+    public boolean hasGuaranteedCapacityFor(QueuableTask task) {
+        // Check first if we are already above the limit
+        if (!ResAllocsUtil.isBounded(totals.getResAllocsWrapper(), bucketGuarantees)) {
+            return false;
+        }
+
+        // We have some remaining guaranteed resources. Now check if they are enough for our task.
+        ResAllocs summed = ResAllocsUtil.add(totals.getResAllocsWrapper(), task);
+        return ResAllocsUtil.isBounded(summed, bucketGuarantees);
     }
 
     public ResAllocs getEffectiveUsage() {

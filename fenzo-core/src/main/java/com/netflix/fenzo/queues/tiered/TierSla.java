@@ -68,6 +68,10 @@ import java.util.Map;
         return allocsMap.computeIfAbsent(bucketName, name -> ResAllocsUtil.emptyOf(bucketName));
     }
 
+    Map<String, ResAllocs> getAllocsMap() {
+        return allocsMap;
+    }
+
     /**
      * Evaluate the allocation share of a bucket among all the buckets for which allocations are defined. If there are
      * no allocations setup, return 1.0, implying 100%. If no allocation is setup for the given <code>bucket</code>,

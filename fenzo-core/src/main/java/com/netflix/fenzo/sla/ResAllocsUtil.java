@@ -19,6 +19,15 @@ public final class ResAllocsUtil {
                 .build();
     }
 
+    public static ResAllocs add(ResAllocs first, QueuableTask second) {
+        return new ResAllocsBuilder(first.getTaskGroupName())
+                .withCores(first.getCores() + second.getCPUs())
+                .withMemory(first.getMemory() + second.getMemory())
+                .withNetworkMbps(first.getNetworkMbps() + second.getNetworkMbps())
+                .withDisk(first.getDisk() + second.getDisk())
+                .build();
+    }
+
     public static ResAllocs subtract(ResAllocs first, ResAllocs second) {
         return new ResAllocsBuilder(first.getTaskGroupName())
                 .withCores(first.getCores() - second.getCores())
@@ -37,36 +46,59 @@ public final class ResAllocsUtil {
                 .build();
     }
 
-    public static boolean isLess(ResAllocs res, QueuableTask task) {
-        if (res.getCores() >= task.getCPUs()) {
+    public static boolean isBounded(QueuableTask first, ResAllocs second) {
+        if (first.getCPUs() > second.getCores()) {
             return false;
         }
-        if (res.getMemory() >= task.getMemory()) {
+        if (first.getMemory() > second.getMemory()) {
             return false;
         }
-        if (res.getNetworkMbps() >= task.getNetworkMbps()) {
+        if (first.getNetworkMbps() > second.getNetworkMbps()) {
             return false;
         }
-        if (res.getDisk() >= task.getDisk()) {
+        if (first.getDisk() > second.getDisk()) {
             return false;
         }
         return true;
     }
 
-    public static boolean isLess(ResAllocs first, ResAllocs second) {
-        if (first.getCores() >= second.getCores()) {
+    public static boolean isBounded(ResAllocs first, QueuableTask second) {
+        if (first.getCores() > second.getCPUs()) {
             return false;
         }
-        if (first.getMemory() >= second.getMemory()) {
+        if (first.getMemory() > second.getMemory()) {
             return false;
         }
-        if (first.getNetworkMbps() >= second.getNetworkMbps()) {
+        if (first.getNetworkMbps() > second.getNetworkMbps()) {
             return false;
         }
-        if (first.getDisk() >= second.getDisk()) {
+        if (first.getDisk() > second.getDisk()) {
             return false;
         }
         return true;
+    }
+
+    public static boolean isBounded(ResAllocs first, ResAllocs second) {
+        if (first.getCores() > second.getCores()) {
+            return false;
+        }
+        if (first.getMemory() > second.getMemory()) {
+            return false;
+        }
+        if (first.getNetworkMbps() > second.getNetworkMbps()) {
+            return false;
+        }
+        if (first.getDisk() > second.getDisk()) {
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean hasEqualResources(ResAllocs first, ResAllocs second) {
+        return first.getCores() == second.getCores()
+                && first.getMemory() == second.getMemory()
+                && first.getNetworkMbps() == second.getNetworkMbps()
+                && first.getDisk() == second.getDisk();
     }
 
     public static ResAllocs empty() {
