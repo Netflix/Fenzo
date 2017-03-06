@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.queues.Assignable;
 import com.netflix.fenzo.queues.QueuableTask;
 import com.netflix.fenzo.sla.ResAllocs;
 import org.slf4j.Logger;
@@ -613,9 +614,9 @@ public class TaskScheduler {
                         Collections.<TaskRequest>emptyIterator();
         TaskIterator taskIterator = new TaskIterator() {
             @Override
-            public TaskRequest next() {
+            public Assignable<TaskRequest> next() {
                 if (iterator.hasNext())
-                    return iterator.next();
+                    return Assignable.success(iterator.next());
                 return null;
             }
         };
@@ -678,17 +679,32 @@ public class TaskScheduler {
         final SchedulingResult schedulingResult = new SchedulingResult(resultMap);
         if(avms.isEmpty()) {
             while (true) {
-                final TaskRequest task = taskIterator.next();
-                if (task == null)
+                final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
+                if (taskOrFailure == null)
                     break;
-                failedTasksForAutoScaler.add(task);
+                failedTasksForAutoScaler.add(taskOrFailure.getTask());
             }
         } else {
             while (true) {
-                final TaskRequest task = taskIterator.next();
+                final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
                 //System.out.println("*************** TaskSched: task=" + (task == null? "null" : task.getId()));
-                if (task == null)
+                if (taskOrFailure == null)
                     break;
+                if(taskOrFailure.hasFailure()) {
+                    schedulingResult.addFailures(
+                            taskOrFailure.getTask(),
+                            Collections.singletonList(new TaskAssignmentResult(
+                                    assignableVMs.getDummyVM(),
+                                    taskOrFailure.getTask(),
+                                    false,
+                                    Collections.singletonList(taskOrFailure.getAssignmentFailure()),
+                                    null,
+                                    0
+                            )
+                    ));
+                    continue;
+                }
+                TaskRequest task = taskOrFailure.getTask();
                 failedTasksForAutoScaler.add(task);
                 if(hasResAllocs) {
                     if(resAllocsEvaluator.taskGroupFailed(task.taskGroupName())) {

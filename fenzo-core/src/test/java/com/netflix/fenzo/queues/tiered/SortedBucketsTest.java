@@ -28,8 +28,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import static org.junit.Assert.*;
-
 public class SortedBucketsTest {
 
     @Test
@@ -39,29 +37,29 @@ public class SortedBucketsTest {
         parentUsage.addUsage(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(100, 1000, 100)));
         SortedBuckets sortedBuckets = new SortedBuckets(parentUsage);
 
-        final QueueBucket a = new QueueBucket(1, "A");
+        final QueueBucket a = new QueueBucket(1, "A", parentUsage, null);
         final QAttributes attrA = new QAttributes.QAttributesAdaptor(1, "A");
         a.launchTask(QueuableTaskProvider.wrapTask(attrA, TaskRequestProvider.getTaskRequest(10, 100, 10)));
         sortedBuckets.add(a);
 
-        final QueueBucket b = new QueueBucket(1, "B");
+        final QueueBucket b = new QueueBucket(1, "B", parentUsage, null);
         final QAttributes attrB = new QAttributes.QAttributesAdaptor(1, "B");
         b.launchTask(QueuableTaskProvider.wrapTask(attrB, TaskRequestProvider.getTaskRequest(20, 200, 20)));
         sortedBuckets.add(b);
 
-        final QueueBucket c = new QueueBucket(1, "C");
+        final QueueBucket c = new QueueBucket(1, "C", parentUsage, null);
         final QAttributes attrC = new QAttributes.QAttributesAdaptor(1, "C");
         c.launchTask(QueuableTaskProvider.wrapTask(attrC, TaskRequestProvider.getTaskRequest(15, 150, 15)));
         sortedBuckets.add(c);
 
-        final QueueBucket d = new QueueBucket(1, "D");
+        final QueueBucket d = new QueueBucket(1, "D", parentUsage, null);
         final QAttributes attrD = new QAttributes.QAttributesAdaptor(1, "D");
         d.launchTask(QueuableTaskProvider.wrapTask(attrD, TaskRequestProvider.getTaskRequest(10, 100, 10)));
         sortedBuckets.add(d);
 
         final List<QueueBucket> sortedList = sortedBuckets.getSortedList();
         QueueBucket prev = sortedList.get(0);
-        for (int i=1; i<sortedList.size(); i++) {
+        for (int i = 1; i < sortedList.size(); i++) {
             Assert.assertTrue(prev.getDominantUsageShare() <= sortedList.get(i).getDominantUsageShare());
             prev = sortedList.get(i);
         }

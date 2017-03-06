@@ -40,13 +40,15 @@ import org.slf4j.LoggerFactory;
  * scheduler unable to assign the task to a host.
  */
 public class AssignmentFailure {
+
     @JsonIgnore
     private static final Logger logger = LoggerFactory.getLogger(AssignmentFailure.class);
-    private VMResource resource;
-    private double asking;
-    private double used;
-    private double available;
-    private String message="";
+
+    private final VMResource resource;
+    private final double asking;
+    private final double used;
+    private final double available;
+    private final String message;
 
     @JsonCreator
     @JsonIgnoreProperties(ignoreUnknown=true)
@@ -97,6 +99,15 @@ public class AssignmentFailure {
      */
     public double getAvailable() {
         return available;
+    }
+
+    /**
+     * Returns text message associated with this assignment failure.
+     *
+     * @return a message or null if message not defined
+     */
+    public String getMessage() {
+        return message;
     }
 
     /**

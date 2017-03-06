@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BiFunction;
 
 /**
  * A tiered queuing system where queues are arranged in multiple tiers and then among multiple buckets within each tier.
@@ -41,6 +42,9 @@ public class TieredQueue implements InternalTaskQueue {
     private Iterator<Tier> iterator = null;
     private Tier currTier = null;
     private final BlockingQueue<QueuableTask> tasksToQueue;
+    private final BlockingQueue<TieredQueueSlas> slasQueue;
+    private final TierSlas tierSlas = new TierSlas();
+    private final BiFunction<Integer, String, Double> allocsShareGetter = tierSlas::getBucketAllocation;
 
     /**
      * Construct a tiered queue system with the given number of tiers.
@@ -49,13 +53,33 @@ public class TieredQueue implements InternalTaskQueue {
     public TieredQueue(int numTiers) {
         tiers = new ArrayList<>(numTiers);
         for ( int i=0; i<numTiers; i++ )
-            tiers.add(new Tier(i));
+            tiers.add(new Tier(i, allocsShareGetter));
         tasksToQueue = new LinkedBlockingQueue<>();
+        slasQueue = new LinkedBlockingQueue<>();
     }
 
     @Override
     public void queueTask(QueuableTask task) {
         tasksToQueue.offer(task);
+    }
+
+    @Override
+    public void setSla(TaskQueueSla sla) throws IllegalArgumentException {
+        if (sla != null && !(sla instanceof TieredQueueSlas)) {
+            throw new IllegalArgumentException("Queue SLA must be an instance of " + TieredQueueSlas.class.getName() +
+                    ", can't accept " + sla.getClass().getName());
+        }
+        slasQueue.offer(sla == null? new TieredQueueSlas(Collections.emptyMap(), Collections.emptyMap()) : (TieredQueueSlas)sla);
+    }
+
+    private void setSlaInternal() {
+        if (slasQueue.peek() != null) {
+            List<TieredQueueSlas> slas = new ArrayList<>();
+            slasQueue.drainTo(slas);
+            tierSlas.setAllocations(slas.get(slas.size()-1)); // set the last one
+
+            tiers.forEach(tier -> tier.setTierSla(tierSlas.getTierSla(tier.getTierNumber())));
+        }
     }
 
     private void addInternal(QueuableTask task) throws TaskQueueException {
@@ -65,39 +89,34 @@ public class TieredQueue implements InternalTaskQueue {
         tiers.get(tierNumber).queueTask(task);
     }
 
-    private void addRunningInternal(QueuableTask t) throws TaskQueueException {
-        final int number = t.getQAttributes().getTierNumber();
-        if (number >= tiers.size())
-            throw new InvalidTierNumberException(number, tiers.size());
-        tiers.get(number).launchTask(t);
-    }
-
     /**
      * This implementation dynamically picks the next task to consider for resource assignment based on tiers and then
      * based on current dominant resource usage. The usage is updated with each resource assignment during the
      * scheduling iteration, in addition to updating with all running jobs from before.
-     * @return The next task to assign resources to, or {@code null} if none remain for consideration.
+     * @return The next task to assign resources to, a task with assignment failure if the task cannot be scheduled due to some
+     *         internal constraints (for example exceeds allowed resource usage for a queue). Returns {@code null} if none
+     *         remain for consideration.
      * @throws TaskQueueException if there is an unknown error getting the next task to launch from any of the tiers or
      * queue buckets.
      */
     @Override
-    public QueuableTask next() throws TaskQueueException {
+    public Assignable<QueuableTask> next() throws TaskQueueException {
         if (iterator == null) {
             iterator = tiers.iterator();
             currTier = null;
         }
         if (currTier != null) {
-            final QueuableTask task = currTier.nextTaskToLaunch();
-            if (task != null)
-                return task;
+            final Assignable<QueuableTask> taskOrFailure = currTier.nextTaskToLaunch();
+            if (taskOrFailure != null)
+                return taskOrFailure;
             currTier = null; // currTier all done
         }
         while (currTier == null && iterator.hasNext()) {
             if(iterator.hasNext()) {
                 currTier = iterator.next();
-                final QueuableTask task = currTier.nextTaskToLaunch();
-                if (task != null)
-                    return task;
+                final Assignable<QueuableTask> taskOrFailure = currTier.nextTaskToLaunch();
+                if (taskOrFailure != null)
+                    return taskOrFailure;
                 else
                     currTier = null; // currTier is done
             }
@@ -107,6 +126,7 @@ public class TieredQueue implements InternalTaskQueue {
 
     @Override
     public boolean reset() throws TaskQueueMultiException {
+        setSlaInternal();
         iterator = null;
         boolean queueChanged = false;
         List<Exception> exceptions = new LinkedList<>();
@@ -143,7 +163,7 @@ public class TieredQueue implements InternalTaskQueue {
             }
 
             @Override
-            public QueuableTask nextTaskToLaunch() {
+            public Assignable<QueuableTask> nextTaskToLaunch() {
                 return null;
             }
 

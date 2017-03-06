@@ -18,7 +18,7 @@ package com.netflix.fenzo;
 
 import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.apache.mesos.Protos;
 import org.junit.After;
 import org.junit.Before;

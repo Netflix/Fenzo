@@ -21,7 +21,7 @@ import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
 import com.netflix.fenzo.queues.*;
 import com.netflix.fenzo.queues.tiered.QueuableTaskProvider;
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.*;

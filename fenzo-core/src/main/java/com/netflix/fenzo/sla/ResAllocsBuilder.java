@@ -20,10 +20,10 @@ package com.netflix.fenzo.sla;
  * Builder class for {@link ResAllocs}.
  */
 public class ResAllocsBuilder {
-    private double cores=Double.MAX_VALUE;
-    private double memory=Double.MAX_VALUE;
-    private double networkMbps=Double.MAX_VALUE;
-    private double disk=Double.MAX_VALUE;
+    private double cores = Double.MAX_VALUE;
+    private double memory = Double.MAX_VALUE;
+    private double networkMbps = Double.MAX_VALUE;
+    private double disk = Double.MAX_VALUE;
     private final String taskGroupName;
 
     public ResAllocsBuilder(String taskGroupName) {
@@ -81,35 +81,58 @@ public class ResAllocsBuilder {
      * @return a {@link ResAllocs} object, built to your specifications
      */
     public ResAllocs build() {
-        final double c = cores;
-        final double m = memory;
-        final double n = networkMbps;
-        final double d = disk;
-        return new ResAllocs() {
-            @Override
-            public String getTaskGroupName() {
-                return taskGroupName;
-            }
+        return new ResAllocsImpl(taskGroupName, cores, memory, networkMbps, disk);
+    }
 
-            @Override
-            public double getCores() {
-                return c;
-            }
+    private static class ResAllocsImpl implements ResAllocs {
+        private final String taskGroupName;
+        private final double cores;
+        private final double memory;
+        private final double networkMbps;
+        private final double disk;
 
-            @Override
-            public double getMemory() {
-                return m;
-            }
+        private ResAllocsImpl(String taskGroupName, double cores, double memory, double networkMbps, double disk) {
+            this.taskGroupName = taskGroupName;
+            this.cores = cores;
+            this.memory = memory;
+            this.networkMbps = networkMbps;
+            this.disk = disk;
+        }
 
-            @Override
-            public double getNetworkMbps() {
-                return n;
-            }
+        @Override
+        public String getTaskGroupName() {
+            return taskGroupName;
+        }
 
-            @Override
-            public double getDisk() {
-                return d;
-            }
-        };
+        @Override
+        public double getCores() {
+            return cores;
+        }
+
+        @Override
+        public double getMemory() {
+            return memory;
+        }
+
+        @Override
+        public double getNetworkMbps() {
+            return networkMbps;
+        }
+
+        @Override
+        public double getDisk() {
+            return disk;
+        }
+
+        @Override
+        public String toString() {
+            return "ResAllocsImpl{" +
+                    "taskGroupName='" + taskGroupName + '\'' +
+                    ", cores=" + cores +
+                    ", memory=" + memory +
+                    ", networkMbps=" + networkMbps +
+                    ", disk=" + disk +
+                    '}';
+        }
     }
 }

@@ -3,6 +3,6 @@
   "org.slf4j:slf4j-simple": { "locked": "1.7.10", "requested": "1.7.10" },
   "org.apache.mesos:mesos": { "locked": "0.21.0", "requested": "0.21.0" },
   "junit:junit-dep": { "locked": "4.10", "requested": "4.10" },
-  "org.mockito:mockito-core": { "locked": "1.8.5", "requested": "1.8.5" },
+  "org.mockito:mockito-core": { "locked": "2.7.1", "requested": "2.7.1" },
   "com.fasterxml.jackson.core:jackson-databind": { "locked": "2.4.5", "requested": "2.4.5" }
 }
