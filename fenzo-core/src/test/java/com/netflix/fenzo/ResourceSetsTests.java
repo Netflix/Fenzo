@@ -19,7 +19,7 @@ package com.netflix.fenzo;
 import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.functions.Func1;
 import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.apache.mesos.Protos;
 import org.junit.Test;
 
@@ -692,11 +692,11 @@ public class ResourceSetsTests {
         scheduler.scheduleOnce(tasks, leases);
         final Map<VMResource, Double[]> usage = scheduler.getResourceStatus().get("hostA");
         final Double[] cpuUsg = usage.get(VMResource.CPU);
-        Assert.assertEquals(0.2, cpuUsg[0]);
-        Assert.assertEquals(numCores - 0.2, cpuUsg[1]);
+        Assert.assertTrue(0.2 == cpuUsg[0]);
+        Assert.assertTrue(numCores - 0.2 == cpuUsg[1]);
         final Double[] rSetUsg = usage.get(VMResource.ResourceSet);
-        Assert.assertEquals(2.0, rSetUsg[0]);
-        Assert.assertEquals(1.0, rSetUsg[1]);
+        Assert.assertTrue(2.0 == rSetUsg[0]);
+        Assert.assertTrue(1.0 == rSetUsg[1]);
     }
 
     // Test that a task asking for a resource set that doesn't exist does not get assigned
