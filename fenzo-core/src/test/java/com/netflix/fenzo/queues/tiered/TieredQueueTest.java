@@ -166,6 +166,8 @@ public class TieredQueueTest {
         schedulingService.addLeases(LeaseProvider.getLeases(10, 4.0, 4000.0, 4000.0, 1, 100));
         schedulingService.start();
         Assert.assertTrue("Timeout waiting for assignments", latch.await(2, TimeUnit.SECONDS));
+        Thread.sleep(500); // Additional way due to race conditions
+
         Assert.assertEquals(10, countA.get());
         Assert.assertEquals(20, countB.get());
         Assert.assertEquals(10, countC.get());
@@ -202,6 +204,8 @@ public class TieredQueueTest {
         schedulingService.addLeases(LeaseProvider.getLeases(10, 4.0, 4000.0, 4000.0, 1, 100));
         schedulingService.start();
         Assert.assertTrue("Timeout waiting for assignments", latch.await(2, TimeUnit.SECONDS));
+        Thread.sleep(500); // Additional way due to race conditions
+
         Assert.assertEquals(10, countA.get());
         Assert.assertEquals(20, countB.get());
         Assert.assertEquals(10, countC.get());
@@ -228,6 +232,8 @@ public class TieredQueueTest {
         // add new leases
         schedulingService.addLeases(LeaseProvider.getLeases(10, 4.0, 4000.0, 4000.0, 1, 100));
         Assert.assertTrue("Timeout waiting for assignments", latchRef.get().await(2, TimeUnit.SECONDS));
+        Thread.sleep(500); // Additional way due to race conditions
+
         Assert.assertEquals(10, countA.get()); // total 20
         Assert.assertEquals(0, countB.get());  // total 20
         Assert.assertEquals(30, countC.get()); // total 40
@@ -255,6 +261,8 @@ public class TieredQueueTest {
         schedulingService.addLeases(LeaseProvider.getLeases(8, 4.0, 4000.0, 4000.0, 1, 100));
         schedulingService.start();
         Assert.assertTrue("Timeout waiting for assignments", latchRef.get().await(2, TimeUnit.SECONDS));
+        Thread.sleep(500); // Additional way due to race conditions
+
         Assert.assertEquals(10-5, countA.get());
         Assert.assertEquals(20, countB.get());
         Assert.assertEquals(10-3, countC.get());
@@ -286,6 +294,8 @@ public class TieredQueueTest {
         schedulingService.addLeases(LeaseProvider.getLeases(10, 4.0, 4000.0, 4000.0, 1, 100));
         schedulingService.start();
         Assert.assertTrue("Timeout waiting for assignments", latch.await(2, TimeUnit.SECONDS));
+        Thread.sleep(500); // Additional way due to race conditions
+
         Assert.assertEquals(20, countA.get());
         Assert.assertEquals(0, countB.get());
         Assert.assertEquals(20, countC.get());
