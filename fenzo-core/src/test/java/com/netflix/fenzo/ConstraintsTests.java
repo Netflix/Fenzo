@@ -23,7 +23,7 @@ import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
 import com.netflix.fenzo.plugins.ExclusiveHostConstraint;
 import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import com.netflix.fenzo.plugins.UniqueHostAttrConstraint;
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.apache.mesos.Protos;
 import org.junit.After;
 import org.junit.Before;

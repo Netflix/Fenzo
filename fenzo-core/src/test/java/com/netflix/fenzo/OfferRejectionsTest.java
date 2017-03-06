@@ -18,7 +18,7 @@ package com.netflix.fenzo;
 
 import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.functions.Func1;
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.*;
