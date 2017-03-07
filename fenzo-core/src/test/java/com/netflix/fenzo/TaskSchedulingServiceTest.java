@@ -484,7 +484,7 @@ public class TaskSchedulingServiceTest {
         if (!latch.await(maxDelay + 100L, TimeUnit.MILLISECONDS)) {
             Assert.fail("Timeout waiting for tasks list");
         }
-        Assert.assertTrue("Got task list too late", (gotTasksAt.get() - startAt) < 2 * loopMillis);
+        Assert.assertTrue("Got task list too late", (gotTasksAt.get() - startAt) < (maxDelay + 2 * loopMillis));
         // repeat with adding lease
         startAt = System.currentTimeMillis();
         latch = new CountDownLatch(1);
@@ -493,7 +493,7 @@ public class TaskSchedulingServiceTest {
         if (!latch.await(maxDelay + 100L, TimeUnit.MILLISECONDS)) {
             Assert.fail("Timeout waiting for tasks list");
         }
-        Assert.assertTrue("Got tasks list too late", (gotTasksAt.get() - startAt) < 2 * loopMillis);
+        Assert.assertTrue("Got tasks list too late", (gotTasksAt.get() - startAt) < (maxDelay + 2 * loopMillis));
     }
 
     @Test
