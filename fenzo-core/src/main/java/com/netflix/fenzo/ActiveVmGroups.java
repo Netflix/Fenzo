@@ -52,6 +52,12 @@ class ActiveVmGroups {
         activeVmGroupsMap.put(0, new ArrayList<VmGroup>());
     }
 
+    /**
+     * method to check if a VM Group lies in the VM Groups list searching via VM Group name
+     *
+     * @param vmg string containing the VM Group name to search
+     * @return VmGroup if found, null otherwise
+     */
     private VmGroup isIn(String vmg, List<VmGroup> list) {
         for(VmGroup g: list)
             if(g.getName().equals(vmg))
@@ -59,6 +65,12 @@ class ActiveVmGroups {
         return null;
     }
 
+    /**
+     * method to set all the VM Group names in the list vmGroups to active by creating new VmGroup object for the
+     * VM Group names not present in the old activeVmGroupsMap, and adding them to the map with zero as key
+     * 
+     * @param vmGroups List of Strings containing the VM Group names to make active
+     */
     void setActiveVmGroups(List<String> vmGroups) {
         List<VmGroup> oldList = activeVmGroupsMap.get(0);
         List<VmGroup> vmGroupsList = new ArrayList<>();
