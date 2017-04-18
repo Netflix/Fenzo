@@ -82,6 +82,7 @@ public class TaskScheduler {
         private String autoScaleByAttributeName=null;
         private String autoScalerMapHostnameAttributeName=null;
         private String autoScaleDownBalancedByAttributeName=null;
+        private List<ScaleDownConstraintEvaluator> scaleDownConstraintEvaluators;
         private Action1<AutoScaleAction> autoscalerCallback=null;
         private long delayAutoscaleUpBySecs=0L;
         private long delayAutoscaleDownBySecs=0L;
@@ -207,6 +208,17 @@ public class TaskScheduler {
          */
         public Builder withAutoScaleDownBalancedByAttributeName(String name) {
             this.autoScaleDownBalancedByAttributeName = name;
+            return this;
+        }
+
+        /**
+         * Ordered list of scale down constraints evaluators. The same order is preserve during constraint evaluation.
+         *
+         * @param scaleDownConstraintEvaluators scale down evaluators
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         */
+        public Builder withScaleDownConstraintEvaluators(List<ScaleDownConstraintEvaluator> scaleDownConstraintEvaluators) {
+            this.scaleDownConstraintEvaluators = scaleDownConstraintEvaluators;
             return this;
         }
 
@@ -417,11 +429,13 @@ public class TaskScheduler {
                 builder.singleOfferMode, builder.autoScaleByAttributeName);
         if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
 
+            ScaleDownConstraintExecutor scaleDownConstraintExecutor = builder.scaleDownConstraintEvaluators == null
+                    ? null : new ScaleDownConstraintExecutor(builder.scaleDownConstraintEvaluators);
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
                     builder.autoScaleDownBalancedByAttributeName,
                     builder.autoScaleRules, assignableVMs, null,
                     builder.disableShortfallEvaluation, assignableVMs.getActiveVmGroups(),
-                    assignableVMs.getVmCollection());
+                    assignableVMs.getVmCollection(), scaleDownConstraintExecutor);
             if(builder.autoscalerCallback != null)
                 autoScaler.setCallback(builder.autoscalerCallback);
             if(builder.delayAutoscaleDownBySecs > 0L)
@@ -592,7 +606,7 @@ public class TaskScheduler {
      *     <li>This method may throw {@code IllegalStateException} with its cause set to the uncaught exception. In this
      *     case the internal state of Fenzo will be undefined.</li>
      * </UL>
-     * 
+     *
      * @param requests a list of task requests to match with resources, in their given order
      * @param newLeases new resource leases from hosts that the scheduler can use along with any previously
      *                  ununsed leases
@@ -816,7 +830,7 @@ public class TaskScheduler {
      * Returns the state of resources on all known hosts. You can use this for debugging or informational
      * purposes (occasionally). This method obtains and holds a lock for the duration of creating the state
      * information. Scheduling runs are blocked around the lock.
-     * 
+     *
      * @return a Map of state information with the hostname as the key and a Map of resource state as the value.
      *         The resource state Map contains a resource as the key and a two element Double array - the first
      *         element of which contains the amount of the resource used and the second element contains the
@@ -844,7 +858,7 @@ public class TaskScheduler {
      * Returns the current state of all known hosts. You might occasionally use this for debugging or
      * informational purposes. If you call this method, it will obtain and hold a lock for as long as it takes
      * to create the state information. Scheduling runs are blocked around the lock.
-     * 
+     *
      * @return a list containing the current state of all known VMs
      * @throws IllegalStateException if called concurrently with {@link #scheduleOnce(List, List)} or if called when
      * using a {@link TaskSchedulingService}.
@@ -962,7 +976,7 @@ public class TaskScheduler {
      * Note that you may not call the task assigner action concurrently with
      * {@link #scheduleOnce(java.util.List, java.util.List) scheduleOnce()}. If you do so, the task assigner
      * action will throw an {@code IllegalStateException}.
-     * 
+     *
      * @return a task assigner action
      * @throws IllegalStateException if the scheduler is shutdown via the {@link #isShutdown} method.
      */
@@ -1024,7 +1038,7 @@ public class TaskScheduler {
      * with that hostname, it creates a new object for it, and therefore your disabling of it will be remembered
      * when offers that concern that host come in later. The scheduler will not use disabled hosts for
      * allocating resources to tasks.
-     * 
+     *
      * @param hostname the name of the host to disable
      * @param durationMillis the length of time, starting from now, in milliseconds, during which the host will
      *        be disabled
@@ -1040,7 +1054,7 @@ public class TaskScheduler {
      * that hostname, it creates a new object for it, and therefore your disabling of it will be remembered when
      * offers that concern that host come in later. The scheduler will not use disabled hosts for allocating
      * resources to tasks.
-     * 
+     *
      * @param vmID the ID of the host to disable
      * @param durationMillis the length of time, starting from now, in milliseconds, during which the host will
      *        be disabled

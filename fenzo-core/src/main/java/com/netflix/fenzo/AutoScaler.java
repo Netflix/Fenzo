@@ -92,11 +92,13 @@ class AutoScaler {
     private final AtomicBoolean isShutdown = new AtomicBoolean();
     private final ConcurrentMap<String, ScalingActivity> scalingActivityMap = new ConcurrentHashMap<>();
     final VMCollection vmCollection;
+    private final ScaleDownConstraintExecutor scaleDownConstraintExecutor;
 
     AutoScaler(final String attributeName, String mapHostnameAttributeName, String scaleDownBalancedByAttributeName,
                final List<AutoScaleRule> autoScaleRules,
                final AssignableVMs assignableVMs, TaskScheduler phantomTaskScheduler,
-               final boolean disableShortfallEvaluation, ActiveVmGroups activeVmGroups, VMCollection vmCollection) {
+               final boolean disableShortfallEvaluation, ActiveVmGroups activeVmGroups, VMCollection vmCollection,
+               ScaleDownConstraintExecutor scaleDownConstraintExecutor) {
         this.mapHostnameAttributeName = mapHostnameAttributeName;
         this.scaleDownBalancedByAttributeName = scaleDownBalancedByAttributeName;
         this.shortfallEvaluator = new ShortfallEvaluator(phantomTaskScheduler);
@@ -106,6 +108,7 @@ class AutoScaler {
         this.disableShortfallEvaluation = disableShortfallEvaluation;
         this.activeVmGroups = activeVmGroups;
         this.vmCollection = vmCollection;
+        this.scaleDownConstraintExecutor = scaleDownConstraintExecutor;
     }
 
     Collection<AutoScaleRule> getRules() {
@@ -277,6 +280,25 @@ class AutoScaler {
     }
 
     private Map<String, String> getHostsToTerminate(List<VirtualMachineLease> hosts, int excess) {
+        if(scaleDownConstraintExecutor == null) {
+            return getHostsToTerminateLegacy(hosts, excess);
+        } else {
+            return getHostsToTerminateUsingCriteria(hosts, excess);
+        }
+    }
+
+    private Map<String, String> getHostsToTerminateUsingCriteria(List<VirtualMachineLease> hosts, int excess) {
+        Map<String, String> hostsMap = new HashMap<>();
+        ScaleDownOrderResolver result = scaleDownConstraintExecutor.evaluate(hosts);
+        int removeLimit = Math.min(result.getVmsInScaleDownOrder().size(), excess);
+        for(int i = 0; i < removeLimit; i++) {
+            VirtualMachineLease lease = result.getVmsInScaleDownOrder().get(i);
+            hostsMap.put(lease.hostname(), getMappedHostname(lease));
+        }
+        return hostsMap;
+    }
+
+    private Map<String, String> getHostsToTerminateLegacy(List<VirtualMachineLease> hosts, int excess) {
         Map<String, String> result = new HashMap<>();
         final Map<String, List<VirtualMachineLease>> hostsMap = new HashMap<>();
         final String defaultAttributeName = "default";
