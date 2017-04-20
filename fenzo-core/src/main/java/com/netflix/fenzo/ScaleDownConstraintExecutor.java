@@ -45,6 +45,7 @@ class ScaleDownConstraintExecutor {
     private final Map<ScaleDownConstraintEvaluator, Double> scoringEvaluators;
 
     ScaleDownConstraintExecutor(ScaleDownOrderEvaluator orderEvaluator, Map<ScaleDownConstraintEvaluator, Double> weightedScoringEvaluators) {
+        checkArguments(weightedScoringEvaluators);
         this.orderEvaluator = orderEvaluator;
         this.scoringEvaluators = weightedScoringEvaluators;
     }
@@ -62,6 +63,16 @@ class ScaleDownConstraintExecutor {
         }
 
         return scaleDownOrder;
+    }
+
+    private void checkArguments(Map<ScaleDownConstraintEvaluator, Double> weightedScoringEvaluators) {
+        List<String> evaluatorsWithInvalidWeights = weightedScoringEvaluators.entrySet().stream()
+                .filter(e -> e.getValue() <= 0)
+                .map(e -> e.getKey().getName() + '=' + e.getValue())
+                .collect(Collectors.toList());
+        if (!evaluatorsWithInvalidWeights.isEmpty()) {
+            throw new IllegalArgumentException("Evaluator weighs must be > 0. This invariant is violated by " + evaluatorsWithInvalidWeights);
+        }
     }
 
     private Stream<VirtualMachineLease> groupEvaluator(Set<VirtualMachineLease> groupCandidates) {

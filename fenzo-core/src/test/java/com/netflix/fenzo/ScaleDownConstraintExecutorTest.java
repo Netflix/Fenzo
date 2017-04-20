@@ -12,6 +12,7 @@ import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -27,14 +28,17 @@ public class ScaleDownConstraintExecutorTest {
 
     @Before
     public void setUp() throws Exception {
-        Map<ScaleDownConstraintEvaluator, Double> scoringEvaluators = new HashMap<>();
-        scoringEvaluators.put(evenFirstEvaluator, 10.0);
-        scoringEvaluators.put(oddFirstEvaluator, 2.0);
-        executor = new ScaleDownConstraintExecutor(orderEvaluator, scoringEvaluators);
+        when(evenFirstEvaluator.getName()).thenReturn("evenFirstEvaluator");
+        when(oddFirstEvaluator.getName()).thenReturn("oddFirstEvaluator");
     }
 
     @Test
     public void testScaleDownOrdering() throws Exception {
+        Map<ScaleDownConstraintEvaluator, Double> scoringEvaluators = new HashMap<>();
+        scoringEvaluators.put(evenFirstEvaluator, 10.0);
+        scoringEvaluators.put(oddFirstEvaluator, 2.0);
+        executor = new ScaleDownConstraintExecutor(orderEvaluator, scoringEvaluators);
+
         List<VirtualMachineLease> candidates = leasesWithIds("l0", "l1", "l2", "l3", "l4");
 
         when(orderEvaluator.evaluate(candidates)).thenReturn(
@@ -52,6 +56,20 @@ public class ScaleDownConstraintExecutorTest {
         List<VirtualMachineLease> order = executor.evaluate(candidates);
         List<String> ids = order.stream().map(VirtualMachineLease::getId).collect(Collectors.toList());
         assertThat(ids, is(equalTo(asList("l2", "l3", "l4", "l1"))));
+    }
+
+    @Test
+    public void testWeightsValidation() throws Exception {
+        Map<ScaleDownConstraintEvaluator, Double> scoringEvaluators = new HashMap<>();
+        scoringEvaluators.put(evenFirstEvaluator, -5.0);
+        scoringEvaluators.put(oddFirstEvaluator, 0.0);
+        try {
+            new ScaleDownConstraintExecutor(orderEvaluator, scoringEvaluators);
+            fail("Expected to fail argument validation");
+        } catch (IllegalArgumentException e) {
+            assertThat(e.getMessage().contains("evenFirstEvaluator=-5.0"), is(true));
+            assertThat(e.getMessage().contains("oddFirstEvaluator=0.0"), is(true));
+        }
     }
 
     private static <T> Set<T> asSet(T... values) {
