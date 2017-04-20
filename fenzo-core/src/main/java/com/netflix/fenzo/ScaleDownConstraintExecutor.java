@@ -42,11 +42,11 @@ class ScaleDownConstraintExecutor {
     private static final double NOT_REMOVABLE_MARKER = -1;
 
     private final ScaleDownOrderEvaluator orderEvaluator;
-    private final List<ScaleDownConstraintEvaluator> scoringEvaluators;
+    private final Map<ScaleDownConstraintEvaluator, Double> scoringEvaluators;
 
-    ScaleDownConstraintExecutor(ScaleDownOrderEvaluator orderEvaluator, List<ScaleDownConstraintEvaluator> scoringEvaluators) {
+    ScaleDownConstraintExecutor(ScaleDownOrderEvaluator orderEvaluator, Map<ScaleDownConstraintEvaluator, Double> weightedScoringEvaluators) {
         this.orderEvaluator = orderEvaluator;
-        this.scoringEvaluators = scoringEvaluators;
+        this.scoringEvaluators = weightedScoringEvaluators;
     }
 
     List<VirtualMachineLease> evaluate(Collection<VirtualMachineLease> candidates) {
@@ -67,13 +67,13 @@ class ScaleDownConstraintExecutor {
     private Stream<VirtualMachineLease> groupEvaluator(Set<VirtualMachineLease> groupCandidates) {
         Map<VirtualMachineLease, Double> scores = new HashMap<>();
 
-        scoringEvaluators.forEach(e -> {
+        scoringEvaluators.forEach((e, weight) -> {
             Optional<? super Object> optionalContext = Optional.empty();
             for (VirtualMachineLease lease : groupCandidates) {
                 double currentScore = scores.getOrDefault(lease, 0.0);
                 if (currentScore != NOT_REMOVABLE_MARKER) {
                     ScaleDownConstraintEvaluator.Result result = e.evaluate(lease, optionalContext);
-                    double newScore = result.getScore();
+                    double newScore = result.getScore() * weight;
                     if (newScore == 0) {
                         scores.put(lease, NOT_REMOVABLE_MARKER);
                     } else {

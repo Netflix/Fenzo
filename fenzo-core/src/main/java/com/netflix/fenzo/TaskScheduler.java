@@ -84,7 +84,7 @@ public class TaskScheduler {
         private String autoScalerMapHostnameAttributeName=null;
         private String autoScaleDownBalancedByAttributeName=null;
         private ScaleDownOrderEvaluator scaleDownOrderEvaluator;
-        private List<ScaleDownConstraintEvaluator> scaleDownConstraintEvaluators;
+        private Map<ScaleDownConstraintEvaluator, Double> weightedScaleDownConstraintEvaluators;
         private Action1<AutoScaleAction> autoscalerCallback=null;
         private long delayAutoscaleUpBySecs=0L;
         private long delayAutoscaleDownBySecs=0L;
@@ -227,11 +227,11 @@ public class TaskScheduler {
         /**
          * Ordered list of scale down constraints evaluators.
          *
-         * @param scaleDownConstraintEvaluators scale down evaluators
+         * @param weightedScaleDownConstraintEvaluators scale down evaluators
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          */
-        public Builder withScaleDownConstraintEvaluators(List<ScaleDownConstraintEvaluator> scaleDownConstraintEvaluators) {
-            this.scaleDownConstraintEvaluators = scaleDownConstraintEvaluators;
+        public Builder withWeightedScaleDownConstraintEvaluators(Map<ScaleDownConstraintEvaluator, Double> weightedScaleDownConstraintEvaluators) {
+            this.weightedScaleDownConstraintEvaluators = weightedScaleDownConstraintEvaluators;
             return this;
         }
 
@@ -398,12 +398,12 @@ public class TaskScheduler {
          */
         public TaskScheduler build() {
             if(scaleDownOrderEvaluator == null) {
-                if(scaleDownConstraintEvaluators != null) {
+                if(weightedScaleDownConstraintEvaluators != null) {
                     scaleDownOrderEvaluator = new NoOpScaleDownOrderEvaluator();
                 }
             } else {
-                if(scaleDownConstraintEvaluators == null) {
-                    scaleDownConstraintEvaluators = Collections.emptyList();
+                if(weightedScaleDownConstraintEvaluators == null) {
+                    weightedScaleDownConstraintEvaluators = Collections.emptyMap();
                 }
             }
 
@@ -453,7 +453,7 @@ public class TaskScheduler {
         if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
 
             ScaleDownConstraintExecutor scaleDownConstraintExecutor = builder.scaleDownOrderEvaluator == null
-                    ? null : new ScaleDownConstraintExecutor(builder.scaleDownOrderEvaluator, builder.scaleDownConstraintEvaluators);
+                    ? null : new ScaleDownConstraintExecutor(builder.scaleDownOrderEvaluator, builder.weightedScaleDownConstraintEvaluators);
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
                     builder.autoScaleDownBalancedByAttributeName,
                     builder.autoScaleRules, assignableVMs, null,
