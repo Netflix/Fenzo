@@ -289,10 +289,10 @@ class AutoScaler {
 
     private Map<String, String> getHostsToTerminateUsingCriteria(List<VirtualMachineLease> hosts, int excess) {
         Map<String, String> hostsMap = new HashMap<>();
-        ScaleDownOrderResolver result = scaleDownConstraintExecutor.evaluate(hosts);
-        int removeLimit = Math.min(result.getVmsInScaleDownOrder().size(), excess);
+        List<VirtualMachineLease> result = scaleDownConstraintExecutor.evaluate(hosts);
+        int removeLimit = Math.min(result.size(), excess);
         for(int i = 0; i < removeLimit; i++) {
-            VirtualMachineLease lease = result.getVmsInScaleDownOrder().get(i);
+            VirtualMachineLease lease = result.get(i);
             hostsMap.put(lease.hostname(), getMappedHostname(lease));
         }
         return hostsMap;

@@ -1,69 +1,56 @@
+/*
+ * Copyright 2017 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.netflix.fenzo;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 
 /**
- * A constraint evaluator that examines if VMs can be terminated, and in which order. Some example evaluation criteria:
- * <ul>
- *     <li>Is VM allowed to be terminated</li>
- *     <li>Does VM belong to deactivated server group, that should be terminated first</li>
- *     <li>Does VM run older version of the software compared to other candidates</li>
- * </ul>
- *
- * The evaluator groups VMs into equivalence classes, and if the selector type is 'InOrder', orders them according
- * to their scale down priority. If selector type is 'Balanced' no ordering is done, as each equivalent group
- * should be used in (weighted) round robin fashion.
- * Documentation in {@link ScaleDownOrderResolver} explains how results from multiple evaluators are combined together.
- *
- * The evaluation result {@link ScaleDownConstraintEvaluator.Result} should contain all VMs exactly ones. If the
- * contract is violated, the final result is undefined.
- *
- * TODO It would be useful to label equivalence groups for diagnostic purposes.
+ * An evaluator that for each VM computes a score from 0 to 1, with 0 being the lowest, and 1 highest. Evaluation
+ * equal to 0, means that the VM should not be terminated at all. To allow state sharing during evaluation of a
+ * sequence of candidate VMs, an evaluator implementation specific context is provided on each invocation. A new
+ * context value is returned as part of {@link Result}.
  */
-public interface ScaleDownConstraintEvaluator {
-
-    enum Selector {InOrder, Balanced}
+public interface ScaleDownConstraintEvaluator<CONTEXT> {
 
     /**
-     * The result of the evaluation of a {@link ScaleDownConstraintEvaluator}.
+     * Evaluation result.
      */
-    class Result {
+    class Result<CONTEXT> {
+        private final double score;
+        private final Optional<CONTEXT> context;
 
-        /**
-         * Selector mechanism to apply for the given result.
-         */
-        private final Selector selector;
-
-        /**
-         * Each value in the list represents VMs with the same termination priority (belonging to the same
-         * equivalence class).
-         */
-        private final List<Set<VirtualMachineLease>> scaleDownOrder;
-
-        /**
-         * Map of instances that should not be terminated, with values providing a human readable explanation.
-         */
-        private final Map<VirtualMachineLease, String> notRemovable;
-
-        public Result(Selector selector, List<Set<VirtualMachineLease>> scaleDownOrder, Map<VirtualMachineLease, String> notRemovable) {
-            this.selector = selector;
-            this.scaleDownOrder = scaleDownOrder;
-            this.notRemovable = notRemovable;
+        private Result(double score, Optional<CONTEXT> context) {
+            this.score = score;
+            this.context = context;
         }
 
-        public Selector getSelector() {
-            return selector;
+        public double getScore() {
+            return score;
         }
 
-        public List<Set<VirtualMachineLease>> getEquivalenceGroups() {
-            return scaleDownOrder;
+        public Optional<CONTEXT> getContext() {
+            return context;
         }
 
-        public Map<VirtualMachineLease, String> getNotRemovable() {
-            return notRemovable;
+        public static <CONTEXT> Result<CONTEXT> of(double score) {
+            return new Result<>(score, Optional.empty());
+        }
+
+        public static <CONTEXT> Result<CONTEXT> of(double score, CONTEXT context) {
+            return new Result<>(score, Optional.of(context));
         }
     }
 
@@ -77,11 +64,15 @@ public interface ScaleDownConstraintEvaluator {
     }
 
     /**
-     * Inspects a target to decide whether or not it meets the constraints appropriate to a particular task.
+     * Return score from 0 to 1 for a candidate VM to be terminating. The higher the score, the higher priority of
+     * the VM to get terminated. Value 0 means that it should not be terminated.
      *
-     * @param candidates all candidates to be terminated. Fenzo may choose to terminate only some of them.
-     * @return a successful Result if the target meets the constraints enforced by this constraint evaluator, or
-     *         an unsuccessful Result otherwise
+     * @param candidate candidate VM to be removed
+     * @param context evaluator specific data, hold for single evaluation cycle. Initial value is set to Optional.empty().
+     *                Evaluator should return new context as part of {@link Result} result. The new state will be passed
+     *                during subsequent method invocation.
+     *
+     * @return result combining VM score, and new context state
      */
-    Result evaluate(Collection<VirtualMachineLease> candidates);
+    Result evaluate(VirtualMachineLease candidate, Optional<CONTEXT> context);
 }

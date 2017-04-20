@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.plugins.NoOpScaleDownOrderEvaluator;
 import com.netflix.fenzo.queues.Assignable;
 import com.netflix.fenzo.queues.QueuableTask;
 import com.netflix.fenzo.sla.ResAllocs;
@@ -82,6 +83,7 @@ public class TaskScheduler {
         private String autoScaleByAttributeName=null;
         private String autoScalerMapHostnameAttributeName=null;
         private String autoScaleDownBalancedByAttributeName=null;
+        private ScaleDownOrderEvaluator scaleDownOrderEvaluator;
         private List<ScaleDownConstraintEvaluator> scaleDownConstraintEvaluators;
         private Action1<AutoScaleAction> autoscalerCallback=null;
         private long delayAutoscaleUpBySecs=0L;
@@ -212,7 +214,18 @@ public class TaskScheduler {
         }
 
         /**
-         * Ordered list of scale down constraints evaluators. The same order is preserve during constraint evaluation.
+         * Call this method to set {@link ScaleDownOrderEvaluator}.
+         *
+         * @param scaleDownOrderEvaluator scale down ordering evaluator
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         */
+        public Builder withScaleDownOrderEvaluator(ScaleDownOrderEvaluator scaleDownOrderEvaluator) {
+            this.scaleDownOrderEvaluator = scaleDownOrderEvaluator;
+            return this;
+        }
+
+        /**
+         * Ordered list of scale down constraints evaluators.
          *
          * @param scaleDownConstraintEvaluators scale down evaluators
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
@@ -384,6 +397,16 @@ public class TaskScheduler {
          * @return a {@code TaskScheduler} built according to the specifications you indicated
          */
         public TaskScheduler build() {
+            if(scaleDownOrderEvaluator == null) {
+                if(scaleDownConstraintEvaluators != null) {
+                    scaleDownOrderEvaluator = new NoOpScaleDownOrderEvaluator();
+                }
+            } else {
+                if(scaleDownConstraintEvaluators == null) {
+                    scaleDownConstraintEvaluators = Collections.emptyList();
+                }
+            }
+
             return new TaskScheduler(this);
         }
     }
@@ -429,8 +452,8 @@ public class TaskScheduler {
                 builder.singleOfferMode, builder.autoScaleByAttributeName);
         if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
 
-            ScaleDownConstraintExecutor scaleDownConstraintExecutor = builder.scaleDownConstraintEvaluators == null
-                    ? null : new ScaleDownConstraintExecutor(builder.scaleDownConstraintEvaluators);
+            ScaleDownConstraintExecutor scaleDownConstraintExecutor = builder.scaleDownOrderEvaluator == null
+                    ? null : new ScaleDownConstraintExecutor(builder.scaleDownOrderEvaluator, builder.scaleDownConstraintEvaluators);
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
                     builder.autoScaleDownBalancedByAttributeName,
                     builder.autoScaleRules, assignableVMs, null,
