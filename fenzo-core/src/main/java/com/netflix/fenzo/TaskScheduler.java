@@ -456,7 +456,7 @@ public class TaskScheduler {
                     ? null : new ScaleDownConstraintExecutor(builder.scaleDownOrderEvaluator, builder.weightedScaleDownConstraintEvaluators);
             autoScaler = new AutoScaler(builder.autoScaleByAttributeName, builder.autoScalerMapHostnameAttributeName,
                     builder.autoScaleDownBalancedByAttributeName,
-                    builder.autoScaleRules, assignableVMs, null,
+                    builder.autoScaleRules, assignableVMs,
                     builder.disableShortfallEvaluation, assignableVMs.getActiveVmGroups(),
                     assignableVMs.getVmCollection(), scaleDownConstraintExecutor);
             if(builder.autoscalerCallback != null)
@@ -590,6 +590,10 @@ public class TaskScheduler {
     /* package */ void setTaskToClusterAutoScalerMapGetter(Func1<QueuableTask, List<String>> getter) {
         if (autoScaler != null)
             autoScaler.setTaskToClustersGetter(getter);
+    }
+
+    /* package */ AutoScaler getAutoScaler() {
+        return autoScaler;
     }
 
     /**
@@ -847,6 +851,18 @@ public class TaskScheduler {
         schedulingResult.setTotalVMsCount(assignableVMs.getTotalNumVMs());
         schedulingResult.setIdleVMsCount(idleResourcesList.size());
         return schedulingResult;
+    }
+
+    /* package */ Map<String, List<String>> createPseudoHosts(Map<String, Integer> groupCounts) {
+        return assignableVMs.createPseudoHosts(groupCounts, autoScaler == null? name -> null : autoScaler::getRule);
+    }
+
+    /* package */ void removePsuedoHosts(Map<String, List<String>> hostsMap) {
+        assignableVMs.removePsuedoHosts(hostsMap);
+    }
+
+    /* package */ void removePsuedoAssignments() {
+        taskTracker.clearAssignedTasks(); // this should suffice for pseudo assignments
     }
 
     /**

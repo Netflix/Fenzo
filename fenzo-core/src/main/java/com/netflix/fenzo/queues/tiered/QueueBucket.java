@@ -99,7 +99,7 @@ class QueueBucket implements UsageTrackedQueue {
     @Override
     public void assignTask(QueuableTask t) throws TaskQueueException {
         if (iterator == null)
-            throw new TaskQueueException(new IllegalStateException("assign called while not iterating over tasks"));
+            throw new TaskQueueException(new IllegalStateException("assign called on task " + t.getId() + " while not iterating over tasks"));
         if (queuedTasks.get(t.getId()) == null)
             throw new TaskQueueException("Task not in queue for assigning, id=" + t.getId());
         if (assignedTasks.get(t.getId()) != null)
