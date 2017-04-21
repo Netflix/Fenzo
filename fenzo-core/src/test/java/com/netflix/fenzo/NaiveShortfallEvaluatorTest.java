@@ -17,7 +17,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.mockito.Mockito.mock;
 
-public class ShortfallEvaluatorTest {
+public class NaiveShortfallEvaluatorTest {
 
     private static final String HOST_ATTR_VAL = "4coreServers";
     private static final String ADJUSTED_HOST_ATTR_VAL = "adjusted4coreServers";
@@ -40,7 +40,7 @@ public class ShortfallEvaluatorTest {
 
     private final TaskScheduler taskScheduler = mock(TaskScheduler.class);
 
-    private final ShortfallEvaluator shortfallEvaluator = new ShortfallEvaluator(taskScheduler);
+    private final ShortfallEvaluator shortfallEvaluator = new NaiveShortfallEvaluator();
 
     @Before
     public void setUp() throws Exception {

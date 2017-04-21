@@ -58,6 +58,10 @@ public class TieredQueue implements InternalTaskQueue {
         slasQueue = new LinkedBlockingQueue<>();
     }
 
+    public int getNumTiers() {
+        return tiers.size();
+    }
+
     @Override
     public void queueTask(QueuableTask task) {
         tasksToQueue.offer(task);

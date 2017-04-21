@@ -73,7 +73,7 @@ public class AutoScalerTest {
                                        AutoScaleRule... rules) {
         return getScheduler(expectLeaseRejection, callback, 0, 0, rules);
     }
-    private TaskScheduler getScheduler(final boolean expectLeaseRejection, final Action1<AutoScaleAction> callback,
+    /* package */ static TaskScheduler getScheduler(final boolean expectLeaseRejection, final Action1<AutoScaleAction> callback,
                                        long delayScaleUpBySecs, long delayScaleDownByDecs,
                                        AutoScaleRule... rules) {
         TaskScheduler.Builder builder = new TaskScheduler.Builder()
@@ -526,7 +526,7 @@ public class AutoScalerTest {
     }
 
     // Tests that resource shortfall is evaluated and scale up happens beyond what would otherwise request only up to
-    // maxIdle count for the scaling rule. Also, that scale up from shortfall due to new tasks doesn't wait for cooldown
+    // maxIdle1 count for the scaling rule. Also, that scale up from shortfall due to new tasks doesn't wait for cooldown
     @Test
     public void testResourceShortfall() throws Exception {
         TaskScheduler scheduler = getScheduler(true, AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, 1, 1000));
@@ -764,7 +764,7 @@ public class AutoScalerTest {
         return false;
     }
 
-    // Test that s scale up action doesn't kick in for a very short duration breach of minIdle
+    // Test that s scale up action doesn't kick in for a very short duration breach of minIdle1
     @Test
     public void testDelayedAutoscaleUp() throws Exception {
         testScaleUpDelay(1);
@@ -840,7 +840,7 @@ public class AutoScalerTest {
         Assert.assertTrue("Expected to scale UP", scaleUpReceived.get());
     }
 
-    // Test that a scale down action doesn't kick in for a very short duration breach of maxIdle
+    // Test that a scale down action doesn't kick in for a very short duration breach of maxIdle1
     @Test
     public void testDelayedAutoscaleDown() throws Exception {
         testScaleDownDelay(1);
@@ -1131,7 +1131,7 @@ public class AutoScalerTest {
         scaleUpLatchRef.set(initialScaleUpLatch);
         final TaskScheduler scheduler = getScheduler(false, callback, rule1, rule2);
         final TaskQueue queue = TaskQueues.createTieredQueue(2);
-        int numTasks = minIdle * cpus1; // minIdle number of hosts each with cpu1 number of cpus
+        int numTasks = minIdle * cpus1; // minIdle1 number of hosts each with cpu1 number of cpus
         final CountDownLatch latch = new CountDownLatch(numTasks);
         final AtomicReference<List<Exception>> exceptions = new AtomicReference<>();
         final TaskSchedulingService schedulingService = new TaskSchedulingService.Builder()

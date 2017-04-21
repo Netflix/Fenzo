@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-package com.netflix.fenzo;
+package com.netflix.fenzo.queues;
 
-import com.netflix.fenzo.functions.Func1;
-import com.netflix.fenzo.queues.QueuableTask;
+import com.netflix.fenzo.queues.tiered.TieredQueue;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+public class InternalTaskQueues {
 
-/* package */ interface ShortfallEvaluator {
-
-    void setTaskToClustersGetter(Func1<QueuableTask, List<String>> getter);
-
-    Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures, AutoScaleRules autoScaleRules);
-
-    void setTaskSchedulingService(TaskSchedulingService schedulingService);
+    public static InternalTaskQueue createQueueOf(TaskQueue queue) {
+        if (queue instanceof TieredQueue) {
+            return new TieredQueue(((TieredQueue)queue).getNumTiers());
+        }
+        throw new IllegalArgumentException("Unknown queue implementation: " + queue.getClass().getName());
+    }
 }

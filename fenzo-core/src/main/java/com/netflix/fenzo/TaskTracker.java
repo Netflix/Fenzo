@@ -140,7 +140,7 @@ public class TaskTracker {
     TaskTracker() {
     }
 
-    public void setUsageTrackedQueue(UsageTrackedQueue t) {
+    /* package */ void setUsageTrackedQueue(UsageTrackedQueue t) {
         usageTrackedQueue = t;
     }
 

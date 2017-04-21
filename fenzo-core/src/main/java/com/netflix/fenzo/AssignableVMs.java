@@ -106,6 +106,22 @@ class AssignableVMs {
         return vmCollection;
     }
 
+    Map<String, List<String>> createPseudoHosts(Map<String, Integer> groupCounts, Func1<String, AutoScaleRule> ruleGetter) {
+        return vmCollection.clonePseudoVMsForGroups(groupCounts, ruleGetter);
+    }
+
+    void removePsuedoHosts(Map<String, List<String>> hostsMap) {
+        if (hostsMap != null && !hostsMap.isEmpty()) {
+            for (Map.Entry<String, List<String>> entry: hostsMap.entrySet()) {
+                for (String h: entry.getValue()) {
+                    final AssignableVirtualMachine avm = vmCollection.unsafeRemoveVm(h, entry.getKey());
+                    if (avm != null)
+                        avm.removeExpiredLeases(true);
+                }
+            }
+        }
+    }
+
     Map<String, Map<VMResource, Double[]>> getResourceStatus() {
         Map<String, Map<VMResource, Double[]>> result = new HashMap<>();
         for(AssignableVirtualMachine avm: vmCollection.getAllVMs())

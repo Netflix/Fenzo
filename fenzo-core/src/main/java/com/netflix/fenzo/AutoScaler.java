@@ -95,13 +95,12 @@ class AutoScaler {
     private final ScaleDownConstraintExecutor scaleDownConstraintExecutor;
 
     AutoScaler(final String attributeName, String mapHostnameAttributeName, String scaleDownBalancedByAttributeName,
-               final List<AutoScaleRule> autoScaleRules,
-               final AssignableVMs assignableVMs, TaskScheduler phantomTaskScheduler,
+               final List<AutoScaleRule> autoScaleRules, final AssignableVMs assignableVMs,
                final boolean disableShortfallEvaluation, ActiveVmGroups activeVmGroups, VMCollection vmCollection,
                ScaleDownConstraintExecutor scaleDownConstraintExecutor) {
         this.mapHostnameAttributeName = mapHostnameAttributeName;
         this.scaleDownBalancedByAttributeName = scaleDownBalancedByAttributeName;
-        this.shortfallEvaluator = new ShortfallEvaluator(phantomTaskScheduler);
+        this.shortfallEvaluator = new NaiveShortfallEvaluator();
         this.attributeName = attributeName;
         this.autoScaleRules = new AutoScaleRules(autoScaleRules);
         this.assignableVMs = assignableVMs;
@@ -109,6 +108,14 @@ class AutoScaler {
         this.activeVmGroups = activeVmGroups;
         this.vmCollection = vmCollection;
         this.scaleDownConstraintExecutor = scaleDownConstraintExecutor;
+    }
+
+    /* package */ void useOptimizingShortfallAnalyzer() {
+        shortfallEvaluator = new OptimizingShortfallEvaluator();
+    }
+
+    /* package */ void setSchedulingService(TaskSchedulingService service) {
+        shortfallEvaluator.setTaskSchedulingService(service);
     }
 
     Collection<AutoScaleRule> getRules() {
@@ -119,6 +126,10 @@ class AutoScaler {
         if(rule == null)
             throw new NullPointerException("Can't add null rule");
         autoScaleRules.replaceRule(rule);
+    }
+
+    AutoScaleRule getRule(String name) {
+        return autoScaleRules.get(name);
     }
 
     void removeRule(String ruleName) {

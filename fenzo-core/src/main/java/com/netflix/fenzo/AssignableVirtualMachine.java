@@ -34,6 +34,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
 
+    /* package */ static final String PseuoHostNamePrefix = "FenzoPsueodHost-";
+
     private static class PortRange {
         private final VirtualMachineLease.Range range;
         private PortRange(VirtualMachineLease.Range range) {
@@ -569,6 +571,29 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         if(attribute==null)
             return null;
         return attribute.getText().getValue();
+    }
+
+    Map<String, Double> getMaxScalars() {
+        Map<String, Double> result = new HashMap<>();
+        if (currTotalScalars != null) {
+            for (Map.Entry<String, Double> e : currTotalScalars.entrySet()) {
+                result.put(e.getKey(), e.getValue());
+            }
+        }
+        if (hasPreviouslyAssignedTasks()) {
+            for (TaskRequest t: previouslyAssignedTasksMap.values()) {
+                final Map<String, Double> scalarRequests = t.getScalarRequests();
+                if (scalarRequests != null && !scalarRequests.isEmpty()) {
+                    for (Map.Entry<String, Double> e: scalarRequests.entrySet()) {
+                        if (result.get(e.getKey()) == null)
+                            result.put(e.getKey(), e.getValue());
+                        else
+                            result.put(e.getKey(), e.getValue() + result.get(e.getKey()));
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     Map<VMResource, Double> getMaxResources() {

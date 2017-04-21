@@ -19,14 +19,33 @@ package com.netflix.fenzo;
 import com.netflix.fenzo.functions.Action0;
 import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.functions.Func1;
-import com.netflix.fenzo.queues.*;
+import com.netflix.fenzo.queues.InternalTaskQueue;
+import com.netflix.fenzo.queues.QAttributes;
+import com.netflix.fenzo.queues.QueuableTask;
 import com.netflix.fenzo.queues.TaskQueue;
+import com.netflix.fenzo.queues.TaskQueueException;
+import com.netflix.fenzo.queues.TaskQueueMultiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A task scheduling service that maintains a scheduling loop to continuously assign resources to tasks pending in
@@ -79,6 +98,7 @@ public class TaskSchedulingService {
     private final BlockingQueue<VirtualMachineLease> leaseBlockingQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<Map<String, QueuableTask>> addRunningTasksQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<RemoveTaskRequest> removeTasksQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Action1<List<VirtualMachineLease>>> pseudoSchedulingRequestQ = new LinkedBlockingQueue<>();
     private final BlockingQueue<Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>> taskMapRequest = new LinkedBlockingQueue<>(10);
     private final BlockingQueue<Action1<Map<String, Map<VMResource, Double[]>>>> resStatusRequest = new LinkedBlockingQueue<>(10);
     private final BlockingQueue<Action1<List<VirtualMachineCurrentState>>> vmCurrStateRequest = new LinkedBlockingQueue<>(10);
@@ -126,6 +146,67 @@ public class TaskSchedulingService {
         return executorService.isShutdown();
     }
 
+    /* package */ TaskQueue getQueue() {
+        return taskQueue;
+    }
+
+    /* package */ Map<String, Integer> requestPsuedoScheduling(final InternalTaskQueue pTaskQueue, Map<String, Integer> groupCounts) {
+        final AtomicReference<Map<String, Integer>> pseudoSchedResult = new AtomicReference<>();
+        final CountDownLatch latch = new CountDownLatch(1);
+        pseudoSchedulingRequestQ.offer((newLeases) -> {
+            try {
+                final Map<String, List<String>> pseudoHosts = taskScheduler.createPseudoHosts(groupCounts);
+                Map<String, String> hostnameToGrpMap = new HashMap<>();
+                for (Map.Entry<String, List<String>> entry : pseudoHosts.entrySet()) {
+                    for (String h : entry.getValue())
+                        hostnameToGrpMap.put(h, entry.getKey());
+                }
+                try {
+                    pTaskQueue.reset();
+                } catch (TaskQueueMultiException e) {
+                    final List<Exception> exceptions = e.getExceptions();
+                    if (exceptions == null || exceptions.isEmpty()) {
+                        logger.error("Error with pseudo queue, no details available");
+                    } else {
+                        logger.error("Error with pseudo queue, details:");
+                        for (Exception pe : exceptions) {
+                            logger.error("pseudo queue error detail: " + pe.getMessage());
+                        }
+                    }
+                }
+                // temporarily replace usage tracker in taskTracker to the pseudoQ and then put back the original one
+                taskScheduler.getTaskTracker().setUsageTrackedQueue(pTaskQueue.getUsageTracker());
+                final Map<String, VMAssignmentResult> resultMap = taskScheduler.scheduleOnce(pTaskQueue, newLeases).getResultMap();
+                Map<String, Integer> result = new HashMap<>();
+                if (!resultMap.isEmpty()) {
+                    for (String h : resultMap.keySet()) {
+                        final String grp = hostnameToGrpMap.get(h);
+                        if (grp != null) {
+                            Integer count = result.get(grp);
+                            if (count == null)
+                                result.put(grp, 1);
+                            else
+                                result.put(grp, count + 1);
+                        }
+                    }
+                }
+                taskScheduler.removePsuedoHosts(pseudoHosts);
+                taskScheduler.removePsuedoAssignments();
+                taskScheduler.getTaskTracker().setUsageTrackedQueue(taskQueue.getUsageTracker());
+                pseudoSchedResult.set(result);
+            } finally {
+                latch.countDown();
+            }
+        });
+        try {
+            if (latch.await(Math.max(5000, maxSchedIterDelay * 3), TimeUnit.SECONDS))// arbitrary long sleep, latch should return earlier than that
+                return pseudoSchedResult.get();
+        } catch (InterruptedException e) {
+            logger.warn("Timeout waiting for psuedo scheduling result");
+        }
+        return Collections.emptyMap();
+    }
+
     private void scheduleOnce() {
         try {
             taskScheduler.checkIfShutdown();
@@ -141,13 +222,18 @@ public class TaskSchedulingService {
             addPendingRunningTasks();
             removeTasks();
             final boolean newLeaseExists = leaseBlockingQueue.peek() != null;
-            if ( qModified || newLeaseExists || doNextIteration()) {
+            final Action1<List<VirtualMachineLease>> pseudoSchedAction = pseudoSchedulingRequestQ.poll();
+            if ( qModified || newLeaseExists || doNextIteration() || pseudoSchedAction != null) {
                 taskScheduler.setTaskToClusterAutoScalerMapGetter(taskToClusterAutoScalerMapGetter);
                 lastSchedIterationAt.set(System.currentTimeMillis());
                 if (preHook != null)
                     preHook.call();
                 List<VirtualMachineLease> currentLeases = new ArrayList<>();
                 leaseBlockingQueue.drainTo(currentLeases);
+                if (pseudoSchedAction != null) {
+                    pseudoSchedAction.call(currentLeases);
+                    currentLeases.clear();
+                }
                 final SchedulingResult schedulingResult = taskScheduler.scheduleOnce(taskQueue, currentLeases);
                 // mark end of scheduling iteration before assigning tasks.
                 taskQueue.getUsageTracker().reset();
@@ -157,7 +243,6 @@ public class TaskSchedulingService {
             }
         }
         catch (Exception e) {
-            // TODO return exception to scheduling result callback
             SchedulingResult result = new SchedulingResult(null);
             result.addException(e);
             schedulingResultCallback.call(result);
@@ -335,6 +420,7 @@ public class TaskSchedulingService {
         private final ScheduledExecutorService executorService;
         private Action0 preHook = null;
         private long maxDelayMillis = 5000L;
+        private boolean optimizingShortfallEvaluator = false;
 
         public Builder() {
             executorService = new ScheduledThreadPoolExecutor(1);
@@ -411,6 +497,24 @@ public class TaskSchedulingService {
         }
 
         /**
+         * Use an optimal evaluator of resource shortfall for tasks failing assignments to determine the right number
+         * of VMs needed for cluster scale up.
+         * In a cluster with multiple VM groups, determine the minimum number of VMs of each group required to satisfy
+         * the resource demands from pending tasks at the end of a scheduling iteration.
+         * <P>
+         * The default is to use a naive shortfall evaluator that may scale up more VMs than needed and later correct
+         * with an appropriate scale down.
+         * <P>
+         * Using this evaluator should incur an overhead of approximately one scheduling iteration, only once for
+         * the set of unassigned tasks.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskSchedulingService}.
+         */
+        public Builder withOptimizingShortfallEvaluator() {
+            this.optimizingShortfallEvaluator = true;
+            return this;
+        }
+
+        /**
          * Creates a {@link TaskSchedulingService} based on the various builder methods you have chained.
          *
          * @return a {@code TaskSchedulingService} built according to the specifications you indicated
@@ -422,7 +526,12 @@ public class TaskSchedulingService {
                 throw new NullPointerException("Null scheduling result callback not allowed");
             if (taskQueue == null)
                 throw new NullPointerException("Null task queue not allowed");
-            return new TaskSchedulingService(this);
+            final TaskSchedulingService schedulingService = new TaskSchedulingService(this);
+            if (optimizingShortfallEvaluator) {
+                taskScheduler.getAutoScaler().useOptimizingShortfallAnalyzer();
+                taskScheduler.getAutoScaler().setSchedulingService(schedulingService);
+            }
+            return schedulingService;
         }
     }
 }
