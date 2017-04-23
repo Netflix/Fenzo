@@ -62,7 +62,14 @@ import java.util.Map;
                 final Map<String, Double> maxScalars = avm.getMaxScalars();
                 if (maxScalars != null && !maxScalars.isEmpty()) {
                     for (String k: maxScalars.keySet())
-                        scalars.compute(k, (s, oldVal) -> oldVal + maxScalars.get(k));
+                        scalars.compute(k, (s, oldVal) -> {
+                            if (oldVal == null)
+                                oldVal = 0.0;
+                            Double aDouble = maxScalars.get(k);
+                            if (aDouble == null)
+                                aDouble = 0.0;
+                            return oldVal + aDouble;
+                        });
                 }
                 final Map<String, Protos.Attribute> attrs = avm.getCurrTotalLease().getAttributeMap();
                 if (attrs != null && !attrs.isEmpty()) {
