@@ -176,10 +176,14 @@ public class ShortfallAutoscalerTest {
         // create 3 VMs for group1 and 1 VM for group2
         int hostIdx=0;
         final List<VirtualMachineLease> leases = new ArrayList<>();
-        leases.add(LeaseProvider.getLeaseOffer("host" + hostIdx++, cpus1, cpus1 * memMultiplier, ports, attributes1));
-        leases.add(LeaseProvider.getLeaseOffer("host" + hostIdx++, cpus1, cpus1 * memMultiplier, ports, attributes1));
-        leases.add(LeaseProvider.getLeaseOffer("host" + hostIdx++, cpus1, cpus1 * memMultiplier, ports, attributes1));
-        leases.add(LeaseProvider.getLeaseOffer("host" + hostIdx++, cpus2, cpus2 * memMultiplier, ports, attributes2));
+        leases.add(LeaseProvider.getLeaseOffer("host" + hostIdx++, cpus1, cpus1 * memMultiplier,
+                0, 0, ports, attributes1, Collections.singletonMap("GPU", 1.0)));
+        leases.add(LeaseProvider.getLeaseOffer("host" + hostIdx++, cpus1, cpus1 * memMultiplier,
+                0, 0, ports, attributes1, Collections.singletonMap("GPU", 1.0)));
+        leases.add(LeaseProvider.getLeaseOffer("host" + hostIdx++, cpus1, cpus1 * memMultiplier,
+                0, 0, ports, attributes1, Collections.singletonMap("GPU", 1.0)));
+        leases.add(LeaseProvider.getLeaseOffer("host" + hostIdx++, cpus2, cpus2 * memMultiplier,
+                0, 0, ports, attributes2, Collections.singletonMap("GPU", 2.0)));
         // create 1-cpu tasks to fill VMS equal to two times the max size of group1, and also group2
         for (int i=0; i < (cpus1*rule1.getMaxSize() + cpus2* rule2.getMaxSize()); i++) {
             queue.queueTask(QueuableTaskProvider.wrapTask(qA1, TaskRequestProvider.getTaskRequest(1, memMultiplier, 1)));
