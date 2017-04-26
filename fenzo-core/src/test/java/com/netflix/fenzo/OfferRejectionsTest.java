@@ -250,7 +250,7 @@ public class OfferRejectionsTest {
         // add the same leases with same hostnames twice again, so there are 3 offers for each of the nHosts.
         leases.addAll(LeaseProvider.getLeases(nhosts, 4, 4000, 1, 10));
         leases.addAll(LeaseProvider.getLeases(nhosts, 4, 4000, 1, 10));
-        for (int i=0; i<leaseExpirySecs+1 && !gotReject.get(); i++) {
+        for (int i=0; i<leaseExpirySecs+2 && !gotReject.get(); i++) {
             scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), leases);
             leases.clear();
             Thread.sleep(1000);
