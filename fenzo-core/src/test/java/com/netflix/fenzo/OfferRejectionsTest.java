@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class OfferRejectionsTest {
@@ -234,10 +235,12 @@ public class OfferRejectionsTest {
         final AtomicInteger expireCount = new AtomicInteger();
         final int leaseExpirySecs=2;
         final Set<String> hostsRejectedFrom = new HashSet<>();
+        final AtomicBoolean gotReject = new AtomicBoolean();
         final TaskScheduler scheduler = new TaskScheduler.Builder()
                 .withLeaseRejectAction(virtualMachineLease -> {
                     expireCount.incrementAndGet();
                     hostsRejectedFrom.add(virtualMachineLease.hostname());
+                    gotReject.set(true);
                 })
                 .withLeaseOfferExpirySecs(leaseExpirySecs)
                 .withMaxOffersToReject(1)
@@ -247,7 +250,7 @@ public class OfferRejectionsTest {
         // add the same leases with same hostnames twice again, so there are 3 offers for each of the nHosts.
         leases.addAll(LeaseProvider.getLeases(nhosts, 4, 4000, 1, 10));
         leases.addAll(LeaseProvider.getLeases(nhosts, 4, 4000, 1, 10));
-        for (int i=0; i<leaseExpirySecs+1; i++) {
+        for (int i=0; i<leaseExpirySecs+1 && !gotReject.get(); i++) {
             scheduler.scheduleOnce(Collections.<TaskRequest>emptyList(), leases);
             leases.clear();
             Thread.sleep(1000);

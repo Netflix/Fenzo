@@ -17,6 +17,8 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.functions.Func1;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +28,7 @@ import java.util.stream.Stream;
 
 class VMCollection {
     private static final String defaultGroupName = "DEFAULT";
+    private static final Logger logger = LoggerFactory.getLogger(VMCollection.class);
     private final ConcurrentMap<String, ConcurrentMap<String, AssignableVirtualMachine>> vms;
     private final Func1<String, AssignableVirtualMachine> newVmCreator;
     private final String groupingAttrName;
@@ -75,7 +78,7 @@ class VMCollection {
                 final AutoScaleRule rule = ruleGetter.call(g);
                 if (rule != null) {
                     int max = rule.getMaxSize();
-                    if (max < Integer.MAX_VALUE && n > (max + map.size()))
+                    if (max < Integer.MAX_VALUE && n > (max - map.size()))
                         n = max - map.size();
                 }
                 for (int i = 0; i < n; i++) {
@@ -83,7 +86,7 @@ class VMCollection {
                     try {
                         addLease(vmCloner.cloneLease(lease, hostname, now));
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        logger.error("Unexpected error creating pseudo leases", e);
                     }
                     hostnames.add(hostname);
                 }

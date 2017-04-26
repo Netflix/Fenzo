@@ -71,10 +71,10 @@ public class ShortfallAutoscalerTest {
         ports.add(new VirtualMachineLease.Range(1, 100));
     }
 
-    private TaskScheduler getScheduler(final boolean expectLeaseRejection, final Action1<AutoScaleAction> callback,
+    private TaskScheduler getScheduler(final Action1<VirtualMachineLease> leaseRejectAction, final Action1<AutoScaleAction> callback,
                                        long delayScaleUpBySecs, long delayScaleDownByDecs,
                                        AutoScaleRule... rules) {
-        return AutoScalerTest.getScheduler(expectLeaseRejection, callback, delayScaleUpBySecs, delayScaleDownByDecs,
+        return AutoScalerTest.getScheduler(leaseRejectAction, callback, delayScaleUpBySecs, delayScaleDownByDecs,
                 rules);
     }
 
@@ -101,7 +101,9 @@ public class ShortfallAutoscalerTest {
                 scaleUpReqQ.offer(((ScaleUpAction) action).getScaleUpCount());
             }
         };
-        TaskScheduler scheduler = getScheduler(true, callback, 0, 0, rule);
+        final List<String> rejectedHosts = new ArrayList<>();
+        TaskScheduler scheduler = getScheduler(l -> rejectedHosts.add(l.hostname()),
+                callback, 0, 0, rule);
         Action0 preHook = () -> {};
         BlockingQueue<SchedulingResult> resultQ = new LinkedBlockingQueue<>();
         TaskQueue queue = TaskQueues.createTieredQueue(1);
@@ -152,6 +154,11 @@ public class ShortfallAutoscalerTest {
         scaleUpNoticed = scaleUpReqQ.poll(coolDownSecs, TimeUnit.SECONDS);
         Assert.assertNotNull(scaleUpNoticed);
         Assert.assertEquals(expected, scaleUpNoticed.intValue());
+        if (!rejectedHosts.isEmpty()) {
+            for (String h: rejectedHosts) {
+                Assert.fail("Unexpected to reject lease on host " + h);
+            }
+        }
         schedulingService.shutdown();
     }
 
@@ -168,7 +175,8 @@ public class ShortfallAutoscalerTest {
                         ((ScaleUpAction) action).getScaleUpCount()));
             }
         };
-        TaskScheduler scheduler = getScheduler(true, callback, 0, 0, rule1, rule2);
+        TaskScheduler scheduler = getScheduler(AutoScalerTest.noOpLeaseReject, callback,
+                0, 0, rule1, rule2);
         Action0 preHook = () -> {};
         BlockingQueue<SchedulingResult> resultQ = new LinkedBlockingQueue<>();
         TaskQueue queue = TaskQueues.createTieredQueue(1);

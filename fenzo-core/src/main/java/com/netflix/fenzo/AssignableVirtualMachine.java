@@ -331,6 +331,10 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     void removeExpiredLeases(boolean all) {
+        removeExpiredLeases(all, true);
+    }
+
+    void removeExpiredLeases(boolean all, boolean doRejectCallback) {
         @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") Set<String> leasesToExpireIds = new HashSet<>();
         leasesToExpire.drainTo(leasesToExpireIds);
         Iterator<Map.Entry<String,VirtualMachineLease>> iterator = leasesMap.entrySet().iterator();
@@ -342,7 +346,8 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                 if(expireAll) {
                     if(logger.isDebugEnabled())
                         logger.debug(hostname + ": expiring lease offer id " + l.getId());
-                    leaseRejectAction.call(l);
+                    if (doRejectCallback)
+                        leaseRejectAction.call(l);
                 }
                 iterator.remove();
             }

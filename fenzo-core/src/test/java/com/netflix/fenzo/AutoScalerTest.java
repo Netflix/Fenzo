@@ -63,17 +63,19 @@ public class AutoScalerTest {
 
     }
 
+    static final Action1<VirtualMachineLease> noOpLeaseReject = lease -> {};
+
     private TaskScheduler getScheduler(AutoScaleRule... rules) {
-        return getScheduler(false, rules);
+        return getScheduler(null, rules);
     }
-    private TaskScheduler getScheduler(final boolean expectLeaseRejection, AutoScaleRule... rules) {
-        return getScheduler(expectLeaseRejection, null, 0, 0, rules);
+    private TaskScheduler getScheduler(final Action1<VirtualMachineLease> leaseRejectCalback, AutoScaleRule... rules) {
+        return getScheduler(leaseRejectCalback, null, 0, 0, rules);
     }
-    private TaskScheduler getScheduler(final boolean expectLeaseRejection, final Action1<AutoScaleAction> callback,
+    private TaskScheduler getScheduler(final Action1<VirtualMachineLease> leaseRejectCalback, final Action1<AutoScaleAction> callback,
                                        AutoScaleRule... rules) {
-        return getScheduler(expectLeaseRejection, callback, 0, 0, rules);
+        return getScheduler(leaseRejectCalback, callback, 0, 0, rules);
     }
-    /* package */ static TaskScheduler getScheduler(final boolean expectLeaseRejection, final Action1<AutoScaleAction> callback,
+    /* package */ static TaskScheduler getScheduler(final Action1<VirtualMachineLease> leaseRejectCalback, final Action1<AutoScaleAction> callback,
                                        long delayScaleUpBySecs, long delayScaleDownByDecs,
                                        AutoScaleRule... rules) {
         TaskScheduler.Builder builder = new TaskScheduler.Builder()
@@ -87,12 +89,11 @@ public class AutoScalerTest {
                 .withDelayAutoscaleUpBySecs(delayScaleUpBySecs)
                 .withFitnessCalculator(BinPackingFitnessCalculators.cpuMemBinPacker)
                 .withLeaseOfferExpirySecs(3600)
-                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
-                    @Override
-                    public void call(VirtualMachineLease lease) {
-                        if(!expectLeaseRejection)
-                            Assert.fail("Unexpected to reject lease " + lease.hostname());
-                    }
+                .withLeaseRejectAction(lease -> {
+                    if(leaseRejectCalback == null)
+                        Assert.fail("Unexpected to reject lease " + lease.hostname());
+                    else
+                        leaseRejectCalback.call(lease);
                 })
                 .build();
     }
@@ -186,13 +187,10 @@ public class AutoScalerTest {
     @Test
     public void testOneRuleTwoTypes() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
-        TaskScheduler scheduler = getScheduler(false, new Action1<AutoScaleAction>() {
-            @Override
-            public void call(AutoScaleAction action) {
-                if (action instanceof ScaleUpAction) {
-                    if (action.getRuleName().equals(rule1.getRuleName()))
-                        latch.countDown();
-                }
+        TaskScheduler scheduler = getScheduler(null, action -> {
+            if (action instanceof ScaleUpAction) {
+                if (action.getRuleName().equals(rule1.getRuleName()))
+                    latch.countDown();
             }
         }, rule2);
         final List<TaskRequest> requests = new ArrayList<>();
@@ -255,7 +253,7 @@ public class AutoScalerTest {
     @Test
     public void testSimpleScaleDownAction() throws Exception {
         final AtomicInteger scaleDownCount = new AtomicInteger();
-        TaskScheduler scheduler = getScheduler(true, rule1);
+        TaskScheduler scheduler = getScheduler(noOpLeaseReject, rule1);
         final List<TaskRequest> requests = new ArrayList<>();
         for(int c=0; c<cpus1; c++) // add as many 1-CPU requests as #cores on a host
             requests.add(TaskRequestProvider.getTaskRequest(1, 1000, 1));
@@ -303,7 +301,7 @@ public class AutoScalerTest {
      */
     @Test
     public void testTwoRuleScaleDownAction() throws Exception {
-        TaskScheduler scheduler = getScheduler(true, rule1, rule2);
+        TaskScheduler scheduler = getScheduler(noOpLeaseReject, rule1, rule2);
         final List<TaskRequest> requests = new ArrayList<>();
         final List<VirtualMachineLease> leases = new ArrayList<>();
         final CountDownLatch latch = new CountDownLatch(1);
@@ -451,7 +449,7 @@ public class AutoScalerTest {
      */
     @Test
     public void testScaledDownHostOffer() throws Exception {
-        TaskScheduler scheduler = getScheduler(true, rule1);
+        TaskScheduler scheduler = getScheduler(noOpLeaseReject, rule1);
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Collection<String>> scaleDownHostsRef = new AtomicReference<>();
         final List<TaskRequest> requests = new ArrayList<>();
@@ -529,7 +527,7 @@ public class AutoScalerTest {
     // maxIdle1 count for the scaling rule. Also, that scale up from shortfall due to new tasks doesn't wait for cooldown
     @Test
     public void testResourceShortfall() throws Exception {
-        TaskScheduler scheduler = getScheduler(true, AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, 1, 1000));
+        TaskScheduler scheduler = getScheduler(noOpLeaseReject, AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, 1, 1000));
         final List<TaskRequest> requests = new ArrayList<>();
         final List<VirtualMachineLease> leases = new ArrayList<>();
         for(int i=0; i<rule1.getMaxIdleHostsToKeep()*2; i++)
@@ -569,7 +567,7 @@ public class AutoScalerTest {
 
     @Test
     public void testAddingNewRule() throws Exception {
-        TaskScheduler scheduler = getScheduler(true, AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, 1, 1000));
+        TaskScheduler scheduler = getScheduler(noOpLeaseReject, AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, 1, 1000));
         final List<TaskRequest> requests = new ArrayList<>();
         final List<VirtualMachineLease> leases = new ArrayList<>();
         Map<String, Protos.Attribute> attributes1 = new HashMap<>();
@@ -684,7 +682,7 @@ public class AutoScalerTest {
 
     @Test
     public void testRemovingExistingRule() throws Exception {
-        TaskScheduler scheduler = getScheduler(true, AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, 1, 1000));
+        TaskScheduler scheduler = getScheduler(noOpLeaseReject, AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle, maxIdle, coolDownSecs, 1, 1000));
         final List<TaskRequest> requests = new ArrayList<>();
         final List<VirtualMachineLease> leases = new ArrayList<>();
         Map<String, Protos.Attribute> attributes1 = new HashMap<>();
@@ -793,7 +791,7 @@ public class AutoScalerTest {
             }
         };
         long scaleupDelaySecs = 2L;
-        TaskScheduler scheduler = getScheduler(false, callback, scaleupDelaySecs, 0, rule1);
+        TaskScheduler scheduler = getScheduler(null, callback, scaleupDelaySecs, 0, rule1);
         List<VirtualMachineLease.Range> ports = new ArrayList<>();
         ports.add(new VirtualMachineLease.Range(1, 10));
         Map<String, Protos.Attribute> attributes = new HashMap<>();
@@ -868,7 +866,7 @@ public class AutoScalerTest {
             }
         };
         long scaleDownDelay=3;
-        TaskScheduler scheduler = getScheduler(true, callback, 0, scaleDownDelay, rule1);
+        TaskScheduler scheduler = getScheduler(noOpLeaseReject, callback, 0, scaleDownDelay, rule1);
         List<VirtualMachineLease.Range> ports = new ArrayList<>();
         ports.add(new VirtualMachineLease.Range(1, 10));
         Map<String, Protos.Attribute> attributes = new HashMap<>();
@@ -951,7 +949,7 @@ public class AutoScalerTest {
                 scaleDown.addAndGet(((ScaleDownAction)autoScaleAction).getHosts().size());
             }
         };
-        final TaskScheduler scheduler = getScheduler(true, callback, rule);
+        final TaskScheduler scheduler = getScheduler(noOpLeaseReject, callback, rule);
         for (int i=0; i<cooldown+1; i++) {
             scheduler.scheduleOnce(Collections.emptyList(), leases);
             leases.clear();
@@ -982,7 +980,7 @@ public class AutoScalerTest {
                 scaleDown.addAndGet(((ScaleDownAction)autoScaleAction).getHosts().size());
             }
         };
-        final TaskScheduler scheduler = getScheduler(true, callback, rule);
+        final TaskScheduler scheduler = getScheduler(noOpLeaseReject, callback, rule);
         for (int i=0; i<cooldown+1; i++) {
             scheduler.scheduleOnce(Collections.emptyList(), leases);
             leases.clear();
@@ -1015,7 +1013,7 @@ public class AutoScalerTest {
                 scaleUp.addAndGet(((ScaleUpAction) autoScaleAction).getScaleUpCount());
             }
         };
-        final TaskScheduler scheduler = getScheduler(true, callback, rule);
+        final TaskScheduler scheduler = getScheduler(noOpLeaseReject, callback, rule);
         // create enough tasks to fill up the Vms
         List<TaskRequest> tasks = new ArrayList<>();
         for (int l=0; l<maxSize-leaveIdle; l++)
@@ -1065,7 +1063,7 @@ public class AutoScalerTest {
                 scaleUp.addAndGet(((ScaleUpAction) autoScaleAction).getScaleUpCount());
             }
         };
-        final TaskScheduler scheduler = getScheduler(true, callback, rule);
+        final TaskScheduler scheduler = getScheduler(noOpLeaseReject, callback, rule);
         // create enough tasks to fill up the Vms
         List<TaskRequest> tasks = new ArrayList<>();
         for (int l=0; l<maxSize+2; l++)
@@ -1129,7 +1127,7 @@ public class AutoScalerTest {
             }
         };
         scaleUpLatchRef.set(initialScaleUpLatch);
-        final TaskScheduler scheduler = getScheduler(false, callback, rule1, rule2);
+        final TaskScheduler scheduler = getScheduler(null, callback, rule1, rule2);
         final TaskQueue queue = TaskQueues.createTieredQueue(2);
         int numTasks = minIdle * cpus1; // minIdle1 number of hosts each with cpu1 number of cpus
         final CountDownLatch latch = new CountDownLatch(numTasks);

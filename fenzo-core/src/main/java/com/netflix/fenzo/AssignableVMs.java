@@ -116,7 +116,7 @@ class AssignableVMs {
                 for (String h: entry.getValue()) {
                     final AssignableVirtualMachine avm = vmCollection.unsafeRemoveVm(h, entry.getKey());
                     if (avm != null)
-                        avm.removeExpiredLeases(true);
+                        avm.removeExpiredLeases(true, false);
                 }
             }
         }
