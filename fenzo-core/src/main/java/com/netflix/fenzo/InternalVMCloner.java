@@ -152,13 +152,19 @@ import java.util.Map;
         };
     }
 
-    /* package */ VirtualMachineLease cloneLease(VirtualMachineLease lease, String hostname, long now) {
+    /* package */ VirtualMachineLease cloneLease(VirtualMachineLease lease, final String hostname, long now) {
         final List<VirtualMachineLease.Range> ports = new LinkedList<>();
         final List<VirtualMachineLease.Range> ranges = lease.portRanges();
         if (ranges != null && !ranges.isEmpty()) {
             for (VirtualMachineLease.Range r: ranges)
                 ports.add(new VirtualMachineLease.Range(r.getBeg(), r.getEnd()));
         }
+        final double cpus = lease.cpuCores();
+        final double memory = lease.memoryMB();
+        final double network = lease.networkMbps();
+        final double disk = lease.diskMB();
+        final Map<String, Protos.Attribute> attributes = new HashMap<>(lease.getAttributeMap());
+        final Map<String, Double> scalarValues = new HashMap<>(lease.getScalarValues());
         return new VirtualMachineLease() {
             @Override
             public String getId() {
@@ -182,22 +188,22 @@ import java.util.Map;
 
             @Override
             public double cpuCores() {
-                return lease.cpuCores();
+                return cpus;
             }
 
             @Override
             public double memoryMB() {
-                return lease.memoryMB();
+                return memory;
             }
 
             @Override
             public double networkMbps() {
-                return lease.networkMbps();
+                return network;
             }
 
             @Override
             public double diskMB() {
-                return lease.diskMB();
+                return disk;
             }
 
             @Override
@@ -212,17 +218,17 @@ import java.util.Map;
 
             @Override
             public Map<String, Protos.Attribute> getAttributeMap() {
-                return lease.getAttributeMap();
+                return attributes;
             }
 
             @Override
             public Double getScalarValue(String name) {
-                return lease.getScalarValue(name);
+                return scalarValues.get(name);
             }
 
             @Override
             public Map<String, Double> getScalarValues() {
-                return lease.getScalarValues();
+                return scalarValues;
             }
         };
     }

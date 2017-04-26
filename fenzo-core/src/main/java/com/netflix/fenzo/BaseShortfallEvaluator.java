@@ -43,7 +43,7 @@ abstract class BaseShortfallEvaluator implements ShortfallEvaluator {
     }
 
     @Override
-    public abstract Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures, AutoScaleRules autoScaleRules);
+    public abstract Map<String, Integer> getShortfall(Set<String> vmGroupNames, Set<TaskRequest> failures, AutoScaleRules autoScaleRules);
 
     @Override
     public void setTaskSchedulingService(TaskSchedulingService schedulingService) {

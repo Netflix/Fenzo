@@ -27,7 +27,15 @@ import java.util.Set;
 
     void setTaskToClustersGetter(Func1<QueuableTask, List<String>> getter);
 
-    Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures, AutoScaleRules autoScaleRules);
+    /**
+     * Get number of VMs of shortfall for each VM Group for the given VM Group names and set of failed tasks.
+     * @param vmGroupNames VM Group names for which autoscale rules are setup, same as the autoscale rule name.
+     * @param failures The tasks that failed assignment due to which VM shortfall must be evaluated.
+     * @param autoScaleRules The current set of autoscale rules.
+     * @return A map with keys containing VM group names (same as autoscale rule names) and values containing the
+     *         number of VMs that may be added to address the shortfall.
+     */
+    Map<String, Integer> getShortfall(Set<String> vmGroupNames, Set<TaskRequest> failures, AutoScaleRules autoScaleRules);
 
     void setTaskSchedulingService(TaskSchedulingService schedulingService);
 }

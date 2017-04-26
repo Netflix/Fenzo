@@ -50,12 +50,12 @@ import java.util.Set;
 class OptimizingShortfallEvaluator extends BaseShortfallEvaluator {
 
     @Override
-    public Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures, AutoScaleRules autoScaleRules) {
+    public Map<String, Integer> getShortfall(Set<String> vmGroupNames, Set<TaskRequest> failures, AutoScaleRules autoScaleRules) {
         if (schedulingService == null || failures == null || failures.isEmpty())
             return Collections.emptyMap();
 
         final List<TaskRequest> filteredTasks = filterFailedTasks(failures);
-        final Map<String, Integer> shortfallTasksPerGroup = fillShortfallMap(attrKeys, filteredTasks);
+        final Map<String, Integer> shortfallTasksPerGroup = fillShortfallMap(vmGroupNames, filteredTasks);
         if (shortfallTasksPerGroup.isEmpty())
             return Collections.emptyMap();
 

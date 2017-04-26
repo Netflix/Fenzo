@@ -28,7 +28,7 @@ import java.util.*;
 class NaiveShortfallEvaluator extends BaseShortfallEvaluator {
 
     @Override
-    public Map<String, Integer> getShortfall(Set<String> attrKeys, Set<TaskRequest> failures, AutoScaleRules autoScaleRules) {
+    public Map<String, Integer> getShortfall(Set<String> vmGroupNames, Set<TaskRequest> failures, AutoScaleRules autoScaleRules) {
         // A naive approach to figuring out shortfall of hosts to satisfy the tasks that failed assignments is,
         // strictly speaking, not possible by just attempting to add up required resources for the tasks and then mapping
         // that to the number of hosts required to satisfy that many resources. Several things can make that evaluation
@@ -55,9 +55,9 @@ class NaiveShortfallEvaluator extends BaseShortfallEvaluator {
         // implementations that have ordering semantics other than FIFO. So, we maintain the list of tasks with a
         // timeout and remove it from there so we catch this scenario and ask for the resources again for that task.
 
-        if (attrKeys != null && failures != null && !failures.isEmpty()) {
+        if (vmGroupNames != null && failures != null && !failures.isEmpty()) {
             reset();
-            return adjustAgentScaleUp(fillShortfallMap(attrKeys, filterFailedTasks(failures)), autoScaleRules);
+            return adjustAgentScaleUp(fillShortfallMap(vmGroupNames, filterFailedTasks(failures)), autoScaleRules);
         }
         else
             return Collections.emptyMap();
