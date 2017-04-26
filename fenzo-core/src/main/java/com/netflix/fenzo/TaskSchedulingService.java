@@ -151,49 +151,52 @@ public class TaskSchedulingService {
     }
 
     /* package */ Map<String, Integer> requestPsuedoScheduling(final InternalTaskQueue pTaskQueue, Map<String, Integer> groupCounts) {
-        final AtomicReference<Map<String, Integer>> pseudoSchedResult = new AtomicReference<>();
+        final AtomicReference<Map<String, Integer>> pseudoSchedResult = new AtomicReference<>(Collections.emptyMap());
         final CountDownLatch latch = new CountDownLatch(1);
         pseudoSchedulingRequestQ.offer((newLeases) -> {
             try {
                 final Map<String, List<String>> pseudoHosts = taskScheduler.createPseudoHosts(groupCounts);
-                Map<String, String> hostnameToGrpMap = new HashMap<>();
-                for (Map.Entry<String, List<String>> entry : pseudoHosts.entrySet()) {
-                    for (String h : entry.getValue())
-                        hostnameToGrpMap.put(h, entry.getKey());
-                }
                 try {
-                    pTaskQueue.reset();
-                } catch (TaskQueueMultiException e) {
-                    final List<Exception> exceptions = e.getExceptions();
-                    if (exceptions == null || exceptions.isEmpty()) {
-                        logger.error("Error with pseudo queue, no details available");
-                    } else {
-                        logger.error("Error with pseudo queue, details:");
-                        for (Exception pe : exceptions) {
-                            logger.error("pseudo queue error detail: " + pe.getMessage());
+                    Map<String, String> hostnameToGrpMap = new HashMap<>();
+                    for (Map.Entry<String, List<String>> entry : pseudoHosts.entrySet()) {
+                        for (String h : entry.getValue())
+                            hostnameToGrpMap.put(h, entry.getKey());
+                    }
+                    try {
+                        pTaskQueue.reset();
+                    } catch (TaskQueueMultiException e) {
+                        final List<Exception> exceptions = e.getExceptions();
+                        if (exceptions == null || exceptions.isEmpty()) {
+                            logger.error("Error with pseudo queue, no details available");
+                        } else {
+                            logger.error("Error with pseudo queue, details:");
+                            for (Exception pe : exceptions) {
+                                logger.error("pseudo queue error detail: " + pe.getMessage());
+                            }
                         }
                     }
-                }
-                // temporarily replace usage tracker in taskTracker to the pseudoQ and then put back the original one
-                taskScheduler.getTaskTracker().setUsageTrackedQueue(pTaskQueue.getUsageTracker());
-                final Map<String, VMAssignmentResult> resultMap = taskScheduler.scheduleOnce(pTaskQueue, newLeases).getResultMap();
-                Map<String, Integer> result = new HashMap<>();
-                if (!resultMap.isEmpty()) {
-                    for (String h : resultMap.keySet()) {
-                        final String grp = hostnameToGrpMap.get(h);
-                        if (grp != null) {
-                            Integer count = result.get(grp);
-                            if (count == null)
-                                result.put(grp, 1);
-                            else
-                                result.put(grp, count + 1);
+                    // temporarily replace usage tracker in taskTracker to the pseudoQ and then put back the original one
+                    taskScheduler.getTaskTracker().setUsageTrackedQueue(pTaskQueue.getUsageTracker());
+                    final Map<String, VMAssignmentResult> resultMap = taskScheduler.scheduleOnce(pTaskQueue, newLeases).getResultMap();
+                    Map<String, Integer> result = new HashMap<>();
+                    if (!resultMap.isEmpty()) {
+                        for (String h : resultMap.keySet()) {
+                            final String grp = hostnameToGrpMap.get(h);
+                            if (grp != null) {
+                                Integer count = result.get(grp);
+                                if (count == null)
+                                    result.put(grp, 1);
+                                else
+                                    result.put(grp, count + 1);
+                            }
                         }
                     }
+                    pseudoSchedResult.set(result);
+                } finally {
+                    taskScheduler.removePsuedoHosts(pseudoHosts);
+                    taskScheduler.removePsuedoAssignments();
+                    taskScheduler.getTaskTracker().setUsageTrackedQueue(taskQueue.getUsageTracker());
                 }
-                taskScheduler.removePsuedoHosts(pseudoHosts);
-                taskScheduler.removePsuedoAssignments();
-                taskScheduler.getTaskTracker().setUsageTrackedQueue(taskQueue.getUsageTracker());
-                pseudoSchedResult.set(result);
             } finally {
                 latch.countDown();
             }

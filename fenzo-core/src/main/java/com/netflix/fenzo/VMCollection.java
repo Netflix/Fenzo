@@ -82,7 +82,7 @@ class VMCollection {
                         n = max - map.size();
                 }
                 for (int i = 0; i < n; i++) {
-                    final String hostname = nextHostname(g, i);
+                    final String hostname = createHostname(g, i);
                     try {
                         addLease(vmCloner.cloneLease(lease, hostname, now));
                     } catch (Exception e) {
@@ -95,7 +95,7 @@ class VMCollection {
         return result;
     }
 
-    private String nextHostname(String g, int i) {
+    private String createHostname(String g, int i) {
         return AssignableVirtualMachine.PseuoHostNamePrefix + g + "-" + i;
     }
 
