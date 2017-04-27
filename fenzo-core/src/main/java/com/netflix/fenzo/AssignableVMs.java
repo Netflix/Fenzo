@@ -107,7 +107,13 @@ class AssignableVMs {
     }
 
     Map<String, List<String>> createPseudoHosts(Map<String, Integer> groupCounts, Func1<String, AutoScaleRule> ruleGetter) {
-        return vmCollection.clonePseudoVMsForGroups(groupCounts, ruleGetter);
+        return vmCollection.clonePseudoVMsForGroups(groupCounts, ruleGetter, lease ->
+            lease != null &&
+                    (lease.getAttributeMap() == null ||
+                            lease.getAttributeMap().get(activeVmGroupAttributeName) == null ||
+                            isInActiveVmGroup(lease.getAttributeMap().get(activeVmGroupAttributeName).getText().getValue())
+                    )
+        );
     }
 
     void removePsuedoHosts(Map<String, List<String>> hostsMap) {
@@ -230,6 +236,10 @@ class AssignableVMs {
 
     private boolean isInActiveVmGroup(AssignableVirtualMachine avm) {
         final String attrValue = avm.getAttrValue(activeVmGroupAttributeName);
+        return isInActiveVmGroup(attrValue);
+    }
+
+    private boolean isInActiveVmGroup(String attrValue) {
         return activeVmGroups.isActiveVmGroup(attrValue, false);
     }
 

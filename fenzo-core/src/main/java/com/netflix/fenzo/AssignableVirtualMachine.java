@@ -154,15 +154,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         this.vmIdToHostnameMap = vmIdToHostnameMap;
         this.leaseIdToHostnameMap = leaseIdToHostnameMap;
         this.hostname = hostname;
-        this.leaseRejectAction = leaseRejectAction==null?
-                new Action1<VirtualMachineLease>() {
-                    @Override
-                    public void call(VirtualMachineLease lease) {
-                        logger.warn("No lease reject action registered to reject lease id " + lease.getId() +
-                                " on host " + lease.hostname());
-                    }
-                } :
-                leaseRejectAction;
+        this.leaseRejectAction = getWrappedLeaseRejectAction(leaseRejectAction);
         this.leaseOfferExpirySecs = leaseOfferExpirySecs;
         this.taskTracker = taskTracker;
         this.leasesMap = new HashMap<>();
@@ -172,6 +164,20 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         this.previouslyAssignedTasksMap = new HashMap<>();
         this.assignmentResults = new HashMap<>();
         this.singleLeaseMode = singleLeaseMode;
+    }
+
+    private Action1<VirtualMachineLease> getWrappedLeaseRejectAction(final Action1<VirtualMachineLease> leaseRejectAction) {
+        return leaseRejectAction==null?
+                lease -> logger.warn("No lease reject action registered to reject lease id " + lease.getId() +
+                        " on host " + lease.hostname()) :
+                lease -> {
+                    if (isRejectable(lease))
+                        leaseRejectAction.call(lease);
+                };
+    }
+
+    private boolean isRejectable(VirtualMachineLease l) {
+        return l != null && l.getOffer() != null;
     }
 
     private void addToAvailableResources(VirtualMachineLease l) {
@@ -361,7 +367,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             return 0;
         long now = System.currentTimeMillis();
         for (VirtualMachineLease l: leasesMap.values()) {
-            if (l.getOfferedTime() < (now - leaseOfferExpirySecs * 1000) && vmRejectLimiter.reject()) {
+            if (isRejectable(l) && l.getOfferedTime() < (now - leaseOfferExpirySecs * 1000) && vmRejectLimiter.reject()) {
                 for (VirtualMachineLease vml: leasesMap.values()) {
                     leaseIdToHostnameMap.remove(vml.getId());
                     if(logger.isDebugEnabled())

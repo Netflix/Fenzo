@@ -128,8 +128,8 @@ public class ShortfallAutoscalerTest {
             requests.add(QueuableTaskProvider.wrapTask(qA1, TaskRequestProvider .getTaskRequest(1, memMultiplier, 1)));
         System.out.println("Created " + requests.size() + " tasks");
         final List<VirtualMachineLease> leases = new ArrayList<>();
-        leases.add(LeaseProvider.getLeaseOffer("host1", cpus1, cpus1 * 1000, ports, attributes1));
-        leases.add(LeaseProvider.getLeaseOffer("host2", cpus1, cpus1 * 1000, ports, attributes1));
+        leases.add(LeaseProvider.getLeaseOffer("host1", cpus1, cpus1 * memMultiplier, ports, attributes1));
+        leases.add(LeaseProvider.getLeaseOffer("host2", cpus1, cpus1 * memMultiplier, ports, attributes1));
         for (QueuableTask t: requests) {
             queue.queueTask(t);
         }
