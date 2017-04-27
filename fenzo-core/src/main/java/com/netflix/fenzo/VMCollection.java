@@ -24,6 +24,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 class VMCollection {
@@ -55,7 +57,10 @@ class VMCollection {
      * @param ruleGetter Getter function for autoscale rules
      * @return Collection of psuedo host names added.
      */
-    Map<String, List<String>> clonePseudoVMsForGroups(Map<String, Integer> groupCounts, Func1<String, AutoScaleRule> ruleGetter) {
+    Map<String, List<String>> clonePseudoVMsForGroups(Map<String, Integer> groupCounts,
+                                                      Func1<String, AutoScaleRule> ruleGetter,
+                                                      Predicate<VirtualMachineLease> vmFilter
+    ) {
         if (groupCounts == null || groupCounts.isEmpty())
             return Collections.emptyMap();
         InternalVMCloner vmCloner = new InternalVMCloner();
@@ -64,31 +69,35 @@ class VMCollection {
         for (String g: groupCounts.keySet()) {
             List<String> hostnames = new LinkedList<>();
             result.put(g, hostnames);
-            final ConcurrentMap<String, AssignableVirtualMachine> map = vms.get(g);
-            if (map != null) {
-                // NOTE: a shortcoming here is that the attributes of VMs across a group may not be homogeneous.
-                // By creating one lease object and cloning from it, we pick one combination of the attributes
-                // and replicate across all the newly created pseudo VMs. It may be possible to capture the
-                // unique set of attributes across all existing VMs in the group and replicate that mix within
-                // the new pseudo VMs. However, we will not do that at this time. So, it is possible that some
-                // task constraints that depend on the variety of such attributes may fail the task placement.
-                // We will live with that limitation at this time.
-                VirtualMachineLease lease = vmCloner.getClonedMaxResourcesLease(map.values());
-                int n = groupCounts.get(g);
-                final AutoScaleRule rule = ruleGetter.call(g);
-                if (rule != null) {
-                    int max = rule.getMaxSize();
-                    if (max < Integer.MAX_VALUE && n > (max - map.size()))
-                        n = max - map.size();
-                }
-                for (int i = 0; i < n; i++) {
-                    final String hostname = createHostname(g, i);
-                    try {
-                        addLease(vmCloner.cloneLease(lease, hostname, now));
-                    } catch (Exception e) {
-                        logger.error("Unexpected error creating pseudo leases", e);
+            final ConcurrentMap<String, AssignableVirtualMachine> avmsMap = vms.get(g);
+            if (avmsMap != null) {
+                final List<AssignableVirtualMachine> vmsList = avmsMap.values().stream()
+                        .filter(avm -> vmFilter.test(avm.getCurrTotalLease())).collect(Collectors.toList());
+                if (vmsList != null && !vmsList.isEmpty()) {
+                    // NOTE: a shortcoming here is that the attributes of VMs across a group may not be homogeneous.
+                    // By creating one lease object and cloning from it, we pick one combination of the attributes
+                    // and replicate across all the newly created pseudo VMs. It may be possible to capture the
+                    // unique set of attributes across all existing VMs in the group and replicate that mix within
+                    // the new pseudo VMs. However, we will not do that at this time. So, it is possible that some
+                    // task constraints that depend on the variety of such attributes may fail the task placement.
+                    // We will live with that limitation at this time.
+                    VirtualMachineLease lease = vmCloner.getClonedMaxResourcesLease(vmsList);
+                    int n = groupCounts.get(g);
+                    final AutoScaleRule rule = ruleGetter.call(g);
+                    if (rule != null) {
+                        int max = rule.getMaxSize();
+                        if (max < Integer.MAX_VALUE && n > (max - vmsList.size()))
+                            n = max - vmsList.size();
                     }
-                    hostnames.add(hostname);
+                    for (int i = 0; i < n; i++) {
+                        final String hostname = createHostname(g, i);
+                        try {
+                            addLease(vmCloner.cloneLease(lease, hostname, now));
+                        } catch (Exception e) {
+                            logger.error("Unexpected error creating pseudo leases", e);
+                        }
+                        hostnames.add(hostname);
+                    }
                 }
             }
         }
@@ -101,7 +110,7 @@ class VMCollection {
 
     /**
      * Remove VM of given name from the given group. This is generally unsafe and intended only to be used by whoever
-     * uses {@link VMCollection#clonePseudoVMsForGroups(Map, Func1)}.
+     * uses {@link VMCollection#clonePseudoVMsForGroups(Map, Func1, Predicate)}.
      * @param name
      * @param group
      */
