@@ -21,15 +21,21 @@ import java.util.Set;
 
 class AutoScalerInput {
     private final List<VirtualMachineLease> idleResourcesList;
+    private final List<VirtualMachineLease> idleInactiveResources;
     private final Set<TaskRequest> failedTasks;
 
-    AutoScalerInput(List<VirtualMachineLease> idleResources, Set<TaskRequest> failedTasks) {
+    AutoScalerInput(List<VirtualMachineLease> idleResources, List<VirtualMachineLease> idleInactiveResources, Set<TaskRequest> failedTasks) {
         this.idleResourcesList= idleResources;
+        this.idleInactiveResources = idleInactiveResources;
         this.failedTasks = failedTasks;
     }
 
     public List<VirtualMachineLease> getIdleResourcesList() {
         return idleResourcesList;
+    }
+
+    public List<VirtualMachineLease> getIdleInactiveResourceList() {
+        return idleInactiveResources;
     }
 
     public Set<TaskRequest> getFailures() {

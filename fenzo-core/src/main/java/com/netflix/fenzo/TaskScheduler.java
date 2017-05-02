@@ -36,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * A scheduling service that you can use to optimize the assignment of tasks to hosts within a Mesos framework.
@@ -710,6 +711,7 @@ public class TaskScheduler {
             List<VirtualMachineLease> newLeases) throws Exception {
         AtomicInteger rejectedCount = new AtomicInteger();
         List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs(newLeases, rejectedCount);
+        List<AssignableVirtualMachine> inactiveAVMs = assignableVMs.getInactiveVMs();
         if(logger.isDebugEnabled())
             logger.debug("Found " + avms.size() + " VMs with non-zero offers to assign from");
         final boolean hasResAllocs = resAllocsEvaluator.prepare();
@@ -840,8 +842,15 @@ public class TaskScheduler {
                     resultMap.put(avm.getHostname(), assignmentResult);
                 }
             }
+
+            // Process inactive VMs
+            List<VirtualMachineLease> idleInactiveAVMs = inactiveAVMs.stream()
+                    .filter(vm -> vm.getCurrTotalLease() != null && !vm.hasPreviouslyAssignedTasks())
+                    .map(AssignableVirtualMachine::getCurrTotalLease)
+                    .collect(Collectors.toList());
+
             rejectedCount.addAndGet(assignableVMs.removeLimitedLeases(expirableLeases));
-            final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, failedTasksForAutoScaler);
+            final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, idleInactiveAVMs, failedTasksForAutoScaler);
             if (autoScaler != null)
                 autoScaler.scheduleAutoscale(autoScalerInput);
         }

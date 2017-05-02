@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 class AssignableVMs {
 
@@ -281,6 +282,10 @@ class AssignableVMs {
         taskTracker.setTotalResources(totalResourcesMap);
         //Collections.sort(vms);
         return vms;
+    }
+
+    List<AssignableVirtualMachine> getInactiveVMs() {
+        return vmCollection.getAllVMs().stream().filter(avm -> !isInActiveVmGroup(avm)).collect(Collectors.toList());
     }
 
     private void resetTotalResources() {
