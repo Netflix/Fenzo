@@ -16,17 +16,16 @@
 
 package com.netflix.fenzo.queues.tiered;
 
+import java.util.*;
+import java.util.function.BiFunction;
+
 import com.netflix.fenzo.AssignmentFailure;
 import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
-import com.netflix.fenzo.queues.TaskQueue;
 import com.netflix.fenzo.sla.ResAllocs;
 import com.netflix.fenzo.sla.ResAllocsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.*;
-import java.util.function.BiFunction;
 
 /**
  * This class represents a tier of the multi-tiered queue that {@link TieredQueue} represents. The tier holds one or
@@ -133,8 +132,10 @@ class Tier implements UsageTrackedQueue {
                     return taskOrFailure;
                 }
                 return Assignable.error(task, new AssignmentFailure(VMResource.ResAllocs, 0, 0, 0,
-                        "No guaranteed capacity left for queue " + bucket.getName()
-                                + ", and no spare capacity is available"));
+                        "No guaranteed capacity left for queue."
+                                + "\n" + bucket.getBucketCapacityAsString()
+                                + "\n" + getTierCapacityAsString()
+                ));
             }
         }
         return null;
@@ -268,6 +269,20 @@ class Tier implements UsageTrackedQueue {
         }
         b.append("]");
         return b.toString();
+    }
+
+    private String getTierCapacityAsString() {
+        StringBuilder sb = new StringBuilder();
+        if (tierResources != null) {
+            sb.append("Tier ").append(tierNumber).append(" Total Capacity: ").append(tierResources.getAsString());
+        }
+        if (effectiveUsedResources != null) {
+            sb.append("\nTier ").append(tierNumber).append(" Used Capacity: ").append(effectiveUsedResources.getAsString());
+        }
+        if (remainingResources != null) {
+            sb.append("\nTier ").append(tierNumber).append(" Remaining Capacity: ").append(remainingResources.getAsString());
+        }
+        return sb.toString();
     }
 
     @Override

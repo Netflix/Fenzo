@@ -73,6 +73,10 @@ class QueueBucket implements UsageTrackedQueue {
         updateEffectiveUsage();
     }
 
+    ResAllocs getBucketGuarantees() {
+        return bucketGuarantees;
+    }
+
     @Override
     public void queueTask(QueuableTask t) throws TaskQueueException {
         if (iterator != null)
@@ -176,6 +180,17 @@ class QueueBucket implements UsageTrackedQueue {
 
     public ResAllocs getEffectiveUsage() {
         return effectiveUsage;
+    }
+
+    public String getBucketCapacityAsString() {
+        StringBuilder sb = new StringBuilder();
+        if (bucketGuarantees != null) {
+            sb.append("Bucket ").append(name).append(" Total Capacity: ").append(bucketGuarantees.getAsString());
+        }
+        if (effectiveUsage != null) {
+            sb.append("\nBucket ").append(name).append(" Used Capacity: ").append(effectiveUsage.getAsString());
+        }
+        return sb.toString();
     }
 
     @Override

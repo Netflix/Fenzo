@@ -18,10 +18,10 @@ package com.netflix.fenzo;
 import java.util.Optional;
 
 /**
- * An evaluator that for each VM computes a score from 0 to 1, with 0 being the lowest, and 1 highest. Evaluation
- * equal to 0, means that the VM should not be terminated at all. To allow state sharing during evaluation of a
+ * An evaluator that for each VM computes a score from 0.0 to 1.0, with 0.0 being the lowest, and 1.0 highest. Evaluation
+ * equal to 0.0, means that the VM should not be terminated at all. To allow state sharing during evaluation of a
  * sequence of candidate VMs, an evaluator implementation specific context is provided on each invocation. A new
- * context value is returned as part of {@link Result}.
+ * context value is returned as part of the {@link Result}.
  */
 public interface ScaleDownConstraintEvaluator<CONTEXT> {
 
@@ -64,11 +64,11 @@ public interface ScaleDownConstraintEvaluator<CONTEXT> {
     }
 
     /**
-     * Return score from 0 to 1 for a candidate VM to be terminating. The higher the score, the higher priority of
-     * the VM to get terminated. Value 0 means that it should not be terminated.
+     * Return score from 0.0 to 1.0 for a candidate VM to be terminating. The higher the score, the higher priority of
+     * the VM to get terminated. Value 0.0 means that it should not be terminated.
      *
      * @param candidate candidate VM to be removed
-     * @param context evaluator specific data, hold for single evaluation cycle. Initial value is set to Optional.empty().
+     * @param context evaluator specific data, held for single evaluation cycle. Initial value is set to Optional.empty().
      *                Evaluator should return new context as part of {@link Result} result. The new state will be passed
      *                during subsequent method invocation.
      *
