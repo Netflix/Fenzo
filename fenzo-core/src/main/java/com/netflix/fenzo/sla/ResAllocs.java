@@ -56,4 +56,16 @@ public interface ResAllocs {
      * @return the maximum disk space, in MB
      */
     double getDisk();
+
+    /**
+     * Returns the the resource allocations in a string representation.
+     *
+     * @return the resources as a string
+     */
+    default String getAsString() {
+        return "{ cpu: " + getCores() +
+                ", memory: " + getMemory() +
+                ", disk: " + getDisk() +
+                ", networkMbps: " + getNetworkMbps() + " }";
+    }
 }

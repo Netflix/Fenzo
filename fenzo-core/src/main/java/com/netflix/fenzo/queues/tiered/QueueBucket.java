@@ -182,6 +182,17 @@ class QueueBucket implements UsageTrackedQueue {
         return effectiveUsage;
     }
 
+    public String getBucketCapacityAsString() {
+        StringBuilder sb = new StringBuilder();
+        if (bucketGuarantees != null) {
+            sb.append("Bucket ").append(name).append(" Total Capacity: ").append(bucketGuarantees.getAsString());
+        }
+        if (effectiveUsage != null) {
+            sb.append("\nBucket ").append(name).append(" Used Capacity: ").append(effectiveUsage.getAsString());
+        }
+        return sb.toString();
+    }
+
     @Override
     public void reset() {
         iterator = null;

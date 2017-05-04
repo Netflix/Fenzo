@@ -133,8 +133,8 @@ class Tier implements UsageTrackedQueue {
                 }
                 return Assignable.error(task, new AssignmentFailure(VMResource.ResAllocs, 0, 0, 0,
                         "No guaranteed capacity left for queue."
-                                + "\nBucket " + bucket.getName() + " Capacity: " + getBucketCapacityString(bucket)
-                                + "\n" + getTierCapacityString()
+                                + "\n" + bucket.getBucketCapacityAsString()
+                                + "\n" + getTierCapacityAsString()
                 ));
             }
         }
@@ -271,42 +271,16 @@ class Tier implements UsageTrackedQueue {
         return b.toString();
     }
 
-    private String getTierCapacityString() {
+    private String getTierCapacityAsString() {
         StringBuilder sb = new StringBuilder();
         if (tierResources != null) {
-            sb.append("Tier ").append(tierNumber).append(" Total Capacity: { ");
-            sb.append("cpu: ").append(tierResources.getCores());
-            sb.append(", memory: ").append(tierResources.getMemory());
-            sb.append(", disk: ").append(tierResources.getDisk());
-            sb.append(", networkMbps: ").append(tierResources.getNetworkMbps()).append(" }");
+            sb.append("Tier ").append(tierNumber).append(" Total Capacity: ").append(tierResources.getAsString());
         }
-
         if (effectiveUsedResources != null) {
-            sb.append("\nTier ").append(tierNumber).append(" Used Capacity: { ");
-            sb.append("cpu: ").append(effectiveUsedResources.getCores());
-            sb.append(", memory: ").append(effectiveUsedResources.getMemory());
-            sb.append(", disk: ").append(effectiveUsedResources.getDisk());
-            sb.append(", networkMbps: ").append(effectiveUsedResources.getNetworkMbps()).append(" }");
+            sb.append("\nTier ").append(tierNumber).append(" Used Capacity: ").append(effectiveUsedResources.getAsString());
         }
-
         if (remainingResources != null) {
-            sb.append("\nTier ").append(tierNumber).append(" Unused Capacity: { ");
-            sb.append("cpu: ").append(remainingResources.getCores());
-            sb.append(", memory: ").append(remainingResources.getMemory());
-            sb.append(", disk: ").append(remainingResources.getDisk());
-            sb.append(", networkMbps: ").append(remainingResources.getNetworkMbps()).append(" }");
-        }
-        return sb.toString();
-    }
-
-    public String getBucketCapacityString(QueueBucket bucket) {
-        StringBuilder sb = new StringBuilder();
-        ResAllocs bucketGuarantees = bucket.getBucketGuarantees();
-        if (bucketGuarantees != null) {
-            sb.append("{ cpu: ").append(bucketGuarantees.getCores());
-            sb.append(", memory: ").append(bucketGuarantees.getCores());
-            sb.append(", disk: ").append(bucketGuarantees.getCores());
-            sb.append(", networkMbps: ").append(bucketGuarantees.getCores()).append(" }");
+            sb.append("\nTier ").append(tierNumber).append(" Remaining Capacity: ").append(remainingResources.getAsString());
         }
         return sb.toString();
     }
