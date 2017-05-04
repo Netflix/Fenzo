@@ -16,17 +16,16 @@
 
 package com.netflix.fenzo.queues.tiered;
 
+import java.util.*;
+import java.util.function.BiFunction;
+
 import com.netflix.fenzo.AssignmentFailure;
 import com.netflix.fenzo.VMResource;
 import com.netflix.fenzo.queues.*;
-import com.netflix.fenzo.queues.TaskQueue;
 import com.netflix.fenzo.sla.ResAllocs;
 import com.netflix.fenzo.sla.ResAllocsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.*;
-import java.util.function.BiFunction;
 
 /**
  * This class represents a tier of the multi-tiered queue that {@link TieredQueue} represents. The tier holds one or
@@ -133,8 +132,10 @@ class Tier implements UsageTrackedQueue {
                     return taskOrFailure;
                 }
                 return Assignable.error(task, new AssignmentFailure(VMResource.ResAllocs, 0, 0, 0,
-                        "No guaranteed capacity left for queue " + bucket.getName()
-                                + ", and no spare capacity is available"));
+                        "No guaranteed capacity left for queue."
+                                + "\nBucket " + bucket.getName() + " Capacity: " + getBucketCapacityString(bucket)
+                                + "\n" + getTierCapacityString()
+                ));
             }
         }
         return null;
@@ -268,6 +269,46 @@ class Tier implements UsageTrackedQueue {
         }
         b.append("]");
         return b.toString();
+    }
+
+    private String getTierCapacityString() {
+        StringBuilder sb = new StringBuilder();
+        if (tierResources != null) {
+            sb.append("Tier ").append(tierNumber).append(" Total Capacity: { ");
+            sb.append("cpu: ").append(tierResources.getCores());
+            sb.append(", memory: ").append(tierResources.getMemory());
+            sb.append(", disk: ").append(tierResources.getDisk());
+            sb.append(", networkMbps: ").append(tierResources.getNetworkMbps()).append(" }");
+        }
+
+        if (effectiveUsedResources != null) {
+            sb.append("\nTier ").append(tierNumber).append(" Used Capacity: { ");
+            sb.append("cpu: ").append(effectiveUsedResources.getCores());
+            sb.append(", memory: ").append(effectiveUsedResources.getMemory());
+            sb.append(", disk: ").append(effectiveUsedResources.getDisk());
+            sb.append(", networkMbps: ").append(effectiveUsedResources.getNetworkMbps()).append(" }");
+        }
+
+        if (remainingResources != null) {
+            sb.append("\nTier ").append(tierNumber).append(" Unused Capacity: { ");
+            sb.append("cpu: ").append(remainingResources.getCores());
+            sb.append(", memory: ").append(remainingResources.getMemory());
+            sb.append(", disk: ").append(remainingResources.getDisk());
+            sb.append(", networkMbps: ").append(remainingResources.getNetworkMbps()).append(" }");
+        }
+        return sb.toString();
+    }
+
+    public String getBucketCapacityString(QueueBucket bucket) {
+        StringBuilder sb = new StringBuilder();
+        ResAllocs bucketGuarantees = bucket.getBucketGuarantees();
+        if (bucketGuarantees != null) {
+            sb.append("{ cpu: ").append(bucketGuarantees.getCores());
+            sb.append(", memory: ").append(bucketGuarantees.getCores());
+            sb.append(", disk: ").append(bucketGuarantees.getCores());
+            sb.append(", networkMbps: ").append(bucketGuarantees.getCores()).append(" }");
+        }
+        return sb.toString();
     }
 
     @Override

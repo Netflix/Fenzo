@@ -43,7 +43,7 @@ class VMCollection {
 
     Collection<AssignableVirtualMachine> getAllVMs() {
         List<AssignableVirtualMachine> result = new LinkedList<>();
-        vms.values().forEach(m -> m.values().forEach(result::add));
+        vms.values().forEach(m -> result.addAll(m.values()));
         return result;
     }
 
@@ -175,7 +175,7 @@ class VMCollection {
 
     public int size() {
         final Optional<Integer> size = vms.values().stream().map(Map::size).reduce((i1, i2) -> i1 + i2);
-        return size.isPresent()? size.get() : 0;
+        return size.orElse(0);
     }
 
     public int size(String group) {

@@ -162,14 +162,6 @@ class AssignableVMs {
         return rejected;
     }
 
-    // TODO Remove after confirming new VMCollection class is ready
-//    private void createAvmIfAbsent(String hostname) {
-//        if(virtualMachinesMap.get(hostname) == null)
-//            virtualMachinesMap.putIfAbsent(hostname,
-//                    new AssignableVirtualMachine(vmIdToHostnameMap, leaseIdToHostnameMap, hostname,
-//                            leaseRejectAction, leaseOfferExpirySecs, taskTracker, singleLeaseMode));
-//    }
-
     void expireLease(String leaseId) {
         final String hostname = leaseIdToHostnameMap.get(leaseId);
         if(hostname==null) {

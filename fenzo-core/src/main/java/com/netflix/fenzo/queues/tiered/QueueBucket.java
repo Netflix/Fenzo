@@ -73,6 +73,10 @@ class QueueBucket implements UsageTrackedQueue {
         updateEffectiveUsage();
     }
 
+    ResAllocs getBucketGuarantees() {
+        return bucketGuarantees;
+    }
+
     @Override
     public void queueTask(QueuableTask t) throws TaskQueueException {
         if (iterator != null)
