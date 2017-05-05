@@ -156,6 +156,12 @@ public class TaskSchedulingService {
         pseudoSchedulingRequestQ.offer((newLeases) -> {
             try {
                 final Map<String, List<String>> pseudoHosts = taskScheduler.createPseudoHosts(groupCounts);
+                logger.debug("Got " + pseudoHosts.size() + " pseudoHosts");
+                int pHostsAdded = 0;
+                for(List<String> l: pseudoHosts.values()) {
+                    logger.debug("hosts: " + l);
+                    pHostsAdded += l.size();
+                }
                 try {
                     Map<String, String> hostnameToGrpMap = new HashMap<>();
                     for (Map.Entry<String, List<String>> entry : pseudoHosts.entrySet()) {
@@ -177,7 +183,9 @@ public class TaskSchedulingService {
                     }
                     // temporarily replace usage tracker in taskTracker to the pseudoQ and then put back the original one
                     taskScheduler.getTaskTracker().setUsageTrackedQueue(pTaskQueue.getUsageTracker());
-                    final Map<String, VMAssignmentResult> resultMap = taskScheduler.scheduleOnce(pTaskQueue, newLeases).getResultMap();
+                    logger.debug("Scheduling with pseudoQ and " + newLeases.size() + " new leases");
+                    final SchedulingResult schedulingResult = taskScheduler.scheduleOnce(pTaskQueue, newLeases);
+                    final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
                     Map<String, Integer> result = new HashMap<>();
                     if (!resultMap.isEmpty()) {
                         for (String h : resultMap.keySet()) {
@@ -191,13 +199,46 @@ public class TaskSchedulingService {
                             }
                         }
                     }
+                    else if(pHostsAdded > 0) {
+                        logger.debug("No pseduo assignments, looking for failures");
+                        final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
+                        if (failures == null || failures.isEmpty()) {
+                            logger.debug("psedo assignments: no failures");
+                        } else {
+                            for (Map.Entry<TaskRequest, List<TaskAssignmentResult>> entry: failures.entrySet()) {
+                                final List<TaskAssignmentResult> tars = entry.getValue();
+                                if (tars == null || tars.isEmpty())
+                                    logger.debug("No failures for task " + entry.getKey());
+                                else {
+                                    StringBuilder b = new StringBuilder("Failures for task").append(entry.getKey())
+                                            .append(": ");
+                                    for (TaskAssignmentResult r: tars) {
+                                        b.append("HOST: ").append(r.getHostname()).append(":");
+                                        final List<AssignmentFailure> afs = r.getFailures();
+                                        if (afs != null && !afs.isEmpty())
+                                            afs.forEach(af -> b.append(af.getMessage()).append("; "));
+                                    }
+                                }
+                            }
+                        }
+                    }
                     pseudoSchedResult.set(result);
-                } finally {
+                }
+                catch (Exception e) {
+                    logger.error("Error in pseudo scheduling", e);
+                    throw e;
+                }
+                finally {
                     taskScheduler.removePsuedoHosts(pseudoHosts);
                     taskScheduler.removePsuedoAssignments();
                     taskScheduler.getTaskTracker().setUsageTrackedQueue(taskQueue.getUsageTracker());
                 }
-            } finally {
+            }
+            catch (Exception e) {
+                logger.error("Error in pseudo scheduling", e);
+                throw e;
+            }
+            finally {
                 latch.countDown();
             }
         });

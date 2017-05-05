@@ -97,6 +97,7 @@ class VMCollection {
                             logger.error("Unexpected error creating pseudo leases", e);
                         }
                         hostnames.add(hostname);
+                        getVmByName(hostname).ifPresent(AssignableVirtualMachine::updateCurrTotalLease);
                     }
                 }
             }

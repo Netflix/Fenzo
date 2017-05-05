@@ -711,6 +711,7 @@ public class TaskScheduler {
             List<VirtualMachineLease> newLeases) throws Exception {
         AtomicInteger rejectedCount = new AtomicInteger();
         List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs(newLeases, rejectedCount);
+        logger.debug("Got " + avms.size() + " avms");
         List<AssignableVirtualMachine> inactiveAVMs = assignableVMs.getInactiveVMs();
         if(logger.isDebugEnabled())
             logger.debug("Found " + avms.size() + " VMs with non-zero offers to assign from");
@@ -942,9 +943,11 @@ public class TaskScheduler {
                 if(n == 0)
                     return new EvalResult(results, getSuccessfulResult(results), results.size(), null);
                 for(int m=0; m<n; m++) {
+                    final AssignableVirtualMachine avm = buf.get(m);
                     if(logger.isDebugEnabled())
-                        logger.debug("Evaluting task assignment on host " + buf.get(m).getHostname());
-                    TaskAssignmentResult result = buf.get(m).tryRequest(task, builder.fitnessCalculator);
+                        logger.debug("Evaluting task assignment on host " + avm.getHostname());
+                    logger.debug("CurrTotalRes on host " + avm.getHostname() + ": " + avm.getCurrTotalLease());
+                    TaskAssignmentResult result = avm.tryRequest(task, builder.fitnessCalculator);
                     results.add(result);
                     if(result.isSuccessful() && builder.isFitnessGoodEnoughFunction.call(result.getFitness())) {
                         // drain rest of the queue, nobody needs to do more work.
