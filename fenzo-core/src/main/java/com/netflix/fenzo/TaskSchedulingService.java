@@ -155,12 +155,13 @@ public class TaskSchedulingService {
         final CountDownLatch latch = new CountDownLatch(1);
         pseudoSchedulingRequestQ.offer((newLeases) -> {
             try {
+                logger.debug("Creating pseudo hosts");
                 final Map<String, List<String>> pseudoHosts = taskScheduler.createPseudoHosts(groupCounts);
-                logger.debug("Got " + pseudoHosts.size() + " pseudoHosts");
+                logger.debug("Created " + pseudoHosts.size() + " pseudoHost groups");
                 int pHostsAdded = 0;
-                for(List<String> l: pseudoHosts.values()) {
-                    logger.debug("hosts: " + l);
-                    pHostsAdded += l.size();
+                for(Map.Entry<String, List<String>> entry: pseudoHosts.entrySet()) {
+                    logger.debug("Pseudo hosts for group " + entry.getKey() + ": " + entry.getValue());
+                    pHostsAdded += entry.getValue() == null? 0 : entry.getValue().size();
                 }
                 try {
                     Map<String, String> hostnameToGrpMap = new HashMap<>();
@@ -200,24 +201,27 @@ public class TaskSchedulingService {
                         }
                     }
                     else if(pHostsAdded > 0) {
-                        logger.debug("No pseduo assignments, looking for failures");
+                        logger.debug("No pseudo assignments made, looking for failures");
                         final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
                         if (failures == null || failures.isEmpty()) {
-                            logger.debug("psedo assignments: no failures");
+                            logger.debug("No failures found for pseudo assignments");
                         } else {
                             for (Map.Entry<TaskRequest, List<TaskAssignmentResult>> entry: failures.entrySet()) {
                                 final List<TaskAssignmentResult> tars = entry.getValue();
                                 if (tars == null || tars.isEmpty())
-                                    logger.debug("No failures for task " + entry.getKey());
+                                    logger.debug("No pseudo assignment failures for task " + entry.getKey());
                                 else {
-                                    StringBuilder b = new StringBuilder("Failures for task").append(entry.getKey())
+                                    StringBuilder b = new StringBuilder("Pseudo assignment failures for task ").append(entry.getKey())
                                             .append(": ");
                                     for (TaskAssignmentResult r: tars) {
                                         b.append("HOST: ").append(r.getHostname()).append(":");
                                         final List<AssignmentFailure> afs = r.getFailures();
                                         if (afs != null && !afs.isEmpty())
                                             afs.forEach(af -> b.append(af.getMessage()).append("; "));
+                                        else
+                                            b.append("None").append(";");
                                     }
+                                    logger.debug(b.toString());
                                 }
                             }
                         }

@@ -17,10 +17,17 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.functions.Func1;
+import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -82,6 +89,16 @@ class VMCollection {
                     // task constraints that depend on the variety of such attributes may fail the task placement.
                     // We will live with that limitation at this time.
                     VirtualMachineLease lease = vmCloner.getClonedMaxResourcesLease(vmsList);
+                    logger.debug("Cloned lease cpu=" + lease.cpuCores() + ", mem=" + lease.memoryMB() +
+                            ", disk=" + lease.diskMB() + ", net=" + lease.networkMbps());
+                    final Map<String, Protos.Attribute> attributeMap = lease.getAttributeMap();
+                    if (attributeMap == null || attributeMap.isEmpty())
+                        logger.debug("Cloned maxRes lease has empty attributeMap");
+                    else
+                        for(Map.Entry<String, Protos.Attribute> entry: attributeMap.entrySet())
+                            logger.debug("Cloned maxRes lease attribute: " + entry.getKey() + ": " +
+                                    (entry.getValue() == null? "null" : entry.getValue().getText().getValue())
+                            );
                     int n = groupCounts.get(g);
                     final AutoScaleRule rule = ruleGetter.call(g);
                     if (rule != null) {
@@ -93,10 +110,12 @@ class VMCollection {
                         final String hostname = createHostname(g, i);
                         try {
                             addLease(vmCloner.cloneLease(lease, hostname, now));
+                            logger.debug("Added cloned lease for " + hostname);
                         } catch (Exception e) {
                             logger.error("Unexpected error creating pseudo leases", e);
                         }
                         hostnames.add(hostname);
+                        // update total lease on the newly added VMs so they are available for use
                         getVmByName(hostname).ifPresent(AssignableVirtualMachine::updateCurrTotalLease);
                     }
                 }
@@ -160,6 +179,7 @@ class VMCollection {
         final AssignableVirtualMachine avm = vms.get(group).get(host);
         if (avm != null)
             return avm;
+        logger.debug("Creating new host " + host);
         return create(host, group);
     }
 

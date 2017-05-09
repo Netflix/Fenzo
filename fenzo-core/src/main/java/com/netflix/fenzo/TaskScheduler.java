@@ -634,6 +634,7 @@ public class TaskScheduler {
      *     <li>This method may throw {@code IllegalStateException} with its cause set to the uncaught exception. In this
      *     case the internal state of Fenzo will be undefined.</li>
      * </UL>
+     * If there are exceptions, the internal state of Fenzo may be corrupt with no way to undo any partial effects.
      *
      * @param requests a list of task requests to match with resources, in their given order
      * @param newLeases new resource leases from hosts that the scheduler can use along with any previously
@@ -731,7 +732,7 @@ public class TaskScheduler {
         } else {
             while (true) {
                 final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
-                //System.out.println("*************** TaskSched: task=" + (task == null? "null" : task.getId()));
+                logger.debug("TaskSched: task=" + (taskOrFailure == null? "null" : taskOrFailure.getTask().getId()));
                 if (taskOrFailure == null)
                     break;
                 if(taskOrFailure.hasFailure()) {

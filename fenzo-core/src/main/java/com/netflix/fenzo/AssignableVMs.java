@@ -150,6 +150,7 @@ class AssignableVMs {
     }
 
     private int addLeases(List<VirtualMachineLease> leases) {
+        logger.debug("Adding leases");
         for(AssignableVirtualMachine avm: vmCollection.getAllVMs())
             avm.resetResources();
         int rejected=0;
@@ -157,8 +158,18 @@ class AssignableVMs {
             if(vmCollection.addLease(l))
                 rejected++;
         }
-        for(AssignableVirtualMachine avm: vmCollection.getAllVMs())
+        for(AssignableVirtualMachine avm: vmCollection.getAllVMs()) {
+            logger.debug("Updating total lease on " + avm.getHostname());
             avm.updateCurrTotalLease();
+            final VirtualMachineLease currTotalLease = avm.getCurrTotalLease();
+            if (currTotalLease == null)
+                logger.debug("Updated total lease is null");
+            else {
+                logger.debug("Updated total lease has cpu= " + currTotalLease.cpuCores() + ", mem=" + currTotalLease.memoryMB() +
+                        ", disk=" + currTotalLease.diskMB() + ", net=" + currTotalLease.networkMbps()
+                );
+            }
+        }
         return rejected;
     }
 

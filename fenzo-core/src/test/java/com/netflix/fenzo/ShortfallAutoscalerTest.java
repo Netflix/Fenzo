@@ -29,6 +29,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 public class ShortfallAutoscalerTest {
 
     private static String hostAttrName = "MachineType";
+    private static String activeVmAttrName = "asg";
     private final int cpus1=4;
     private final int cpus2=8;
     private final int memMultiplier=1000;
@@ -51,7 +53,9 @@ public class ShortfallAutoscalerTest {
     private final int maxSize2=10;
     private final long coolDownSecs=5;
     private final String hostAttrVal1="4coreServers";
+    private final String asg1 = "asg1";
     private final String hostAttrVal2="4cS2";
+    private final String asg2 = "asg2";
     private final Map<String, Protos.Attribute> attributes1 = new HashMap<>();
     private final Map<String, Protos.Attribute> attributes2 = new HashMap<>();
     private final List<VirtualMachineLease.Range> ports = new ArrayList<>();
@@ -64,10 +68,18 @@ public class ShortfallAutoscalerTest {
                 .setType(Protos.Value.Type.TEXT)
                 .setText(Protos.Value.Text.newBuilder().setValue(hostAttrVal1)).build();
         attributes1.put(hostAttrName, attribute);
+        Protos.Attribute activeAttr = Protos.Attribute.newBuilder().setName(activeVmAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue(asg1)).build();
+        attributes1.put(activeVmAttrName, activeAttr);
         Protos.Attribute attribute2 = Protos.Attribute.newBuilder().setName(hostAttrName)
                 .setType(Protos.Value.Type.TEXT)
                 .setText(Protos.Value.Text.newBuilder().setValue(hostAttrVal2)).build();
         attributes2.put(hostAttrName, attribute2);
+        Protos.Attribute activeAttr2 = Protos.Attribute.newBuilder().setName(activeVmAttrName)
+                .setType(Protos.Value.Type.TEXT)
+                .setText(Protos.Value.Text.newBuilder().setValue(asg2)).build();
+        attributes2.put(activeVmAttrName, activeAttr2);
         ports.add(new VirtualMachineLease.Range(1, 100));
     }
 
@@ -93,6 +105,15 @@ public class ShortfallAutoscalerTest {
 
     @Test
     public void testShortfallScaleUp1group() throws Exception {
+        testShortfallScaleUp1group(false);
+    }
+
+    @Test
+    public void testShortfallScaleUp1groupWithActiveVms() throws Exception {
+        testShortfallScaleUp1group(true);
+    }
+
+    private void testShortfallScaleUp1group(boolean useActiveVms) throws Exception {
         final AutoScaleRule rule = AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle1, maxIdle1, coolDownSecs,
                 1, 1000);
         BlockingQueue<Integer> scaleUpReqQ = new LinkedBlockingQueue<>();
@@ -104,6 +125,10 @@ public class ShortfallAutoscalerTest {
         final List<String> rejectedHosts = new ArrayList<>();
         TaskScheduler scheduler = getScheduler(l -> rejectedHosts.add(l.hostname()),
                 callback, 0, 0, rule);
+        if(useActiveVms) {
+            scheduler.setActiveVmGroupAttributeName(activeVmAttrName);
+            scheduler.setActiveVmGroups(Arrays.asList(asg1, asg2));
+        }
         Action0 preHook = () -> {};
         BlockingQueue<SchedulingResult> resultQ = new LinkedBlockingQueue<>();
         TaskQueue queue = TaskQueues.createTieredQueue(1);
@@ -130,11 +155,12 @@ public class ShortfallAutoscalerTest {
         final List<VirtualMachineLease> leases = new ArrayList<>();
         leases.add(LeaseProvider.getLeaseOffer("host1", cpus1, cpus1 * memMultiplier, ports, attributes1));
         leases.add(LeaseProvider.getLeaseOffer("host2", cpus1, cpus1 * memMultiplier, ports, attributes1));
+        schedulingService.addLeases(leases);
+        schedulingService.start();
+        Thread.sleep(200);
         for (QueuableTask t: requests) {
             queue.queueTask(t);
         }
-        schedulingService.addLeases(leases);
-        schedulingService.start();
         SchedulingResult result = resultQ.poll(1, TimeUnit.SECONDS);
         Assert.assertNotNull("Timeout waiting for result", result);
 
