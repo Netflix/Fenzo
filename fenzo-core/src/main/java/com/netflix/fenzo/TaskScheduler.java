@@ -634,6 +634,7 @@ public class TaskScheduler {
      *     <li>This method may throw {@code IllegalStateException} with its cause set to the uncaught exception. In this
      *     case the internal state of Fenzo will be undefined.</li>
      * </UL>
+     * If there are exceptions, the internal state of Fenzo may be corrupt with no way to undo any partial effects.
      *
      * @param requests a list of task requests to match with resources, in their given order
      * @param newLeases new resource leases from hosts that the scheduler can use along with any previously
@@ -711,6 +712,7 @@ public class TaskScheduler {
             List<VirtualMachineLease> newLeases) throws Exception {
         AtomicInteger rejectedCount = new AtomicInteger();
         List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs(newLeases, rejectedCount);
+        logger.debug("Got " + avms.size() + " avms");
         List<AssignableVirtualMachine> inactiveAVMs = assignableVMs.getInactiveVMs();
         if(logger.isDebugEnabled())
             logger.debug("Found " + avms.size() + " VMs with non-zero offers to assign from");
@@ -730,7 +732,7 @@ public class TaskScheduler {
         } else {
             while (true) {
                 final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
-                //System.out.println("*************** TaskSched: task=" + (task == null? "null" : task.getId()));
+                logger.debug("TaskSched: task=" + (taskOrFailure == null? "null" : taskOrFailure.getTask().getId()));
                 if (taskOrFailure == null)
                     break;
                 if(taskOrFailure.hasFailure()) {
@@ -942,9 +944,11 @@ public class TaskScheduler {
                 if(n == 0)
                     return new EvalResult(results, getSuccessfulResult(results), results.size(), null);
                 for(int m=0; m<n; m++) {
+                    final AssignableVirtualMachine avm = buf.get(m);
                     if(logger.isDebugEnabled())
-                        logger.debug("Evaluting task assignment on host " + buf.get(m).getHostname());
-                    TaskAssignmentResult result = buf.get(m).tryRequest(task, builder.fitnessCalculator);
+                        logger.debug("Evaluting task assignment on host " + avm.getHostname());
+                    logger.debug("CurrTotalRes on host " + avm.getHostname() + ": " + avm.getCurrTotalLease());
+                    TaskAssignmentResult result = avm.tryRequest(task, builder.fitnessCalculator);
                     results.add(result);
                     if(result.isSuccessful() && builder.isFitnessGoodEnoughFunction.call(result.getFitness())) {
                         // drain rest of the queue, nobody needs to do more work.

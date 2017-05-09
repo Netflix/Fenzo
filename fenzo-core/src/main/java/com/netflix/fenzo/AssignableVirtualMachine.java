@@ -356,6 +356,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                         leaseRejectAction.call(l);
                 }
                 iterator.remove();
+                logger.debug("Removed lease on " + hostname + ", all=" + all);
             }
         }
         if(expireAll && !hasPreviouslyAssignedTasks())
@@ -376,6 +377,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                 }
                 int size = leasesMap.values().size();
                 leasesMap.clear();
+                logger.debug(hostname + ": cleared leases");
                 return size;
             }
         }
@@ -387,6 +389,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     boolean addLease(VirtualMachineLease lease) {
+        logger.debug(hostname + ": adding lease id " + lease.getId());
         if(singleLeaseMode && firstLeaseAdded)
             return false;
         if(!Objects.equals(currVMId, lease.getVMID())) {
@@ -397,6 +400,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             leaseRejectAction.call(lease);
             return false;
         }
+        logger.debug(hostname + ": adding to internal leases map");
         if(leasesMap.get(lease.getId()) != null)
             throw new IllegalStateException("Attempt to add duplicate lease with id=" + lease.getId());
         if(leaseIdToHostnameMap.putIfAbsent(lease.getId(), hostname) != null)
@@ -418,6 +422,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             leaseIdToHostnameMap.remove(entry.getValue().getId());
             leaseRejectAction.call(entry.getValue());
             entriesIterator.remove();
+            logger.debug("Removed lease on " + hostname + " due to being disabled");
         }
     }
 
@@ -999,27 +1004,32 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         double memUsed=0.0;
         double portsUsed=0.0;
         double networkUsed=0.0;
+        double diskUsed=0.0;
         for(TaskRequest r: previouslyAssignedTasksMap.values()) {
             cpusUsed += r.getCPUs();
             memUsed += r.getMemory();
             portsUsed += r.getPorts();
             networkUsed += r.getNetworkMbps();
+            diskUsed += r.getDisk();
         }
         double cpusAvail=0.0;
         double memAvail=0.0;
         double portsAvail=0;
         double networkAvail=0.0;
+        double diskAvail=0.0;
         for(VirtualMachineLease l: leasesMap.values()) {
             cpusAvail += l.cpuCores();
             memAvail += l.memoryMB();
             for(VirtualMachineLease.Range range: l.portRanges())
                 portsAvail += range.getEnd()-range.getBeg();
             networkAvail += l.networkMbps();
+            diskAvail += l.diskMB();
         }
         resourceMap.put(VMResource.CPU, new Double[]{cpusUsed, cpusAvail});
         resourceMap.put(VMResource.Memory, new Double[]{memUsed, memAvail});
         resourceMap.put(VMResource.Ports, new Double[]{portsUsed, portsAvail});
         resourceMap.put(VMResource.Network, new Double[]{networkUsed, networkAvail});
+        resourceMap.put(VMResource.Disk, new Double[]{diskUsed, diskAvail});
         // put resource sets
         for(PreferentialNamedConsumableResourceSet rSet: resourceSets.values()) {
             final String name = rSet.getName();
