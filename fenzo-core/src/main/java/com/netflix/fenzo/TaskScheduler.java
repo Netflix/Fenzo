@@ -712,10 +712,11 @@ public class TaskScheduler {
             List<VirtualMachineLease> newLeases) throws Exception {
         AtomicInteger rejectedCount = new AtomicInteger();
         List<AssignableVirtualMachine> avms = assignableVMs.prepareAndGetOrderedVMs(newLeases, rejectedCount);
-        logger.debug("Got " + avms.size() + " avms");
+        if(logger.isDebugEnabled())
+            logger.debug("Got {} avms", avms.size());
         List<AssignableVirtualMachine> inactiveAVMs = assignableVMs.getInactiveVMs();
         if(logger.isDebugEnabled())
-            logger.debug("Found " + avms.size() + " VMs with non-zero offers to assign from");
+            logger.debug("Found {} VMs with non-zero offers to assign from", avms.size());
         final boolean hasResAllocs = resAllocsEvaluator.prepare();
         //logger.info("Got " + avms.size() + " AVMs to schedule on");
         int totalNumAllocations=0;
@@ -732,7 +733,8 @@ public class TaskScheduler {
         } else {
             while (true) {
                 final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
-                logger.debug("TaskSched: task=" + (taskOrFailure == null? "null" : taskOrFailure.getTask().getId()));
+                if(logger.isDebugEnabled())
+                    logger.debug("TaskSched: task=" + (taskOrFailure == null? "null" : taskOrFailure.getTask().getId()));
                 if (taskOrFailure == null)
                     break;
                 if(taskOrFailure.hasFailure()) {
@@ -774,7 +776,7 @@ public class TaskScheduler {
                             Collections.singletonList(maxResourceFailure), null, 0.0));
                     schedulingResult.addFailures(task, failures);
                     if(logger.isDebugEnabled())
-                        logger.debug("Task " + task.getId() + ": maxResource failure: " + maxResourceFailure);
+                        logger.debug("Task {}: maxResource failure: {}", task.getId(), maxResourceFailure);
                     continue;
                 }
                 // create batches of VMs to evaluate assignments concurrently across the batches
@@ -782,7 +784,7 @@ public class TaskScheduler {
                 int nThreads = (int)Math.ceil((double)avms.size()/ PARALLEL_SCHED_EVAL_MIN_BATCH_SIZE);
                 List<Future<EvalResult>> futures = new ArrayList<>();
                 if(logger.isDebugEnabled())
-                    logger.debug("Launching " + nThreads + " threads for evaluating assignments for task " + task.getId());
+                    logger.debug("Launching {} threads for evaluating assignments for task {}", nThreads, task.getId());
                 for(int b=0; b<nThreads && b<EXEC_SVC_THREADS; b++) {
                     futures.add(executorService.submit(new Callable<EvalResult>() {
                         @Override
@@ -805,7 +807,7 @@ public class TaskScheduler {
                             results.add(evalResult);
                             bestResults.add(evalResult.result);
                             if(logger.isDebugEnabled())
-                                logger.debug("Task " + task.getId() + ": best result so far: " + evalResult.result);
+                                logger.debug("Task {}: best result so far: {}", task.getId(), evalResult.result);
                             totalNumAllocations += evalResult.numAllocationTrials;
                         }
                     } catch (InterruptedException|ExecutionException e) {
@@ -818,14 +820,15 @@ public class TaskScheduler {
                 List<TaskAssignmentResult> failures = new ArrayList<>();
                 if(successfulResult == null) {
                     if(logger.isDebugEnabled())
-                        logger.debug("Task " + task.getId() + ": no successful results");
+                        logger.debug("Task {}: no successful results", task.getId());
                     for(EvalResult er: results)
                         failures.addAll(er.assignmentResults);
                     schedulingResult.addFailures(task, failures);
                 }
                 else {
                     if(logger.isDebugEnabled())
-                        logger.debug("Task " + task.getId() + ": found successful assignment on host " + successfulResult.getHostname());
+                        logger.debug("Task {}: found successful assignment on host {}", task.getId(),
+                                successfulResult.getHostname());
                     successfulResult.assignResult();
                     failedTasksForAutoScaler.remove(task);
                 }
@@ -945,9 +948,10 @@ public class TaskScheduler {
                     return new EvalResult(results, getSuccessfulResult(results), results.size(), null);
                 for(int m=0; m<n; m++) {
                     final AssignableVirtualMachine avm = buf.get(m);
-                    if(logger.isDebugEnabled())
+                    if(logger.isDebugEnabled()) {
                         logger.debug("Evaluting task assignment on host " + avm.getHostname());
-                    logger.debug("CurrTotalRes on host " + avm.getHostname() + ": " + avm.getCurrTotalLease());
+                        logger.debug("CurrTotalRes on host {}: {}", avm.getHostname(), avm.getCurrTotalLease());
+                    }
                     TaskAssignmentResult result = avm.tryRequest(task, builder.fitnessCalculator);
                     results.add(result);
                     if(result.isSuccessful() && builder.isFitnessGoodEnoughFunction.call(result.getFitness())) {

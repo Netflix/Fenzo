@@ -77,6 +77,13 @@ public class TaskSchedulingServiceTest {
 
     @Test
     public void testOneTaskAssignment() throws Exception {
+        testOneTaskInternal(
+                QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(2, 2000, 1)),
+                () -> {}
+        );
+    }
+
+    private void testOneTaskInternal(QueuableTask queuableTask, Action0 action) throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
         TaskQueue queue = TaskQueues.createTieredQueue(2);
         final TaskScheduler scheduler = getScheduler();
@@ -93,11 +100,39 @@ public class TaskSchedulingServiceTest {
         };
         final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, 1000L, resultCallback);
         schedulingService.start();
-        schedulingService.addLeases(LeaseProvider.getLeases(1, 4, 4000, 1, 10));
-        queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(2, 2000, 1)));
+        List<VirtualMachineLease.Range> ports = new ArrayList<>();
+        ports.add(new VirtualMachineLease.Range(1, 10));
+        schedulingService.addLeases(
+                Collections.singletonList(LeaseProvider.getLeaseOffer(
+                        "hostA", 4, 4000, ports,
+                        ResourceSetsTests.getResSetsAttributesMap("ENIs", 2, 2))));
+        queue.queueTask(queuableTask);
         if (!latch.await(20000, TimeUnit.MILLISECONDS))
             Assert.fail("Did not assign resources in time");
-        System.out.println();
+        if (action != null)
+            action.call();
+    }
+
+    @Test
+    public void testOneTaskWithResourceSet() throws Exception {
+        TaskRequest.NamedResourceSetRequest sr1 =
+                new TaskRequest.NamedResourceSetRequest("ENIs", "sg1", 1, 1);
+        final QueuableTask task = QueuableTaskProvider.wrapTask(
+                tier1bktA,
+                TaskRequestProvider.getTaskRequest("grp", 1, 100, 0, 0, 0,
+                        null, null, Collections.singletonMap(sr1.getResName(), sr1))
+        );
+        testOneTaskInternal(
+                task,
+                () -> {
+                    final TaskRequest.AssignedResources assignedResources = task.getAssignedResources();
+                    Assert.assertNotNull(assignedResources);
+                    final List<PreferentialNamedConsumableResourceSet.ConsumeResult> cnrs = assignedResources.getConsumedNamedResources();
+                    Assert.assertNotNull(cnrs);
+                    Assert.assertEquals(1, cnrs.size());
+                    Assert.assertEquals(sr1.getResValue(), cnrs.get(0).getResName());
+                }
+        );
     }
 
     @Test

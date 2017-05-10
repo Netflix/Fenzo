@@ -150,7 +150,8 @@ class AssignableVMs {
     }
 
     private int addLeases(List<VirtualMachineLease> leases) {
-        logger.debug("Adding leases");
+        if(logger.isDebugEnabled())
+            logger.debug("Adding leases");
         for(AssignableVirtualMachine avm: vmCollection.getAllVMs())
             avm.resetResources();
         int rejected=0;
@@ -159,15 +160,19 @@ class AssignableVMs {
                 rejected++;
         }
         for(AssignableVirtualMachine avm: vmCollection.getAllVMs()) {
-            logger.debug("Updating total lease on " + avm.getHostname());
+            if(logger.isDebugEnabled())
+                logger.debug("Updating total lease on " + avm.getHostname());
             avm.updateCurrTotalLease();
             final VirtualMachineLease currTotalLease = avm.getCurrTotalLease();
-            if (currTotalLease == null)
-                logger.debug("Updated total lease is null");
-            else {
-                logger.debug("Updated total lease has cpu= " + currTotalLease.cpuCores() + ", mem=" + currTotalLease.memoryMB() +
-                        ", disk=" + currTotalLease.diskMB() + ", net=" + currTotalLease.networkMbps()
-                );
+            if(logger.isDebugEnabled()) {
+                if (currTotalLease == null)
+                    logger.debug("Updated total lease is null for " + avm.getHostname());
+                else {
+                    logger.debug("Updated total lease for {} has cpu={}, mem={}, disk={}, network={}",
+                            avm.getHostname(), currTotalLease.cpuCores(), currTotalLease.memoryMB(),
+                            currTotalLease.diskMB(), currTotalLease.networkMbps()
+                    );
+                }
             }
         }
         return rejected;

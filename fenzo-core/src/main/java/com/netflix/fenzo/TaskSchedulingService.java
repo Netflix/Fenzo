@@ -68,8 +68,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *         Receive callbacks for scheduling result that provide a {@link SchedulingResult} object. Note that it is
  *         not allowed to call {@link TaskScheduler#getTaskAssigner()} for tasks assigned in the result, they are
  *         assigned from within this scheduling service. This service assigns the tasks before making the result
- *         available to you via the callback. To mark tasks as running for those tasks that were running from
- *         before this service was created, use {@link #initializeRunningTask(QueuableTask, String)}. Later, call
+ *         available to you via the callback. The assignments also sets any resource sets requested by the task.
+ *         To mark tasks as running for those tasks that were running from before this service was created, use
+ *         {@link #initializeRunningTask(QueuableTask, String)}. Later, call
  *         {@link #removeTask(String, QAttributes, String)} when tasks complete or they no longer need resource assignments.
  *     </LI>
  * </UL>
@@ -358,8 +359,15 @@ public class TaskSchedulingService {
     private void assignTasks(SchedulingResult schedulingResult, TaskScheduler taskScheduler) {
         if(!schedulingResult.getResultMap().isEmpty()) {
             for (VMAssignmentResult result: schedulingResult.getResultMap().values()) {
-                for (TaskAssignmentResult t: result.getTasksAssigned())
+                for (TaskAssignmentResult t: result.getTasksAssigned()) {
                     taskScheduler.getTaskAssignerIntl().call(t.getRequest(), result.getHostname());
+                    final List<PreferentialNamedConsumableResourceSet.ConsumeResult> rSets = t.getrSets();
+                    if (rSets != null) {
+                        final TaskRequest.AssignedResources assignedResources = new TaskRequest.AssignedResources();
+                        assignedResources.setConsumedNamedResources(rSets);
+                        t.getRequest().setAssignedResources(assignedResources);
+                    }
+                }
             }
         }
     }

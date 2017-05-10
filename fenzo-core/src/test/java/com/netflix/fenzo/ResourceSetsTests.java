@@ -30,9 +30,9 @@ public class ResourceSetsTests {
 
     private static final String resSetsAttrName = "res";
     static String hostAttrName = "MachineType";
-    final String hostAttrVal1="4coreServers";
+    static final String hostAttrVal1="4coreServers";
 
-    private Map<String, Protos.Attribute> getResSetsAttributesMap(String name, int x, int y) {
+    static Map<String, Protos.Attribute> getResSetsAttributesMap(String name, int x, int y) {
         Map<String, Protos.Attribute> attr = new HashMap<>();
         attr.put(
                 resSetsAttrName,
