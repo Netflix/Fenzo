@@ -147,6 +147,14 @@ public interface TaskRequest {
      */
     List<? extends VMTaskFitnessCalculator> getSoftConstraints();
 
+    /**
+     * Set the assigned resources for this task. These are resources other than the supported resources such as
+     * CPUs, Memory, etc., and any scalar resources. This will specifically need to be set for tasks that are being
+     * added into Fenzo as running from a prior instance of the scheduler running, for example, after the framework
+     * hosting this instance of Fenzo restarts. That is, they were not assigned by this instance of Fenzo.
+     * @param assignedResources The assigned resources to set for this task.
+     * @see {@link AssignedResources}
+     */
     void setAssignedResources(AssignedResources assignedResources);
 
     AssignedResources getAssignedResources();
