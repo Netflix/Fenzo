@@ -265,9 +265,9 @@ class AssignableVMs {
 
     List<AssignableVirtualMachine> prepareAndGetOrderedVMs(List<VirtualMachineLease> newLeases, AtomicInteger rejectedCount) {
         disableVMs();
-        expireAnyUnknownLeaseIds();
         removeExpiredLeases();
         rejectedCount.addAndGet(addLeases(newLeases));
+        expireAnyUnknownLeaseIds();
         List<AssignableVirtualMachine> vms = new ArrayList<>();
         taskTracker.clearAssignedTasks();
         vmRejectLimiter.reset();
