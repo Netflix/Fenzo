@@ -505,7 +505,8 @@ public class TaskScheduler {
             // change to using fitness value from assignment result
             TaskAssignmentResult res = results.get(r);
             if(res!=null && res.isSuccessful()) {
-                if(bestResult==null || res.getFitness()>bestFitness) {
+                if(bestResult==null || res.getFitness()>bestFitness ||
+                        (res.getFitness()==bestFitness && res.getHostname().compareTo(bestResult.getHostname())<0)) {
                     bestFitness = res.getFitness();
                     bestResult = res;
                 }
