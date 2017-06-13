@@ -211,6 +211,7 @@ class AutoScaler {
         int excess = hostAttributeGroup.shortFall>0? 0 : hostAttributeGroup.idleHosts.size() - rule.getMaxIdleHostsToKeep();
         int inactiveIdleCount = hostAttributeGroup.idleInactiveHosts.size();
 
+        List<AutoScaleAction> autoScaleActions = new ArrayList<>();
         if(inactiveIdleCount > 0 && shouldScaleDownInactive(now, prevScalingActivity, rule)) {
             ScalingActivity scalingActivity = scalingActivityMap.get(rule.getRuleName());
             long lastReqstAge = (now - scalingActivity.inactiveScaleDownRequestedAt) / 1000L;
@@ -227,9 +228,7 @@ class AutoScaler {
                 }
                 logger.info("Scaling down inactive hosts " + rule.getRuleName() + " by "
                         + hostsToTerminate.size() + " hosts (" + sBuilder.toString() + ")");
-                callback.call(
-                        new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values())
-                );
+                autoScaleActions.add(new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values()));
             }
         }
 
@@ -257,9 +256,7 @@ class AutoScaler {
                     }
                     logger.info("Scaling down " + rule.getRuleName() + " by "
                             + hostsToTerminate.size() + " hosts (" + sBuilder.toString() + ")");
-                    callback.call(
-                            new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values())
-                    );
+                    autoScaleActions.add(new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values()));
                 }
             }
         } else if(hostAttributeGroup.shortFall>0 || (excess<=0 && shouldScaleUp(now, prevScalingActivity, rule))) {
@@ -287,13 +284,14 @@ class AutoScaler {
                         scalingActivity.type = AutoScaleAction.Type.Up;
                         logger.info("Scaling up " + rule.getRuleName() + " by "
                                 + shortage + " hosts");
-                        callback.call(
-                                new ScaleUpAction(rule.getRuleName(), shortage)
-                        );
+                        autoScaleActions.add(new ScaleUpAction(rule.getRuleName(), shortage));
                     }
                 }
             }
         }
+        // Run scale-up actions first.
+        autoScaleActions.stream().filter(a -> a instanceof ScaleUpAction).forEach(a -> callback.call(a));
+        autoScaleActions.stream().filter(a -> a instanceof ScaleDownAction).forEach(a -> callback.call(a));
     }
 
     private void populateIdleResources(List<VirtualMachineLease> idleResources,
