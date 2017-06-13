@@ -64,6 +64,8 @@ class AutoScaler {
         private long scaleUpRequestedAt;
         private long scaleDownAt;
         private long scaleDownRequestedAt;
+        private long inactiveScaleDownAt;
+        private long inactiveScaleDownRequestedAt;
         private int shortfall;
         private int scaledNumInstances;
         private AutoScaleAction.Type type;
@@ -197,6 +199,10 @@ class AutoScaler {
         return shouldScaleNow(false, now, prevScalingActivity, rule);
     }
 
+    private boolean shouldScaleDownInactive(long now, ScalingActivity prevScalingActivity, AutoScaleRule rule) {
+        return now > (Math.max(activeVmGroups.getLastSetAt(), prevScalingActivity.inactiveScaleDownAt) + rule.getCoolDownSecs() * 1000);
+    }
+
     private void processScalingNeeds(HostAttributeGroup hostAttributeGroup, ConcurrentMap<String, ScalingActivity> scalingActivityMap, AssignableVMs assignableVMs) {
         AutoScaleRule rule = hostAttributeGroup.rule;
         long now = System.currentTimeMillis();
@@ -205,7 +211,28 @@ class AutoScaler {
         int excess = hostAttributeGroup.shortFall>0? 0 : hostAttributeGroup.idleHosts.size() - rule.getMaxIdleHostsToKeep();
         int inactiveIdleCount = hostAttributeGroup.idleInactiveHosts.size();
 
-        if ((inactiveIdleCount > 0 || excess > 0) && shouldScaleDown(now, prevScalingActivity, rule)) {
+        List<String> allHostsToTerminate = new ArrayList<>();
+        if(inactiveIdleCount > 0 && shouldScaleDownInactive(now, prevScalingActivity, rule)) {
+            ScalingActivity scalingActivity = scalingActivityMap.get(rule.getRuleName());
+            long lastReqstAge = (now - scalingActivity.inactiveScaleDownRequestedAt) / 1000L;
+            if(delayScaleDownBySecs>0L && lastReqstAge > 2 * delayScaleDownBySecs) { // reset the request at time
+                scalingActivity.inactiveScaleDownRequestedAt = now;
+            }
+            else if(delayScaleDownBySecs == 0L || lastReqstAge > delayScaleDownBySecs) {
+                scalingActivity.inactiveScaleDownRequestedAt = 0L;
+                scalingActivity.inactiveScaleDownAt = now;
+                Map<String, String> hostsToTerminate = getInactiveHostsToTerminate(hostAttributeGroup.idleInactiveHosts);
+                StringBuilder sBuilder = new StringBuilder();
+                for (String host : hostsToTerminate.keySet()) {
+                    sBuilder.append(host).append(", ");
+                }
+                logger.info("Scaling down inactive hosts " + rule.getRuleName() + " by "
+                        + hostsToTerminate.size() + " hosts (" + sBuilder.toString() + ")");
+                allHostsToTerminate.addAll(hostsToTerminate.values());
+            }
+        }
+
+        if (excess > 0 && shouldScaleDown(now, prevScalingActivity, rule)) {
             ScalingActivity scalingActivity = scalingActivityMap.get(rule.getRuleName());
             long lastReqstAge = (now - scalingActivity.scaleDownRequestedAt) / 1000L;
             if(delayScaleDownBySecs>0L && lastReqstAge > 2 * delayScaleDownBySecs) { // reset the request at time
@@ -215,11 +242,11 @@ class AutoScaler {
                 final int size = vmCollection.size(rule.getRuleName());
                 if (rule.getMinSize() > (size - excess))
                     excess = Math.max(0, size - rule.getMinSize());
-                if (excess > 0 || inactiveIdleCount > 0) {
+                if (excess > 0) {
                     scalingActivity.scaleDownRequestedAt = 0L;
                     scalingActivity.scaleDownAt = now;
                     scalingActivity.shortfall = hostAttributeGroup.shortFall;
-                    Map<String, String> hostsToTerminate = getHostsToTerminate(hostAttributeGroup.idleHosts, hostAttributeGroup.idleInactiveHosts, excess);
+                    Map<String, String> hostsToTerminate = getHostsToTerminate(hostAttributeGroup.idleHosts, excess);
                     scalingActivity.scaledNumInstances = hostsToTerminate.size();
                     scalingActivity.type = AutoScaleAction.Type.Down;
                     StringBuilder sBuilder = new StringBuilder();
@@ -229,14 +256,10 @@ class AutoScaler {
                     }
                     logger.info("Scaling down " + rule.getRuleName() + " by "
                             + hostsToTerminate.size() + " hosts (" + sBuilder.toString() + ")");
-                    callback.call(
-                            new ScaleDownAction(rule.getRuleName(), hostsToTerminate.values())
-                    );
+                    allHostsToTerminate.addAll(hostsToTerminate.values());
                 }
             }
-        }
-
-        if(hostAttributeGroup.shortFall>0 || (excess<=0 && shouldScaleUp(now, prevScalingActivity, rule))) {
+        } else if(hostAttributeGroup.shortFall>0 || (excess<=0 && shouldScaleUp(now, prevScalingActivity, rule))) {
             if (hostAttributeGroup.shortFall>0 || rule.getMinIdleHostsToKeep() > hostAttributeGroup.idleHosts.size()) {
                 // scale up to rule.getMaxIdleHostsToKeep() instead of just until rule.getMinIdleHostsToKeep()
                 // but, if not shouldScaleUp(), then, scale up due to shortfall
@@ -261,12 +284,14 @@ class AutoScaler {
                         scalingActivity.type = AutoScaleAction.Type.Up;
                         logger.info("Scaling up " + rule.getRuleName() + " by "
                                 + shortage + " hosts");
-                        callback.call(
-                                new ScaleUpAction(rule.getRuleName(), shortage)
-                        );
+                        callback.call(new ScaleUpAction(rule.getRuleName(), shortage));
                     }
                 }
             }
+        }
+        // Run scale-down action after scale up (if any)
+        if(!allHostsToTerminate.isEmpty()) {
+            callback.call(new ScaleDownAction(rule.getRuleName(), allHostsToTerminate));
         }
     }
 
@@ -318,42 +343,46 @@ class AutoScaler {
         return System.currentTimeMillis()- coolDownSecs*1000 + initialCoolDownInPastSecs*1000;
     }
 
-    private Map<String, String> getHostsToTerminate(List<VirtualMachineLease> activeHosts, List<VirtualMachineLease> inactiveHosts, int excess) {
+    private Map<String, String> getHostsToTerminate(List<VirtualMachineLease> idleHosts, int excess) {
         if(scaleDownConstraintExecutor == null) {
-            return activeHosts.isEmpty() ? Collections.emptyMap() : getHostsToTerminateLegacy(activeHosts, excess);
+            return idleHosts.isEmpty() ? Collections.emptyMap() : getHostsToTerminateLegacy(idleHosts, excess);
         } else {
-            return getHostsToTerminateUsingCriteria(activeHosts, inactiveHosts, excess);
+            return getHostsToTerminateUsingCriteria(idleHosts, excess);
         }
     }
 
-    private Map<String, String> getHostsToTerminateUsingCriteria(List<VirtualMachineLease> activeHosts,List<VirtualMachineLease> inactiveHosts, int excess) {
+    private Map<String, String> getInactiveHostsToTerminate(List<VirtualMachineLease> inactiveIdleHosts) {
+        if(scaleDownConstraintExecutor == null) {
+            return Collections.emptyMap();
+        } else {
+            Map<String, String> hostsMap = new HashMap<>();
+            List<VirtualMachineLease> result = scaleDownConstraintExecutor.evaluate(inactiveIdleHosts);
+            result.forEach(lease -> hostsMap.put(lease.hostname(), getMappedHostname(lease)));
+            return hostsMap;
+        }
+    }
+
+    private Map<String, String> getHostsToTerminateUsingCriteria(List<VirtualMachineLease> idleHosts, int excess) {
         Map<String, String> hostsMap = new HashMap<>();
 
-        if(excess <= 0) {
-            // We have only inactive idle instances to scale down
-            List<VirtualMachineLease> result = scaleDownConstraintExecutor.evaluate(inactiveHosts);
-            result.forEach(lease -> hostsMap.put(lease.hostname(), getMappedHostname(lease)));
-        } else {
-            List<VirtualMachineLease> allIdle = new ArrayList<>(activeHosts);
-            allIdle.addAll(inactiveHosts);
-            List<VirtualMachineLease> result = scaleDownConstraintExecutor.evaluate(allIdle);
+        List<VirtualMachineLease> allIdle = new ArrayList<>(idleHosts);
+        List<VirtualMachineLease> result = scaleDownConstraintExecutor.evaluate(allIdle);
 
-            // The final result should contain only excess number of active hosts. Enforce this invariant.
-            Set<String> activeIds = activeHosts.stream().map(VirtualMachineLease::hostname).collect(Collectors.toSet());
-            int activeCounter = 0;
-            Iterator<VirtualMachineLease> it = result.iterator();
-            while(it.hasNext()) {
-                VirtualMachineLease leaseToRemove = it.next();
-                if(activeIds.contains(leaseToRemove.hostname())) {
-                    if(activeCounter < excess) {
-                        activeCounter++;
-                    } else {
-                        it.remove();
-                    }
+        // The final result should contain only excess number of active hosts. Enforce this invariant.
+        Set<String> activeIds = idleHosts.stream().map(VirtualMachineLease::hostname).collect(Collectors.toSet());
+        int activeCounter = 0;
+        Iterator<VirtualMachineLease> it = result.iterator();
+        while(it.hasNext()) {
+            VirtualMachineLease leaseToRemove = it.next();
+            if(activeIds.contains(leaseToRemove.hostname())) {
+                if(activeCounter < excess) {
+                    activeCounter++;
+                } else {
+                    it.remove();
                 }
             }
-            result.forEach(lease -> hostsMap.put(lease.hostname(), getMappedHostname(lease)));
         }
+        result.forEach(lease -> hostsMap.put(lease.hostname(), getMappedHostname(lease)));
 
         return hostsMap;
     }
