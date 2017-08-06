@@ -35,7 +35,9 @@ import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -94,9 +96,10 @@ class AutoScaler {
     private long delayScaleUpBySecs =0L;
     private long delayScaleDownBySecs =0L;
     private volatile Func1<QueuableTask, List<String>> taskToClustersGetter = null;
-    private final ThreadPoolExecutor executor =
-            new ThreadPoolExecutor(1, 1, Long.MAX_VALUE, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(100),
-                     new ThreadPoolExecutor.DiscardOldestPolicy());
+    private final ExecutorService executor =
+            new ThreadPoolExecutor(1, 1, Long.MAX_VALUE, TimeUnit.MILLISECONDS, new SynchronousQueue<>(),
+                    new ThreadPoolExecutor.DiscardPolicy());
+
     private final AtomicBoolean isShutdown = new AtomicBoolean();
     private final ConcurrentMap<String, ScalingActivity> scalingActivityMap = new ConcurrentHashMap<>();
     final VMCollection vmCollection;
