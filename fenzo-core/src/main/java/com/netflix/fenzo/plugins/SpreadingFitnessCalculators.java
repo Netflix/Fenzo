@@ -16,13 +16,10 @@
 
 package com.netflix.fenzo.plugins;
 
-import com.netflix.fenzo.TaskAssignmentResult;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskTrackerState;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
 import com.netflix.fenzo.VirtualMachineCurrentState;
-import com.netflix.fenzo.VirtualMachineLease;
-import com.netflix.fenzo.functions.Func1;
 
 /**
  * A collection of spreading fitness calculators.
@@ -41,7 +38,8 @@ public class SpreadingFitnessCalculators {
 
         @Override
         public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
-            return calculateResourceFitness(taskRequest, targetVM, taskTrackerState, TaskRequest::getCPUs, VirtualMachineLease::cpuCores);
+            VMTaskFitnessCalculator cpuBinPacker = BinPackingFitnessCalculators.cpuBinPacker;
+            return 1 - cpuBinPacker.calculateFitness(taskRequest, targetVM, taskTrackerState);
         }
     };
 
@@ -57,7 +55,25 @@ public class SpreadingFitnessCalculators {
 
         @Override
         public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
-            return calculateResourceFitness(taskRequest, targetVM, taskTrackerState, TaskRequest::getMemory, VirtualMachineLease::memoryMB);
+            VMTaskFitnessCalculator memoryBinPacker = BinPackingFitnessCalculators.memoryBinPacker;
+            return 1 - memoryBinPacker.calculateFitness(taskRequest, targetVM, taskTrackerState);
+        }
+    };
+
+    /**
+     * A network bandwidth spreading fitness calculator. This fitness calculator has the effect of assigning a
+     * task to a host that has the most amount of available network bandwidth.
+     */
+    public final static VMTaskFitnessCalculator networkSpreader = new VMTaskFitnessCalculator() {
+        @Override
+        public String getName() {
+            return "NetworkSpreader";
+        }
+
+        @Override
+        public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
+            VMTaskFitnessCalculator networkBinPacker = BinPackingFitnessCalculators.networkBinPacker;
+            return 1 - networkBinPacker.calculateFitness(taskRequest, targetVM, taskTrackerState);
         }
     };
 
@@ -80,22 +96,6 @@ public class SpreadingFitnessCalculators {
     };
 
     /**
-     * A network bandwidth spreading fitness calculator. This fitness calculator has the effect of assigning a
-     * task to a host that has the most amount of available network bandwidth.
-     */
-    public final static VMTaskFitnessCalculator networkSpreader = new VMTaskFitnessCalculator() {
-        @Override
-        public String getName() {
-            return "NetworkSpreader";
-        }
-
-        @Override
-        public double calculateFitness(TaskRequest taskRequest, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState) {
-            return calculateResourceFitness(taskRequest, targetVM, taskTrackerState, TaskRequest::getNetworkMbps, VirtualMachineLease::networkMbps);
-        }
-    };
-
-    /**
      * A fitness calculator that achieves CPU, Memory, and network bandwidth spreading with equal weights to
      * each of the three goals.
      */
@@ -113,28 +113,4 @@ public class SpreadingFitnessCalculators {
             return (cpuFitness + memFitness + networkFitness) / 3.0;
         }
     };
-
-    private static double calculateResourceFitness(TaskRequest request, VirtualMachineCurrentState targetVM, TaskTrackerState taskTrackerState,
-                                                   Func1<TaskRequest, Double> taskResourceGetter,
-                                                   Func1<VirtualMachineLease, Double> leaseResourceGetter) {
-
-        // The resources currently being used by running tasks
-        double usedResources = 0.0;
-        for (TaskRequest taskRequest : targetVM.getRunningTasks()) {
-            usedResources += taskResourceGetter.call(taskRequest);
-        }
-
-        // The total amount of resources on a VM
-        double totalResources = leaseResourceGetter.call(targetVM.getCurrAvailableResources()) + usedResources;
-
-        // The amount of resources that have been requested in this scheduling run
-        double requestedResources = 0.0;
-        for (TaskAssignmentResult taskAssignmentResult : targetVM.getTasksCurrentlyAssigned()) {
-            requestedResources += taskResourceGetter.call(taskAssignmentResult.getRequest());
-        }
-
-        // The amount of resources that are available to use
-        double availableResources = totalResources - (usedResources + requestedResources);
-        return availableResources / totalResources;
-    }
 }
