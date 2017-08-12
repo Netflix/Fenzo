@@ -89,6 +89,7 @@ public class TaskScheduler {
         private Action1<AutoScaleAction> autoscalerCallback=null;
         private long delayAutoscaleUpBySecs=0L;
         private long delayAutoscaleDownBySecs=0L;
+        private long disabledVmDurationInSecs =0L;
         private List<AutoScaleRule> autoScaleRules=new ArrayList<>();
         private Func1<Double, Boolean> isFitnessGoodEnoughFunction = new Func1<Double, Boolean>() {
             @Override
@@ -377,6 +378,23 @@ public class TaskScheduler {
         }
 
         /**
+         * How long to disable a VM when going through a scale down action. If this value is not set then the
+         * value used will be the {@link AutoScaleRule#getCoolDownSecs()} value. If the supplied {@link AutoScaleAction}
+         * does not actually terminate the instance in this time frame then VM will become enabled.
+
+         * @param disabledVmDurationInSecs Disable VMs about to be terminated by this many seconds.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @throws IllegalArgumentException if {@code disabledVmDurationInSecs} is not greater than 0.
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
+         */
+        public Builder withAutoscaleDisabledVmDurationInSecs(long disabledVmDurationInSecs) {
+            if(disabledVmDurationInSecs > 0L)
+                throw new IllegalArgumentException("disabledVmDurationInSecs must be greater than 0: " + disabledVmDurationInSecs);
+            this.disabledVmDurationInSecs = disabledVmDurationInSecs;
+            return this;
+        }
+
+        /**
          * Indicate that the cluster receives resource offers only once per VM (host). Normally, Mesos sends resource
          * offers multiple times, as resources free up on the host upon completion of various tasks. This method
          * provides an experimental support for a mode where Fenzo can be made aware of the entire set of resources
@@ -466,6 +484,9 @@ public class TaskScheduler {
                 autoScaler.setDelayScaleDownBySecs(builder.delayAutoscaleDownBySecs);
             if(builder.delayAutoscaleUpBySecs > 0L)
                 autoScaler.setDelayScaleUpBySecs(builder.delayAutoscaleUpBySecs);
+            if (builder.disabledVmDurationInSecs > 0L) {
+                autoScaler.setDisabledVmDurationInSecs(builder.disabledVmDurationInSecs);
+            }
         }
         else {
             autoScaler=null;
@@ -682,8 +703,7 @@ public class TaskScheduler {
             TaskIterator taskIterator,
             List<VirtualMachineLease> newLeases) throws IllegalStateException {
         checkIfShutdown();
-        try (AutoCloseable
-                     ac = stateMonitor.enter()) {
+        try (AutoCloseable ac = stateMonitor.enter()) {
             long start = System.currentTimeMillis();
             final SchedulingResult schedulingResult = doSchedule(taskIterator, newLeases);
             if((lastVMPurgeAt + purgeVMsIntervalSecs*1000) < System.currentTimeMillis()) {

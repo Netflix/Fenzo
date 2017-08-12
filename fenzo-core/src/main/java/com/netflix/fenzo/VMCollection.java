@@ -78,8 +78,10 @@ class VMCollection {
             result.put(g, hostnames);
             final ConcurrentMap<String, AssignableVirtualMachine> avmsMap = vms.get(g);
             if (avmsMap != null) {
-                final List<AssignableVirtualMachine> vmsList = avmsMap.values().stream()
-                        .filter(avm -> vmFilter.test(avm.getCurrTotalLease())).collect(Collectors.toList());
+                final List<AssignableVirtualMachine> vmsList = avmsMap.values()
+                        .stream()
+                        .filter(avm -> vmFilter.test(avm.getCurrTotalLease()))
+                        .collect(Collectors.toList());
                 if (vmsList != null && !vmsList.isEmpty()) {
                     // NOTE: a shortcoming here is that the attributes of VMs across a group may not be homogeneous.
                     // By creating one lease object and cloning from it, we pick one combination of the attributes

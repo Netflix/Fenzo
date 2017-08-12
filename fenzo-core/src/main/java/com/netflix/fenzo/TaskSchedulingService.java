@@ -99,7 +99,6 @@ public class TaskSchedulingService {
     private final BlockingQueue<VirtualMachineLease> leaseBlockingQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<Map<String, QueuableTask>> addRunningTasksQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<RemoveTaskRequest> removeTasksQueue = new LinkedBlockingQueue<>();
-    private final BlockingQueue<Action1<List<VirtualMachineLease>>> pseudoSchedulingRequestQ = new LinkedBlockingQueue<>();
     private final BlockingQueue<Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>> taskMapRequest = new LinkedBlockingQueue<>(10);
     private final BlockingQueue<Action1<Map<String, Map<VMResource, Double[]>>>> resStatusRequest = new LinkedBlockingQueue<>(10);
     private final BlockingQueue<Action1<List<VirtualMachineCurrentState>>> vmCurrStateRequest = new LinkedBlockingQueue<>(10);
@@ -152,9 +151,7 @@ public class TaskSchedulingService {
     }
 
     /* package */ Map<String, Integer> requestPsuedoScheduling(final InternalTaskQueue pTaskQueue, Map<String, Integer> groupCounts) {
-        final AtomicReference<Map<String, Integer>> pseudoSchedResult = new AtomicReference<>(Collections.emptyMap());
-        final CountDownLatch latch = new CountDownLatch(1);
-        pseudoSchedulingRequestQ.offer((newLeases) -> {
+        Map<String, Integer> psuedoSchedulingResult;
             try {
                 logger.debug("Creating pseudo hosts");
                 final Map<String, List<String>> pseudoHosts = taskScheduler.createPseudoHosts(groupCounts);
@@ -185,8 +182,8 @@ public class TaskSchedulingService {
                     }
                     // temporarily replace usage tracker in taskTracker to the pseudoQ and then put back the original one
                     taskScheduler.getTaskTracker().setUsageTrackedQueue(pTaskQueue.getUsageTracker());
-                    logger.debug("Scheduling with pseudoQ and " + newLeases.size() + " new leases");
-                    final SchedulingResult schedulingResult = taskScheduler.scheduleOnce(pTaskQueue, newLeases);
+                    logger.debug("Scheduling with pseudoQ");
+                    final SchedulingResult schedulingResult = taskScheduler.scheduleOnce(pTaskQueue, Collections.emptyList());
                     final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
                     Map<String, Integer> result = new HashMap<>();
                     if (!resultMap.isEmpty()) {
@@ -212,8 +209,7 @@ public class TaskSchedulingService {
                                 if (tars == null || tars.isEmpty())
                                     logger.debug("No pseudo assignment failures for task " + entry.getKey());
                                 else {
-                                    StringBuilder b = new StringBuilder("Pseudo assignment failures for task ").append(entry.getKey())
-                                            .append(": ");
+                                    StringBuilder b = new StringBuilder("Pseudo assignment failures for task ").append(entry.getKey()).append(": ");
                                     for (TaskAssignmentResult r: tars) {
                                         b.append("HOST: ").append(r.getHostname()).append(":");
                                         final List<AssignmentFailure> afs = r.getFailures();
@@ -227,7 +223,7 @@ public class TaskSchedulingService {
                             }
                         }
                     }
-                    pseudoSchedResult.set(result);
+                    psuedoSchedulingResult = result;
                 }
                 catch (Exception e) {
                     logger.error("Error in pseudo scheduling", e);
@@ -243,17 +239,7 @@ public class TaskSchedulingService {
                 logger.error("Error in pseudo scheduling", e);
                 throw e;
             }
-            finally {
-                latch.countDown();
-            }
-        });
-        try {
-            if (latch.await(Math.max(5000, maxSchedIterDelay * 3), TimeUnit.SECONDS))// arbitrary long sleep, latch should return earlier than that
-                return pseudoSchedResult.get();
-        } catch (InterruptedException e) {
-            logger.warn("Timeout waiting for psuedo scheduling result");
-        }
-        return Collections.emptyMap();
+        return psuedoSchedulingResult;
     }
 
     private void scheduleOnce() {
@@ -271,18 +257,13 @@ public class TaskSchedulingService {
             addPendingRunningTasks();
             removeTasks();
             final boolean newLeaseExists = leaseBlockingQueue.peek() != null;
-            final Action1<List<VirtualMachineLease>> pseudoSchedAction = pseudoSchedulingRequestQ.poll();
-            if ( qModified || newLeaseExists || doNextIteration() || pseudoSchedAction != null) {
+            if (qModified || newLeaseExists || doNextIteration()) {
                 taskScheduler.setTaskToClusterAutoScalerMapGetter(taskToClusterAutoScalerMapGetter);
                 lastSchedIterationAt.set(System.currentTimeMillis());
                 if (preHook != null)
                     preHook.call();
                 List<VirtualMachineLease> currentLeases = new ArrayList<>();
                 leaseBlockingQueue.drainTo(currentLeases);
-                if (pseudoSchedAction != null) {
-                    pseudoSchedAction.call(currentLeases);
-                    currentLeases.clear();
-                }
                 final SchedulingResult schedulingResult = taskScheduler.scheduleOnce(taskQueue, currentLeases);
                 // mark end of scheduling iteration before assigning tasks.
                 taskQueue.getUsageTracker().reset();
@@ -510,7 +491,7 @@ public class TaskSchedulingService {
          * @param taskQ The task queue from which to get tasks for assignment of resoruces.
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskSchedulingService}.
          */
-        public Builder withTaskQuue(TaskQueue taskQ) {
+        public Builder withTaskQueue(TaskQueue taskQ) {
             if (!(taskQ instanceof InternalTaskQueue))
                 throw new IllegalArgumentException("Argument is not a valid implementation of task queue");
             taskQueue = (InternalTaskQueue) taskQ;

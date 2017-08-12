@@ -16,27 +16,21 @@
 
 package com.netflix.fenzo;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A monitor to ensure scheduler state is not compromised by concurrent calls that are disallowed.
  */
 class StateMonitor {
-    private final AtomicBoolean lock;
-
-    StateMonitor() {
-        lock = new AtomicBoolean(false);
-    }
+    private final ReentrantLock lock = new ReentrantLock();
 
     AutoCloseable enter() {
-        if(!lock.compareAndSet(false, true))
+        if (!lock.tryLock()) {
             throw new IllegalStateException();
-        return new AutoCloseable() {
-            @Override
-            public void close() throws Exception {
-                if(!lock.compareAndSet(true, false))
-                    throw new IllegalStateException();
-            }
+        }
+        return () -> {
+            if (!lock.tryLock())
+                throw new IllegalStateException();
         };
     }
 

@@ -97,7 +97,7 @@ public class ShortfallAutoscalerTest {
                 .withMaxDelayMillis(500)
                 .withPreSchedulingLoopHook(preHook)
                 .withSchedulingResultCallback(resultCallback)
-                .withTaskQuue(queue)
+                .withTaskQueue(queue)
                 .withTaskScheduler(scheduler)
                 .withOptimizingShortfallEvaluator()
                 .build();

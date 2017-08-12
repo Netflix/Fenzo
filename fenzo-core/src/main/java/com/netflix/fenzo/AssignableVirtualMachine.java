@@ -617,7 +617,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return result;
     }
 
-    Map<VMResource, Double> getMaxResources() {
+    public Map<VMResource, Double> getMaxResources() {
         double cpus=0.0;
         double memory=0.0;
         double network=0.0;
@@ -660,7 +660,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
      */
     TaskAssignmentResult tryRequest(TaskRequest request, VMTaskFitnessCalculator fitnessCalculator) {
         if(logger.isDebugEnabled())
-            logger.debug("Host {} task {}: #leases=", getHostname(), request.getId(), leasesMap.size());
+            logger.debug("Host {} task {}: #leases: {}", getHostname(), request.getId(), leasesMap.size());
         if(leasesMap.isEmpty())
             return null;
         if(exclusiveTaskId!=null) {
