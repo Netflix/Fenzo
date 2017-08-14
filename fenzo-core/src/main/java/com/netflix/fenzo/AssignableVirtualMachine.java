@@ -617,7 +617,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         return result;
     }
 
-    public Map<VMResource, Double> getMaxResources() {
+    Map<VMResource, Double> getMaxResources() {
         double cpus=0.0;
         double memory=0.0;
         double network=0.0;
