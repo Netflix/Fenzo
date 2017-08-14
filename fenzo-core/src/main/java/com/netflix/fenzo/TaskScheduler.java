@@ -708,19 +708,7 @@ public class TaskScheduler {
             List<VirtualMachineLease> newLeases) throws IllegalStateException {
         checkIfShutdown();
         try (AutoCloseable ac = stateMonitor.enter()) {
-            long start = System.currentTimeMillis();
-            final SchedulingResult schedulingResult = doSchedule(taskIterator, newLeases);
-            if((lastVMPurgeAt + purgeVMsIntervalSecs*1000) < System.currentTimeMillis()) {
-                lastVMPurgeAt = System.currentTimeMillis();
-                logger.info("Purging inactive VMs");
-                assignableVMs.purgeInactiveVMs( // explicitly exclude VMs that have assignments
-                        schedulingResult.getResultMap() == null?
-                                Collections.emptySet() :
-                                new HashSet<>(schedulingResult.getResultMap().keySet())
-                );
-            }
-            schedulingResult.setRuntime(System.currentTimeMillis() - start);
-            return schedulingResult;
+            return doScheduling(taskIterator, newLeases);
         } catch (Exception e) {
             logger.error("Error with scheduling run: " + e.getMessage(), e);
             if(e instanceof IllegalStateException)
@@ -739,8 +727,13 @@ public class TaskScheduler {
      * @return a {@link SchedulingResult} object that contains a task assignment results map and other summaries
      */
     /* package */ SchedulingResult pseudoScheduleOnce(TaskIterator taskIterator) throws Exception {
+        return doScheduling(taskIterator, Collections.emptyList());
+    }
+
+    private SchedulingResult doScheduling(TaskIterator taskIterator,
+                                          List<VirtualMachineLease> newLeases) throws Exception {
         long start = System.currentTimeMillis();
-        final SchedulingResult schedulingResult = doSchedule(taskIterator, Collections.emptyList());
+        final SchedulingResult schedulingResult = doSchedule(taskIterator, newLeases);
         if((lastVMPurgeAt + purgeVMsIntervalSecs*1000) < System.currentTimeMillis()) {
             lastVMPurgeAt = System.currentTimeMillis();
             logger.info("Purging inactive VMs");
