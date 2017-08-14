@@ -42,7 +42,7 @@ import java.util.Set;
  * The pseudo scheduling run performs an entire scheduling iteration using the cloned queue and pseudo VMs in addition
  * to any new VM leases that have been added since previous scheduling iteration. This will invoke any and all task
  * constraints as well as fitness function setup in the scheduler. The scheduling result is used to determine the
- * number of VMs in each group and then the results are discarded. As expected, the psuedo scheduling run has no impact
+ * number of VMs in each group and then the results are discarded. As expected, the pseudo scheduling run has no impact
  * on the real scheduling assignments made.
  * <P>
  * Tasks for which scale up is requested by this evaluator are remembered and not requested again until certain delay.
@@ -63,7 +63,7 @@ class OptimizingShortfallEvaluator extends BaseShortfallEvaluator {
             return Collections.emptyMap();
 
         final InternalTaskQueue taskQueue = createAndFillAlternateQueue(filteredTasks);
-        return schedulingService.requestPsuedoScheduling(taskQueue, shortfallTasksPerGroup);
+        return schedulingService.requestPseudoScheduling(taskQueue, shortfallTasksPerGroup);
     }
 
     private InternalTaskQueue createAndFillAlternateQueue(List<TaskRequest> shortfallTasks) {

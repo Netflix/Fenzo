@@ -168,7 +168,7 @@ public class SampleQbasedScheduling {
                         System.out.println("Starting scheduling iteration " + schedCounter.incrementAndGet());
                     }
                 })
-                .withTaskQuue(queue)
+                .withTaskQueue(queue)
                 .withTaskScheduler(taskScheduler)
                 // TaskSchedulingService will call us back when there are task assignments. Handle them by launching
                 // tasks using MesosDriver

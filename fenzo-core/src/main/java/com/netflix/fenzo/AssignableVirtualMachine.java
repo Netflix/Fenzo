@@ -660,7 +660,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
      */
     TaskAssignmentResult tryRequest(TaskRequest request, VMTaskFitnessCalculator fitnessCalculator) {
         if(logger.isDebugEnabled())
-            logger.debug("Host {} task {}: #leases=", getHostname(), request.getId(), leasesMap.size());
+            logger.debug("Host {} task {}: #leases: {}", getHostname(), request.getId(), leasesMap.size());
         if(leasesMap.isEmpty())
             return null;
         if(exclusiveTaskId!=null) {

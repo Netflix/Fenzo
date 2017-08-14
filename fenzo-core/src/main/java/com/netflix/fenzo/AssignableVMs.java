@@ -117,7 +117,7 @@ class AssignableVMs {
         );
     }
 
-    void removePsuedoHosts(Map<String, List<String>> hostsMap) {
+    void removePseudoHosts(Map<String, List<String>> hostsMap) {
         if (hostsMap != null && !hostsMap.isEmpty()) {
             for (Map.Entry<String, List<String>> entry: hostsMap.entrySet()) {
                 for (String h: entry.getValue()) {

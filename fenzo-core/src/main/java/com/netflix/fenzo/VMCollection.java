@@ -59,10 +59,10 @@ class VMCollection {
     }
 
     /**
-     * Create <code>n</code> psuedo VMs for each group by cloning a VM in each group.
+     * Create <code>n</code> pseudo VMs for each group by cloning a VM in each group.
      * @param groupCounts Map with keys contain group names and values containing number of agents to clone
      * @param ruleGetter Getter function for autoscale rules
-     * @return Collection of psuedo host names added.
+     * @return Collection of pseudo host names added.
      */
     Map<String, List<String>> clonePseudoVMsForGroups(Map<String, Integer> groupCounts,
                                                       Func1<String, AutoScaleRule> ruleGetter,
@@ -78,8 +78,10 @@ class VMCollection {
             result.put(g, hostnames);
             final ConcurrentMap<String, AssignableVirtualMachine> avmsMap = vms.get(g);
             if (avmsMap != null) {
-                final List<AssignableVirtualMachine> vmsList = avmsMap.values().stream()
-                        .filter(avm -> vmFilter.test(avm.getCurrTotalLease())).collect(Collectors.toList());
+                final List<AssignableVirtualMachine> vmsList = avmsMap.values()
+                        .stream()
+                        .filter(avm -> vmFilter.test(avm.getCurrTotalLease()))
+                        .collect(Collectors.toList());
                 if (vmsList != null && !vmsList.isEmpty()) {
                     // NOTE: a shortcoming here is that the attributes of VMs across a group may not be homogeneous.
                     // By creating one lease object and cloning from it, we pick one combination of the attributes

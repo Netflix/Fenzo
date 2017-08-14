@@ -89,6 +89,7 @@ public class TaskScheduler {
         private Action1<AutoScaleAction> autoscalerCallback=null;
         private long delayAutoscaleUpBySecs=0L;
         private long delayAutoscaleDownBySecs=0L;
+        private long disabledVmDurationInSecs =0L;
         private List<AutoScaleRule> autoScaleRules=new ArrayList<>();
         private Func1<Double, Boolean> isFitnessGoodEnoughFunction = new Func1<Double, Boolean>() {
             @Override
@@ -377,6 +378,27 @@ public class TaskScheduler {
         }
 
         /**
+         * How long to disable a VM when going through a scale down action. Note that the value used will be the max
+         * between this value and the {@link AutoScaleRule#getCoolDownSecs()} value and that this value should be
+         * greater than the {@link AutoScaleRule#getCoolDownSecs()} value. If the supplied {@link AutoScaleAction}
+         * does not actually terminate the instance in this time frame then the VM will become enabled. This option is useful
+         * when you want to increase the disabled time of a VM because the implementation of the {@link AutoScaleAction} may
+         * take longer than the cooldown period.
+         *
+         * @param disabledVmDurationInSecs Disable VMs about to be terminated by this many seconds.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         * @throws IllegalArgumentException if {@code disabledVmDurationInSecs} is not greater than 0.
+         * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
+         */
+        public Builder withAutoscaleDisabledVmDurationInSecs(long disabledVmDurationInSecs) {
+            if(disabledVmDurationInSecs <= 0L) {
+                throw new IllegalArgumentException("disabledVmDurationInSecs must be greater than 0: " + disabledVmDurationInSecs);
+            }
+            this.disabledVmDurationInSecs = disabledVmDurationInSecs;
+            return this;
+        }
+
+        /**
          * Indicate that the cluster receives resource offers only once per VM (host). Normally, Mesos sends resource
          * offers multiple times, as resources free up on the host upon completion of various tasks. This method
          * provides an experimental support for a mode where Fenzo can be made aware of the entire set of resources
@@ -466,6 +488,9 @@ public class TaskScheduler {
                 autoScaler.setDelayScaleDownBySecs(builder.delayAutoscaleDownBySecs);
             if(builder.delayAutoscaleUpBySecs > 0L)
                 autoScaler.setDelayScaleUpBySecs(builder.delayAutoscaleUpBySecs);
+            if (builder.disabledVmDurationInSecs > 0L) {
+                autoScaler.setDisabledVmDurationInSecs(builder.disabledVmDurationInSecs);
+            }
         }
         else {
             autoScaler=null;
@@ -682,21 +707,8 @@ public class TaskScheduler {
             TaskIterator taskIterator,
             List<VirtualMachineLease> newLeases) throws IllegalStateException {
         checkIfShutdown();
-        try (AutoCloseable
-                     ac = stateMonitor.enter()) {
-            long start = System.currentTimeMillis();
-            final SchedulingResult schedulingResult = doSchedule(taskIterator, newLeases);
-            if((lastVMPurgeAt + purgeVMsIntervalSecs*1000) < System.currentTimeMillis()) {
-                lastVMPurgeAt = System.currentTimeMillis();
-                logger.info("Purging inactive VMs");
-                assignableVMs.purgeInactiveVMs( // explicitly exclude VMs that have assignments
-                        schedulingResult.getResultMap() == null?
-                                Collections.emptySet() :
-                                new HashSet<>(schedulingResult.getResultMap().keySet())
-                );
-            }
-            schedulingResult.setRuntime(System.currentTimeMillis() - start);
-            return schedulingResult;
+        try (AutoCloseable ac = stateMonitor.enter()) {
+            return doScheduling(taskIterator, newLeases);
         } catch (Exception e) {
             logger.error("Error with scheduling run: " + e.getMessage(), e);
             if(e instanceof IllegalStateException)
@@ -706,6 +718,33 @@ public class TaskScheduler {
                 throw new IllegalStateException("Unexpected exception during scheduling run: " + e.getMessage(), e);
             }
         }
+    }
+
+    /**
+     * Variant of {@link #scheduleOnce(List, List)} that should be only used to schedule a pseudo iteration as it
+     * ignores the StateMonitor lock.
+     * @param taskIterator Iterator for tasks to assign resources to.
+     * @return a {@link SchedulingResult} object that contains a task assignment results map and other summaries
+     */
+    /* package */ SchedulingResult pseudoScheduleOnce(TaskIterator taskIterator) throws Exception {
+        return doScheduling(taskIterator, Collections.emptyList());
+    }
+
+    private SchedulingResult doScheduling(TaskIterator taskIterator,
+                                          List<VirtualMachineLease> newLeases) throws Exception {
+        long start = System.currentTimeMillis();
+        final SchedulingResult schedulingResult = doSchedule(taskIterator, newLeases);
+        if((lastVMPurgeAt + purgeVMsIntervalSecs*1000) < System.currentTimeMillis()) {
+            lastVMPurgeAt = System.currentTimeMillis();
+            logger.info("Purging inactive VMs");
+            assignableVMs.purgeInactiveVMs( // explicitly exclude VMs that have assignments
+                    schedulingResult.getResultMap() == null?
+                            Collections.emptySet() :
+                            new HashSet<>(schedulingResult.getResultMap().keySet())
+            );
+        }
+        schedulingResult.setRuntime(System.currentTimeMillis() - start);
+        return schedulingResult;
     }
 
     private SchedulingResult doSchedule(
@@ -858,7 +897,7 @@ public class TaskScheduler {
             rejectedCount.addAndGet(assignableVMs.removeLimitedLeases(expirableLeases));
             final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, idleInactiveAVMs, failedTasksForAutoScaler);
             if (autoScaler != null)
-                autoScaler.scheduleAutoscale(autoScalerInput);
+                autoScaler.doAutoscale(autoScalerInput);
         }
         schedulingResult.setLeasesAdded(newLeases.size());
         schedulingResult.setLeasesRejected(rejectedCount.get());
@@ -872,11 +911,11 @@ public class TaskScheduler {
         return assignableVMs.createPseudoHosts(groupCounts, autoScaler == null? name -> null : autoScaler::getRule);
     }
 
-    /* package */ void removePsuedoHosts(Map<String, List<String>> hostsMap) {
-        assignableVMs.removePsuedoHosts(hostsMap);
+    /* package */ void removePseudoHosts(Map<String, List<String>> hostsMap) {
+        assignableVMs.removePseudoHosts(hostsMap);
     }
 
-    /* package */ void removePsuedoAssignments() {
+    /* package */ void removePseudoAssignments() {
         taskTracker.clearAssignedTasks(); // this should suffice for pseudo assignments
     }
 

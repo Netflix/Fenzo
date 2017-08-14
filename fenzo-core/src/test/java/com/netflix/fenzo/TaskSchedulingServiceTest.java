@@ -48,7 +48,7 @@ public class TaskSchedulingServiceTest {
     private TaskSchedulingService getSchedulingService(TaskQueue queue, TaskScheduler scheduler, long loopMillis,
                                                        long maxDelayMillis, Action1<SchedulingResult> resultCallback) {
         return new TaskSchedulingService.Builder()
-                .withTaskQuue(queue)
+                .withTaskQueue(queue)
                 .withLoopIntervalMillis(loopMillis)
                 .withMaxDelayMillis(maxDelayMillis)
                 .withPreSchedulingLoopHook(new Action0() {

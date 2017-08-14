@@ -16,8 +16,6 @@
 
 package com.netflix.fenzo;
 
-import org.apache.mesos.Protos;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,11 +23,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.mesos.Protos;
+
 /* package */ class InternalVMCloner {
 
     /**
      * Creates a VM lease object representing the max of resources from the given collection of VMs. Attributes
      * are created by adding all unique attributes across the collection.
+     *
      * @param avms Collection of VMs to create the new lease object from.
      * @return VM lease object representing the max of resources from the given collection of VMs
      */
@@ -42,38 +43,45 @@ import java.util.Map;
         final Map<String, Double> scalars = new HashMap<>();
         final Map<String, Protos.Attribute> attributeMap = new HashMap<>();
         if (avms != null) {
-            for(AssignableVirtualMachine avm: avms) {
-                final Map<VMResource, Double[]> resourceStatus = avm.getResourceStatus();
-                Double[] values = resourceStatus.get(VMResource.CPU);
-                if (values != null && values.length == 2)
-                    cpus = Math.max(cpus, values[0] + values[1]);
-                values = resourceStatus.get(VMResource.Memory);
-                if (values != null && values.length == 2)
-                    mem = Math.max(mem, values[0] + values[1]);
-                values = resourceStatus.get(VMResource.Disk);
-                if (values != null && values.length == 2)
-                    disk = Math.max(disk, values[0] + values[1]);
-                values = resourceStatus.get(VMResource.Network);
-                if (values != null && values.length == 2)
-                    network = Math.max(network, values[0] + values[1]);
-                values = resourceStatus.get(VMResource.Ports);
-                if (values != null && values.length == 2)
-                    ports = Math.max(ports, values[0] + values[1]);
+            for (AssignableVirtualMachine avm : avms) {
+                Map<VMResource, Double> maxResources = avm.getMaxResources();
+                Double value = maxResources.get(VMResource.CPU);
+                if (value != null) {
+                    cpus = Math.max(cpus, value);
+                }
+                value = maxResources.get(VMResource.Memory);
+                if (value != null) {
+                    mem = Math.max(mem, value);
+                }
+                value = maxResources.get(VMResource.Disk);
+                if (value != null) {
+                    disk = Math.max(disk, value);
+                }
+                value = maxResources.get(VMResource.Network);
+                if (value != null) {
+                    network = Math.max(network, value);
+                }
+                value = maxResources.get(VMResource.Ports);
+                if (value != null) {
+                    ports = Math.max(ports, value);
+                }
                 final Map<String, Double> maxScalars = avm.getMaxScalars();
                 if (maxScalars != null && !maxScalars.isEmpty()) {
-                    for (String k: maxScalars.keySet())
+                    for (String k : maxScalars.keySet())
                         scalars.compute(k, (s, oldVal) -> {
-                            if (oldVal == null)
+                            if (oldVal == null) {
                                 oldVal = 0.0;
+                            }
                             Double aDouble = maxScalars.get(k);
-                            if (aDouble == null)
+                            if (aDouble == null) {
                                 aDouble = 0.0;
+                            }
                             return oldVal + aDouble;
                         });
                 }
                 final Map<String, Protos.Attribute> attrs = avm.getCurrTotalLease().getAttributeMap();
                 if (attrs != null && !attrs.isEmpty()) {
-                    for (Map.Entry<String, Protos.Attribute> e: attrs.entrySet())
+                    for (Map.Entry<String, Protos.Attribute> e : attrs.entrySet())
                         attributeMap.putIfAbsent(e.getKey(), e.getValue());
                 }
             }
@@ -83,7 +91,7 @@ import java.util.Map;
         final double fdisk = disk;
         final double fnetwork = network;
         final List<VirtualMachineLease.Range> fports = Collections.singletonList(
-                new VirtualMachineLease.Range(100, 100 + (int)ports));
+                new VirtualMachineLease.Range(100, 100 + (int) ports));
         return new VirtualMachineLease() {
             @Override
             public String getId() {
@@ -156,7 +164,7 @@ import java.util.Map;
         final List<VirtualMachineLease.Range> ports = new LinkedList<>();
         final List<VirtualMachineLease.Range> ranges = lease.portRanges();
         if (ranges != null && !ranges.isEmpty()) {
-            for (VirtualMachineLease.Range r: ranges)
+            for (VirtualMachineLease.Range r : ranges)
                 ports.add(new VirtualMachineLease.Range(r.getBeg(), r.getEnd()));
         }
         final double cpus = lease.cpuCores();

@@ -362,7 +362,7 @@ public class TieredQueueTest {
     private TaskSchedulingService getSchedulingService(TaskQueue queue, TaskScheduler scheduler,
                                                        Action1<SchedulingResult> resultCallback) {
         return new TaskSchedulingService.Builder()
-                .withTaskQuue(queue)
+                .withTaskQueue(queue)
                 .withLoopIntervalMillis(100L)
                 .withPreSchedulingLoopHook(new Action0() {
                     @Override
