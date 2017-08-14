@@ -378,18 +378,22 @@ public class TaskScheduler {
         }
 
         /**
-         * How long to disable a VM when going through a scale down action. If this value is not set then the
-         * value used will be the {@link AutoScaleRule#getCoolDownSecs()} value. If the supplied {@link AutoScaleAction}
-         * does not actually terminate the instance in this time frame then VM will become enabled.
-
+         * How long to disable a VM when going through a scale down action. Note that the value used will be the max
+         * between this value and the {@link AutoScaleRule#getCoolDownSecs()} value and that this value should be
+         * greater than the {@link AutoScaleRule#getCoolDownSecs()} value. If the supplied {@link AutoScaleAction}
+         * does not actually terminate the instance in this time frame then the VM will become enabled. This option is useful
+         * when you want to increase the disabled time of a VM because the implementation of the {@link AutoScaleAction} may
+         * take longer than the cooldown period.
+         *
          * @param disabledVmDurationInSecs Disable VMs about to be terminated by this many seconds.
          * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
          * @throws IllegalArgumentException if {@code disabledVmDurationInSecs} is not greater than 0.
          * @see <a href="https://github.com/Netflix/Fenzo/wiki/Autoscaling">Autoscaling</a>
          */
         public Builder withAutoscaleDisabledVmDurationInSecs(long disabledVmDurationInSecs) {
-            if(disabledVmDurationInSecs > 0L)
+            if(disabledVmDurationInSecs <= 0L) {
                 throw new IllegalArgumentException("disabledVmDurationInSecs must be greater than 0: " + disabledVmDurationInSecs);
+            }
             this.disabledVmDurationInSecs = disabledVmDurationInSecs;
             return this;
         }
@@ -728,6 +732,28 @@ public class TaskScheduler {
         }
     }
 
+    /**
+     * Variant of {@link #scheduleOnce(List, List)} that should be only used to schedule a pseudo iteration as it
+     * ignores the StateMonitor lock.
+     * @param taskIterator Iterator for tasks to assign resources to.
+     * @return a {@link SchedulingResult} object that contains a task assignment results map and other summaries
+     */
+    /* package */ SchedulingResult pseudoScheduleOnce(TaskIterator taskIterator) throws Exception {
+        long start = System.currentTimeMillis();
+        final SchedulingResult schedulingResult = doSchedule(taskIterator, Collections.emptyList());
+        if((lastVMPurgeAt + purgeVMsIntervalSecs*1000) < System.currentTimeMillis()) {
+            lastVMPurgeAt = System.currentTimeMillis();
+            logger.info("Purging inactive VMs");
+            assignableVMs.purgeInactiveVMs( // explicitly exclude VMs that have assignments
+                    schedulingResult.getResultMap() == null?
+                            Collections.emptySet() :
+                            new HashSet<>(schedulingResult.getResultMap().keySet())
+            );
+        }
+        schedulingResult.setRuntime(System.currentTimeMillis() - start);
+        return schedulingResult;
+    }
+
     private SchedulingResult doSchedule(
             TaskIterator taskIterator,
             List<VirtualMachineLease> newLeases) throws Exception {
@@ -878,7 +904,7 @@ public class TaskScheduler {
             rejectedCount.addAndGet(assignableVMs.removeLimitedLeases(expirableLeases));
             final AutoScalerInput autoScalerInput = new AutoScalerInput(idleResourcesList, idleInactiveAVMs, failedTasksForAutoScaler);
             if (autoScaler != null)
-                autoScaler.scheduleAutoscale(autoScalerInput);
+                autoScaler.doAutoscale(autoScalerInput);
         }
         schedulingResult.setLeasesAdded(newLeases.size());
         schedulingResult.setLeasesRejected(rejectedCount.get());
@@ -892,11 +918,11 @@ public class TaskScheduler {
         return assignableVMs.createPseudoHosts(groupCounts, autoScaler == null? name -> null : autoScaler::getRule);
     }
 
-    /* package */ void removePsuedoHosts(Map<String, List<String>> hostsMap) {
-        assignableVMs.removePsuedoHosts(hostsMap);
+    /* package */ void removePseudoHosts(Map<String, List<String>> hostsMap) {
+        assignableVMs.removePseudoHosts(hostsMap);
     }
 
-    /* package */ void removePsuedoAssignments() {
+    /* package */ void removePseudoAssignments() {
         taskTracker.clearAssignedTasks(); // this should suffice for pseudo assignments
     }
 

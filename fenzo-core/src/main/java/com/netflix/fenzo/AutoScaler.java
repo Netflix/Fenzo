@@ -124,7 +124,7 @@ class AutoScaler {
         this.taskToClustersGetter = getter;
     }
 
-    void scheduleAutoscale(final AutoScalerInput autoScalerInput) {
+    void doAutoscale(final AutoScalerInput autoScalerInput) {
         if (isShutdown.get()) {
             return;
         }
@@ -227,7 +227,7 @@ class AutoScaler {
                     StringBuilder sBuilder = new StringBuilder();
                     for (String host : hostsToTerminate.keySet()) {
                         sBuilder.append(host).append(", ");
-                        long disabledDurationInSecs = (disabledVmDurationInSecs > 0L) ? disabledVmDurationInSecs : rule.getCoolDownSecs();
+                        long disabledDurationInSecs = Math.max(disabledVmDurationInSecs, rule.getCoolDownSecs());
                         assignableVMs.disableUntil(host, now + disabledDurationInSecs * 1000);
                     }
                     logger.info("Scaling down " + rule.getRuleName() + " by "

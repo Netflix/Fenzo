@@ -59,10 +59,10 @@ class VMCollection {
     }
 
     /**
-     * Create <code>n</code> psuedo VMs for each group by cloning a VM in each group.
+     * Create <code>n</code> pseudo VMs for each group by cloning a VM in each group.
      * @param groupCounts Map with keys contain group names and values containing number of agents to clone
      * @param ruleGetter Getter function for autoscale rules
-     * @return Collection of psuedo host names added.
+     * @return Collection of pseudo host names added.
      */
     Map<String, List<String>> clonePseudoVMsForGroups(Map<String, Integer> groupCounts,
                                                       Func1<String, AutoScaleRule> ruleGetter,

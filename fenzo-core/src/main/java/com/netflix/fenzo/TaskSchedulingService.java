@@ -150,8 +150,8 @@ public class TaskSchedulingService {
         return taskQueue;
     }
 
-    /* package */ Map<String, Integer> requestPsuedoScheduling(final InternalTaskQueue pTaskQueue, Map<String, Integer> groupCounts) {
-        Map<String, Integer> psuedoSchedulingResult;
+    /* package */ Map<String, Integer> requestPseudoScheduling(final InternalTaskQueue pTaskQueue, Map<String, Integer> groupCounts) {
+        Map<String, Integer> pseudoSchedulingResult = new HashMap<>();
             try {
                 logger.debug("Creating pseudo hosts");
                 final Map<String, List<String>> pseudoHosts = taskScheduler.createPseudoHosts(groupCounts);
@@ -183,7 +183,7 @@ public class TaskSchedulingService {
                     // temporarily replace usage tracker in taskTracker to the pseudoQ and then put back the original one
                     taskScheduler.getTaskTracker().setUsageTrackedQueue(pTaskQueue.getUsageTracker());
                     logger.debug("Scheduling with pseudoQ");
-                    final SchedulingResult schedulingResult = taskScheduler.scheduleOnce(pTaskQueue, Collections.emptyList());
+                    final SchedulingResult schedulingResult = taskScheduler.pseudoScheduleOnce(pTaskQueue);
                     final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
                     Map<String, Integer> result = new HashMap<>();
                     if (!resultMap.isEmpty()) {
@@ -223,23 +223,22 @@ public class TaskSchedulingService {
                             }
                         }
                     }
-                    psuedoSchedulingResult = result;
+                    pseudoSchedulingResult = result;
                 }
                 catch (Exception e) {
                     logger.error("Error in pseudo scheduling", e);
                     throw e;
                 }
                 finally {
-                    taskScheduler.removePsuedoHosts(pseudoHosts);
-                    taskScheduler.removePsuedoAssignments();
+                    taskScheduler.removePseudoHosts(pseudoHosts);
+                    taskScheduler.removePseudoAssignments();
                     taskScheduler.getTaskTracker().setUsageTrackedQueue(taskQueue.getUsageTracker());
                 }
             }
             catch (Exception e) {
                 logger.error("Error in pseudo scheduling", e);
-                throw e;
             }
-        return psuedoSchedulingResult;
+        return pseudoSchedulingResult;
     }
 
     private void scheduleOnce() {
