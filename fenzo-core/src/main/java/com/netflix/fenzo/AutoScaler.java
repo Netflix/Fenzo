@@ -198,12 +198,10 @@ class AutoScaler {
                 scalingActivity.inactiveScaleDownRequestedAt = 0L;
                 scalingActivity.inactiveScaleDownAt = now;
                 Map<String, String> hostsToTerminate = getInactiveHostsToTerminate(hostAttributeGroup.idleInactiveHosts);
-                StringBuilder sBuilder = new StringBuilder();
-                for (String host : hostsToTerminate.keySet()) {
-                    sBuilder.append(host).append(", ");
+                if (logger.isDebugEnabled()) {
+                    logger.debug("{} has an excess of {} inactive hosts ({})", rule.getRuleName(), hostsToTerminate.size(),
+                            String.join(", ", hostsToTerminate.keySet()));
                 }
-                logger.info("Scaling down inactive hosts " + rule.getRuleName() + " by "
-                        + hostsToTerminate.size() + " hosts (" + sBuilder.toString() + ")");
                 allHostsToTerminate.addAll(hostsToTerminate.values());
             }
         }
@@ -224,14 +222,14 @@ class AutoScaler {
                     Map<String, String> hostsToTerminate = getHostsToTerminate(hostAttributeGroup.idleHosts, excess);
                     scalingActivity.scaledNumInstances = hostsToTerminate.size();
                     scalingActivity.type = AutoScaleAction.Type.Down;
-                    StringBuilder sBuilder = new StringBuilder();
                     for (String host : hostsToTerminate.keySet()) {
-                        sBuilder.append(host).append(", ");
                         long disabledDurationInSecs = Math.max(disabledVmDurationInSecs, rule.getCoolDownSecs());
                         assignableVMs.disableUntil(host, now + disabledDurationInSecs * 1000);
                     }
-                    logger.info("Scaling down " + rule.getRuleName() + " by "
-                            + hostsToTerminate.size() + " hosts (" + sBuilder.toString() + ")");
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("{} has an excess of {} hosts ({})", rule.getRuleName(), hostsToTerminate.size(),
+                                String.join(", ", hostsToTerminate.keySet()));
+                    }
                     allHostsToTerminate.addAll(hostsToTerminate.values());
                 }
             }
@@ -245,8 +243,7 @@ class AutoScaler {
                     scalingActivity.scaleUpRequestedAt = now;
                 } else if (delayScaleUpBySecs == 0L || lastReqstAge > delayScaleUpBySecs) {
                     int shortage = (excess <= 0 && shouldScaleUp(now, prevScalingActivity, rule)) ?
-                            rule.getMaxIdleHostsToKeep() - hostAttributeGroup.idleHosts.size() :
-                            0;
+                            rule.getMaxIdleHostsToKeep() - hostAttributeGroup.idleHosts.size() : 0;
                     shortage = Math.max(shortage, hostAttributeGroup.shortFall);
                     final int size = vmCollection.size(rule.getRuleName());
                     if (shortage + size > rule.getMaxSize())
@@ -257,17 +254,24 @@ class AutoScaler {
                         scalingActivity.shortfall = hostAttributeGroup.shortFall;
                         scalingActivity.scaledNumInstances = shortage;
                         scalingActivity.type = AutoScaleAction.Type.Up;
-                        logger.info("Scaling up " + rule.getRuleName() + " by "
-                                + shortage + " hosts");
                         int finalShortage = shortage;
-                        callbacks.add(() -> callback.call(new ScaleUpAction(rule.getRuleName(), finalShortage)));
+                        logger.debug("{} has a shortage of {} hosts", rule.getRuleName(), finalShortage);
+                        callbacks.add(() -> {
+                            logger.debug("Executing callback to scale up {} by {} hosts", rule.getRuleName(), finalShortage);
+                            callback.call(new ScaleUpAction(rule.getRuleName(), finalShortage));
+                        });
                     }
                 }
             }
         }
-        // Run scale-down action after scale up (if any)
         if (!allHostsToTerminate.isEmpty()) {
-            callbacks.add(() -> callback.call(new ScaleDownAction(rule.getRuleName(), allHostsToTerminate)));
+            callbacks.add(() -> {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Executing callback to scale down {} by {} hosts ({})", rule.getRuleName(), allHostsToTerminate.size(),
+                            String.join(", ", allHostsToTerminate));
+                }
+                callback.call(new ScaleDownAction(rule.getRuleName(), allHostsToTerminate));
+            });
         }
 
         return callbacks;
