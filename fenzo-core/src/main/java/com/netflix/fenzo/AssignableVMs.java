@@ -48,10 +48,10 @@ class AssignableVMs {
             lastRejectAt = System.currentTimeMillis();
             return true;
         }
-        boolean limitReached() {
+        synchronized boolean limitReached() {
             return rejectedCount == limit;
         }
-        private void reset() {
+        private synchronized void reset() {
             if(System.currentTimeMillis() > (lastRejectAt + rejectDelay))
                 rejectedCount=0;
         }
