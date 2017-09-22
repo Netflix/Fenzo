@@ -54,6 +54,10 @@ public class WeightedAverageFitnessCalculator implements VMTaskFitnessCalculator
         double totalWeights = 0.0;
         for (WeightedFitnessCalculator calculator : calculators) {
             double score = calculator.getFitnessCalculator().calculateFitness(taskRequest, targetVM, taskTrackerState);
+            // If any of the scores are 0.0 then the final score should be 0.0
+            if (score == 0.0) {
+                return score;
+            }
             totalWeightedScores += (score * calculator.getWeight());
             totalWeights += calculator.getWeight();
         }
