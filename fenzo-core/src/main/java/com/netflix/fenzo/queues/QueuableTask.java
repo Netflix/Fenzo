@@ -28,4 +28,16 @@ public interface QueuableTask extends TaskRequest {
      * @return The queue attributes for this task.
      */
     QAttributes getQAttributes();
+
+    /**
+     * Get the time at which this task is ready for consideration for assignment. This can be compared to system's
+     * current time, for example, via {@link System#currentTimeMillis()}, to determine if the task is ready for being
+     * considered for assignment. If the returned time is less than current time, then it is not ready. A return time
+     * of <code>0</code> implies that the task is ready now. Tasks that are not ready in a scheduling iteration may
+     * be skipped to be considered in the next scheduling iteration.
+     * @return Time in milli seconds when this task is ready, or <code>0</code> to indicate it is ready.
+     */
+    default long getReadyAt() {
+        return 0L;
+    }
 }
