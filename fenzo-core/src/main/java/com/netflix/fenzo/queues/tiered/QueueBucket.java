@@ -95,8 +95,11 @@ class QueueBucket implements UsageTrackedQueue {
             if (!assignedTasks.isEmpty())
                 throw new TaskQueueException(assignedTasks.size() + " tasks still assigned but not launched");
         }
-        if (iterator.hasNext())
-            return Assignable.success(iterator.next().getValue());
+        while (iterator.hasNext()) {
+            final Map.Entry<String, QueuableTask> nextTask = iterator.next();
+            if (nextTask.getValue().getReadyAt() <= System.currentTimeMillis())
+                return Assignable.success(nextTask.getValue());
+        }
         return null;
     }
 
@@ -165,6 +168,15 @@ class QueueBucket implements UsageTrackedQueue {
         ResAllocs total = tierResources == null ? tierUsage.getResAllocsWrapper() : tierResources;
         return totals.getDominantResUsageFrom(total) /
                 Math.max(TierSla.eps / 10.0, allocsShareGetter.apply(tierNumber, name));
+    }
+
+    @Override
+    public void setTaskReadyTime(String taskId, QAttributes qAttributes, long when) throws TaskQueueException {
+        if (iterator != null)
+            throw new TaskQueueException("Must reset before setting task ready time");
+        final QueuableTask task = queuedTasks.get(taskId);
+        if (task != null)
+            task.safeSetReadyAt(when);
     }
 
     public boolean hasGuaranteedCapacityFor(QueuableTask task) {

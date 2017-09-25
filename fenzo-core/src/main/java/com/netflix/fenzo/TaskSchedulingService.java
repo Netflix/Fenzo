@@ -32,20 +32,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A task scheduling service that maintains a scheduling loop to continuously assign resources to tasks pending in
@@ -89,6 +84,18 @@ public class TaskSchedulingService {
         }
     }
 
+    private static class SetReadyTimeRequest {
+        private final String taskId;
+        private final QAttributes qAttributes;
+        private final long when;
+
+        private SetReadyTimeRequest(String taskId, QAttributes qAttributes, long when) {
+            this.taskId = taskId;
+            this.qAttributes = qAttributes;
+            this.when = when;
+        }
+    }
+
     private static final Logger logger = LoggerFactory.getLogger(TaskSchedulingService.class);
     private final TaskScheduler taskScheduler;
     private final Action1<SchedulingResult> schedulingResultCallback;
@@ -99,6 +106,7 @@ public class TaskSchedulingService {
     private final BlockingQueue<VirtualMachineLease> leaseBlockingQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<Map<String, QueuableTask>> addRunningTasksQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<RemoveTaskRequest> removeTasksQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<SetReadyTimeRequest> setReadyTimeQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>> taskMapRequest = new LinkedBlockingQueue<>(10);
     private final BlockingQueue<Action1<Map<String, Map<VMResource, Double[]>>>> resStatusRequest = new LinkedBlockingQueue<>(10);
     private final BlockingQueue<Action1<List<VirtualMachineCurrentState>>> vmCurrStateRequest = new LinkedBlockingQueue<>(10);
@@ -255,6 +263,7 @@ public class TaskSchedulingService {
             final boolean qModified = taskQueue.reset();
             addPendingRunningTasks();
             removeTasks();
+            setTaskReadyTimes();
             final boolean newLeaseExists = leaseBlockingQueue.peek() != null;
             if (qModified || newLeaseExists || doNextIteration()) {
                 taskScheduler.setTaskToClusterAutoScalerMapGetter(taskToClusterAutoScalerMapGetter);
@@ -305,6 +314,20 @@ public class TaskSchedulingService {
                 if (r.hostname != null)
                     taskScheduler.getTaskUnAssigner().call(r.taskId, r.hostname);
             }
+        }
+    }
+
+    private void setTaskReadyTimes() {
+        if (setReadyTimeQueue.peek() != null) {
+            List<SetReadyTimeRequest> l = new LinkedList<>();
+            setReadyTimeQueue.drainTo(l);
+            l.forEach(r -> {
+                try {
+                    taskQueue.getUsageTracker().setTaskReadyTime(r.taskId, r.qAttributes, r.when);
+                } catch (TaskQueueException e) {
+                    logger.warn("Unexpected to get exception outside of scheduling iteration: " + e.getMessage(), e);
+                }
+            });
         }
     }
 
@@ -431,6 +454,19 @@ public class TaskSchedulingService {
      */
     public void removeTask(String taskId, QAttributes qAttributes, String hostname) {
         removeTasksQueue.offer(new RemoveTaskRequest(taskId, qAttributes, hostname));
+    }
+
+    /**
+     * Set the wall clock time when this task is ready for consideration for resource allocation. Calling this method
+     * is safer than directly calling {@link QueuableTask#safeSetReadyAt(long)} since this scheduling service will
+     * call the latter when it is safe to do so.
+     * @see QueuableTask#getReadyAt()
+     * @param taskId The Id of the task.
+     * @param attributes The queue attributes of the queue that the task belongs to.
+     * @param when The wall clock time in millis when the task is ready for consideration for assignment.
+     */
+    public void setTaskReadyTime(String taskId, QAttributes attributes, long when) {
+        setReadyTimeQueue.offer(new SetReadyTimeRequest(taskId, attributes, when));
     }
 
     /**

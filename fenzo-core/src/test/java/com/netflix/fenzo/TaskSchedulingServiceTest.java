@@ -30,6 +30,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -640,6 +641,44 @@ public class TaskSchedulingServiceTest {
             }
         }
         Assert.assertNull(exceptions);
+    }
+
+    @Test
+    public void testNotReadyTask() throws Exception {
+        TaskQueue queue = TaskQueues.createTieredQueue(2);
+        final TaskScheduler scheduler = getScheduler();
+        final AtomicReference<List<Exception>> ref = new AtomicReference<>();
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<List<String>> assignedTaskIds = new AtomicReference<>(new LinkedList<>());
+        final AtomicReference<List<String>> failedTaskIds = new AtomicReference<>(new LinkedList<>());
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            final List<Exception> exceptions = schedulingResult.getExceptions();
+            final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
+            if (exceptions != null && !exceptions.isEmpty())
+                ref.set(exceptions);
+            else if (!resultMap.isEmpty()) {
+                resultMap.forEach((key, value) -> value.getTasksAssigned().forEach(t -> assignedTaskIds.get().add(t.getTaskId())));
+            }
+            schedulingResult.getFailures().forEach((t, r) -> failedTaskIds.get().add(t.getId()));
+            latch.countDown();
+        };
+        final long maxDelay = 100L;
+        final long loopMillis = 20L;
+        final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, loopMillis, maxDelay, resultCallback);
+        final QueuableTask task1 = QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1));
+        queue.queueTask(task1);
+        final QueuableTask task2 = QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1));
+        task2.safeSetReadyAt(System.currentTimeMillis() + 1000000L);
+        queue.queueTask(task2);
+        schedulingService.addLeases(LeaseProvider.getLeases(2, 4, 8000, 2000, 1, 100));
+        schedulingService.start();
+        if (!latch.await(2, TimeUnit.SECONDS)) {
+            Assert.fail("Unexpected to not get assignments in time");
+        }
+        Assert.assertEquals(1, assignedTaskIds.get().size());
+        Assert.assertEquals(task1.getId(), assignedTaskIds.get().iterator().next());
+        Assert.assertEquals(0, failedTaskIds.get().size());
+        schedulingService.shutdown();
     }
 
     private void setupTaskGetter(TaskSchedulingService schedulingService, final AtomicLong gotTasksAt, final CountDownLatch latch) throws TaskQueueException {

@@ -192,6 +192,11 @@ public class TieredQueue implements InternalTaskQueue {
             }
 
             @Override
+            public void setTaskReadyTime(String taskId, QAttributes qAttributes, long when) throws TaskQueueException {
+                tiers.get(qAttributes.getTierNumber()).setTaskReadyTime(taskId, qAttributes, when);
+            }
+
+            @Override
             public void reset() {
                 for(Tier tb: tiers)
                     tb.reset();

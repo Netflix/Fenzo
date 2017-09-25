@@ -40,4 +40,25 @@ public interface QueuableTask extends TaskRequest {
     default long getReadyAt() {
         return 0L;
     }
+
+    /**
+     * Safely set the ready time of this task. Generally, task objects in Fenzo are immutable once added into Fenzo's
+     * queue. That is, the scheduling iteration will access methods from the task and expect to obtain valid results
+     * without being impacted by concurrent modifications. This method provides a safe mechanism to set the ready at
+     * time via one or both of the following:
+     * <UL>
+     *     <LI>Fenzo calls this method when it is safe to do so, for all tasks for which setting a new ready time has
+     *     been requested via
+     *     {@link com.netflix.fenzo.TaskSchedulingService#setTaskReadyTime(String, QAttributes, long)}</LI>,
+     *     <LI>The implementation of this interface supports safe concurrent access to {@link this#getReadyAt()}</LI>.
+     * </UL>
+     * Fenzo guarantees the first of the above two options, thereby keeping the system safe in the absence of the second
+     * option. That is, the implementations don't need to keep this method concurrent safe with the corresponding access
+     * method if they always set the ready time using
+     * {@link com.netflix.fenzo.TaskSchedulingService#setTaskReadyTime(String, QAttributes, long)}
+     * @param when The time at which this task is ready for consideration for resource assignment.
+     */
+    default void safeSetReadyAt(long when) {
+        // no-op
+    }
 }

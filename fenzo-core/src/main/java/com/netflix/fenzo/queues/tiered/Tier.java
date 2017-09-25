@@ -249,6 +249,13 @@ class Tier implements UsageTrackedQueue {
     }
 
     @Override
+    public void setTaskReadyTime(String taskId, QAttributes qAttributes, long when) throws TaskQueueException {
+        final QueueBucket bucket = sortedBuckets.get(qAttributes.getBucketName());
+        if (bucket != null)
+            bucket.setTaskReadyTime(taskId, qAttributes, when);
+    }
+
+    @Override
     public void reset() {
         if (logger.isDebugEnabled()) {
             try {
