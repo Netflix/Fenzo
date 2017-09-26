@@ -191,6 +191,15 @@ public interface UsageTrackedQueue {
     QueuableTask removeTask(String id, QAttributes qAttributes) throws TaskQueueException;
 
     /**
+     * Set the ready for the given task.
+     * @see QueuableTask#getReadyAt()
+     * @param taskId
+     * @param qAttributes
+     * @param when
+     */
+    void setTaskReadyTime(String taskId, QAttributes qAttributes, long when) throws TaskQueueException;
+
+    /**
      * Get the usage of the dominant resource, expressed as a share of the total known available resources.
      * @return The dominant resource usage.
      */

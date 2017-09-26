@@ -24,10 +24,12 @@ import com.netflix.fenzo.queues.QueuableTask;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class QueuableTaskProvider {
 
     public static QueuableTask wrapTask(final QAttributes qAttributes, final TaskRequest taskRequest) {
+        final AtomicLong readyAt = new AtomicLong(0L);
         return new QueuableTask() {
             @Override
             public QAttributes getQAttributes() {
@@ -97,6 +99,16 @@ public class QueuableTaskProvider {
             @Override
             public AssignedResources getAssignedResources() {
                 return taskRequest.getAssignedResources();
+            }
+
+            @Override
+            public void safeSetReadyAt(long when) {
+                readyAt.set(when);
+            }
+
+            @Override
+            public long getReadyAt() {
+                return readyAt.get();
             }
         };
     }
