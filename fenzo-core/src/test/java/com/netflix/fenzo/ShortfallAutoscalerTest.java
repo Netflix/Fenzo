@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ShortfallAutoscalerTest {
 
@@ -93,8 +94,8 @@ public class ShortfallAutoscalerTest {
     private TaskSchedulingService getSchedulingService(TaskQueue queue, Action0 preHook, TaskScheduler scheduler,
                                                        Action1<SchedulingResult> resultCallback) {
         return new TaskSchedulingService.Builder()
-                .withLoopIntervalMillis(50)
-                .withMaxDelayMillis(500)
+                .withLoopIntervalMillis(20)
+                .withMaxDelayMillis(100)
                 .withPreSchedulingLoopHook(preHook)
                 .withSchedulingResultCallback(resultCallback)
                 .withTaskQueue(queue)
@@ -114,12 +115,13 @@ public class ShortfallAutoscalerTest {
     }
 
     private void testShortfallScaleUp1group(boolean useActiveVms) throws Exception {
-        final AutoScaleRule rule = AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle1, maxIdle1, coolDownSecs,
+        final AutoScaleRule rule = AutoScaleRuleProvider.createRule(hostAttrVal1, minIdle1, maxIdle1, coolDownSecs*100,
                 1, 1000);
-        BlockingQueue<Integer> scaleUpReqQ = new LinkedBlockingQueue<>();
+        AtomicInteger scaleUpReceived = new AtomicInteger();
         Action1<AutoScaleAction> callback = (action) -> {
             if (action instanceof ScaleUpAction) {
-                scaleUpReqQ.offer(((ScaleUpAction) action).getScaleUpCount());
+                final int scaleUpCount = ((ScaleUpAction) action).getScaleUpCount();
+                scaleUpReceived.addAndGet(scaleUpCount);
             }
         };
         final List<String> rejectedHosts = new ArrayList<>();
@@ -156,15 +158,14 @@ public class ShortfallAutoscalerTest {
         leases.add(LeaseProvider.getLeaseOffer("host1", cpus1, cpus1 * memMultiplier, ports, attributes1));
         leases.add(LeaseProvider.getLeaseOffer("host2", cpus1, cpus1 * memMultiplier, ports, attributes1));
         schedulingService.addLeases(leases);
-        schedulingService.start();
-        Thread.sleep(200);
         for (QueuableTask t: requests) {
             queue.queueTask(t);
         }
+        schedulingService.start();
         SchedulingResult result = resultQ.poll(1, TimeUnit.SECONDS);
         Assert.assertNotNull("Timeout waiting for result", result);
-
-        Integer scaleUpNoticed = scaleUpReqQ.poll(coolDownSecs * 2, TimeUnit.SECONDS);
+        Thread.sleep(500); // at least two times schedulingSvc maxIterDelay
+        Integer scaleUpNoticed = scaleUpReceived.getAndSet(0);
         Assert.assertNotNull(scaleUpNoticed);
         int expected = (requests.size() - (leases.size()* cpus1))/ cpus1;
         Assert.assertEquals(expected, scaleUpNoticed.intValue());
@@ -177,8 +178,8 @@ public class ShortfallAutoscalerTest {
         Assert.assertNotNull(result);
         expected = newRequests;
         expected /= cpus1;
-        scaleUpNoticed = scaleUpReqQ.poll(coolDownSecs, TimeUnit.SECONDS);
-        Assert.assertNotNull(scaleUpNoticed);
+        Thread.sleep(500); // at least two times schedulingSvc maxIterDelay
+        scaleUpNoticed = scaleUpReceived.getAndSet(0);
         Assert.assertEquals(expected, scaleUpNoticed.intValue());
         if (!rejectedHosts.isEmpty()) {
             for (String h: rejectedHosts) {
@@ -249,7 +250,7 @@ public class ShortfallAutoscalerTest {
         // wait for scale up actions
         int waitingFor = 2;
         while (waitingFor > 0) {
-            final Map<String, Integer> map = scaleupActionsQ.poll(coolDownSecs, TimeUnit.SECONDS);
+            final Map<String, Integer> map = scaleupActionsQ.poll(1, TimeUnit.SECONDS);
             Assert.assertNotNull(map);
             for (Map.Entry<String, Integer> entry: map.entrySet()) {
                 waitingFor--;
