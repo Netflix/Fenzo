@@ -85,7 +85,7 @@ class AssignableVMs {
     };
     private final ActiveVmGroups activeVmGroups;
     private String activeVmGroupAttributeName=null;
-    private final List<String> unknownLeaseIdsToExpire = new ArrayList<>();
+    private final BlockingQueue<String> unknownLeaseIdsToExpire = new LinkedBlockingQueue<>();
 
     AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction,
                   long leaseOfferExpirySecs, int maxOffersToReject,
@@ -181,7 +181,8 @@ class AssignableVMs {
     void expireLease(String leaseId) {
         final String hostname = leaseIdToHostnameMap.get(leaseId);
         if(hostname==null) {
-            unknownLeaseIdsToExpire.add(leaseId);
+            logger.debug("Received expiry request for an unknown lease: {}", leaseId);
+            unknownLeaseIdsToExpire.offer(leaseId);
             return;
         }
         internalExpireLease(leaseId, hostname);
@@ -253,13 +254,12 @@ class AssignableVMs {
     }
 
     private void expireAnyUnknownLeaseIds() {
-        if(!unknownLeaseIdsToExpire.isEmpty()) {
-            for(String leaseId: unknownLeaseIdsToExpire) {
-                final String hostname = leaseIdToHostnameMap.get(leaseId);
-                if(hostname!=null)
-                    internalExpireLease(leaseId, hostname);
-            }
-            unknownLeaseIdsToExpire.clear();
+        List<String> unknownExpiredLeases = new ArrayList<>();
+        unknownLeaseIdsToExpire.drainTo(unknownExpiredLeases);
+        for(String leaseId: unknownExpiredLeases) {
+            final String hostname = leaseIdToHostnameMap.get(leaseId);
+            if(hostname!=null)
+                internalExpireLease(leaseId, hostname);
         }
     }
 
