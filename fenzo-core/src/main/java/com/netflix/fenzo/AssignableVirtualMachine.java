@@ -225,7 +225,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
                                             int val0 = Integer.parseInt(val0Str);
                                             int val1 = Integer.parseInt(val1Str);
                                             final PreferentialNamedConsumableResourceSet crs =
-                                                    new PreferentialNamedConsumableResourceSet(name, val0, val1);
+                                                    new PreferentialNamedConsumableResourceSet(hostname, name, val0, val1);
                                             final Iterator<TaskRequest> iterator = consumedResourcesToAssign.iterator();
                                             while(iterator.hasNext()) {
                                                 TaskRequest request = iterator.next();

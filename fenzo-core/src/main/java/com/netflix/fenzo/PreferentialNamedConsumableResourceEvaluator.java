@@ -19,22 +19,26 @@ public interface PreferentialNamedConsumableResourceEvaluator {
     /**
      * Provide fitness score for an idle consumable resource.
      *
+     * @param hostname hostname of an agent
+     * @param resourceName name to be associated with a resource with the given index
      * @param index a consumable resource index
      * @param subResourcesNeeded an amount of sub-resources required by a scheduled task
      * @param subResourcesLimit a total amount of sub-resources available
      * @return fitness score
      */
-    double evaluateIdle(int index, double subResourcesNeeded, double subResourcesLimit);
+    double evaluateIdle(String hostname, String resourceName, int index, double subResourcesNeeded, double subResourcesLimit);
 
     /**
      * Provide fitness score for a consumable resource that is already associated with some tasks. These tasks and
      * the current one having profiles so can share the resource.
      *
+     * @param hostname hostname of an agent
+     * @param resourceName name associated with a resource with the given index
      * @param index a consumable resource index
      * @param subResourcesNeeded an amount of sub-resources required by a scheduled task
      * @param subResourcesUsed an amount of sub-resources already used by other tasks
      * @param subResourcesLimit a total amount of sub-resources available
      * @return fitness score
      */
-    double evaluate(int index, double subResourcesNeeded, double subResourcesUsed, double subResourcesLimit);
+    double evaluate(String hostname, String resourceName, int index, double subResourcesNeeded, double subResourcesUsed, double subResourcesLimit);
 }

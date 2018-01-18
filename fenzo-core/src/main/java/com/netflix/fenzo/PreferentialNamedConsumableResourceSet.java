@@ -90,6 +90,7 @@ public class PreferentialNamedConsumableResourceSet {
 
     public static class PreferentialNamedConsumableResource {
         private final double maxFitness;
+        private final String hostname;
         private final int index;
         private final String attrName;
         private String resName=null;
@@ -97,7 +98,8 @@ public class PreferentialNamedConsumableResourceSet {
         private final Map<String, TaskRequest.NamedResourceSetRequest> usageBy;
         private int usedSubResources=0;
 
-        PreferentialNamedConsumableResource(int i, String attrName, int limit) {
+        PreferentialNamedConsumableResource(String hostname, int i, String attrName, int limit) {
+            this.hostname = hostname;
             this.index = i;
             this.attrName = attrName;
             this.limit = limit;
@@ -138,10 +140,10 @@ public class PreferentialNamedConsumableResourceSet {
             // and request 0 sub-resources.
             if(setRequest == null) {
                 if(resName == null) {
-                    return evaluator.evaluateIdle(index, 0, limit);
+                    return evaluator.evaluateIdle(hostname, CustomResAbsentKey, index, 0, limit);
                 }
                 if(resName.equals(CustomResAbsentKey)) {
-                    return evaluator.evaluate(index, 0, usedSubResources, limit);
+                    return evaluator.evaluate(hostname, CustomResAbsentKey, index, 0, usedSubResources, limit);
                 }
                 return 0.0;
             }
@@ -153,7 +155,7 @@ public class PreferentialNamedConsumableResourceSet {
                 if(subResNeed > limit) {
                     return 0.0;
                 }
-                return evaluator.evaluateIdle(index, subResNeed, limit);
+                return evaluator.evaluateIdle(hostname, setRequest.getResValue(), index, subResNeed, limit);
             }
 
             // Resource assigned different name than requested
@@ -163,7 +165,7 @@ public class PreferentialNamedConsumableResourceSet {
             if(usedSubResources + subResNeed > limit) {
                 return 0.0;
             }
-            return evaluator.evaluate(index, subResNeed, usedSubResources, limit);
+            return evaluator.evaluate(hostname, setRequest.getResValue(), index, subResNeed, usedSubResources, limit);
         }
 
         void consume(TaskRequest request) {
@@ -210,11 +212,11 @@ public class PreferentialNamedConsumableResourceSet {
     private final String name;
     private final List<PreferentialNamedConsumableResource> usageBy;
 
-    public PreferentialNamedConsumableResourceSet(String name, int val0, int val1) {
+    public PreferentialNamedConsumableResourceSet(String hostname, String name, int val0, int val1) {
         this.name = name;
         usageBy = new ArrayList<>(val0);
         for(int i=0; i<val0; i++)
-            usageBy.add(new PreferentialNamedConsumableResource(i, name, val1));
+            usageBy.add(new PreferentialNamedConsumableResource(hostname, i, name, val1));
     }
 
     public String getName() {
