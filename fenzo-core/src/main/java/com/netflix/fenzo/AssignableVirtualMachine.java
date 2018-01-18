@@ -99,6 +99,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         }
     }
 
+    private final PreferentialNamedConsumableResourceEvaluator preferentialNamedConsumableResourceEvaluator;
     private final Map<String, VirtualMachineLease> leasesMap;
     private final BlockingQueue<String> workersToUnAssign;
     private final BlockingQueue<String> leasesToExpire;
@@ -140,17 +141,20 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private boolean firstLeaseAdded=false;
     private final List<TaskRequest> consumedResourcesToAssign = new ArrayList<>();
 
-    public AssignableVirtualMachine(ConcurrentMap<String, String> vmIdToHostnameMap,
+    public AssignableVirtualMachine(PreferentialNamedConsumableResourceEvaluator preferentialNamedConsumableResourceEvaluator,
+                                    ConcurrentMap<String, String> vmIdToHostnameMap,
                                     ConcurrentMap<String, String> leaseIdToHostnameMap,
                                     String hostname, Action1<VirtualMachineLease> leaseRejectAction,
                                     long leaseOfferExpirySecs, TaskTracker taskTracker) {
-        this(vmIdToHostnameMap, leaseIdToHostnameMap, hostname, leaseRejectAction, leaseOfferExpirySecs, taskTracker, false);
+        this(preferentialNamedConsumableResourceEvaluator, vmIdToHostnameMap, leaseIdToHostnameMap, hostname, leaseRejectAction, leaseOfferExpirySecs, taskTracker, false);
     }
 
-    public AssignableVirtualMachine(ConcurrentMap<String, String> vmIdToHostnameMap,
+    public AssignableVirtualMachine(PreferentialNamedConsumableResourceEvaluator preferentialNamedConsumableResourceEvaluator,
+                                    ConcurrentMap<String, String> vmIdToHostnameMap,
                                     ConcurrentMap<String, String> leaseIdToHostnameMap,
                                     String hostname, Action1<VirtualMachineLease> leaseRejectAction,
                                     long leaseOfferExpirySecs, TaskTracker taskTracker, boolean singleLeaseMode) {
+        this.preferentialNamedConsumableResourceEvaluator = preferentialNamedConsumableResourceEvaluator;
         this.vmIdToHostnameMap = vmIdToHostnameMap;
         this.leaseIdToHostnameMap = leaseIdToHostnameMap;
         this.hostname = hostname;
@@ -786,7 +790,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             for (Map.Entry<String, PreferentialNamedConsumableResourceSet> entry : resourceSets.entrySet()) {
                 if (!requestedNamedResNames.isEmpty())
                     requestedNamedResNames.remove(entry.getKey());
-                final double fitness = entry.getValue().getFitness(request);
+                final double fitness = entry.getValue().getFitness(request, preferentialNamedConsumableResourceEvaluator);
                 if (fitness == 0.0) {
                     AssignmentFailure failure = new AssignmentFailure(VMResource.ResourceSet, 0.0, 0.0, 0.0,
                             "ResourceSet " + entry.getValue().getName() + " unavailable"
@@ -951,7 +955,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             result.addPort(currPortRanges.consumeNextPort());
         }
         for(Map.Entry<String, PreferentialNamedConsumableResourceSet> entry: resourceSets.entrySet()) {
-            result.addResourceSet(entry.getValue().consume(result.getRequest()));
+            result.addResourceSet(entry.getValue().consume(result.getRequest(), preferentialNamedConsumableResourceEvaluator));
         }
         if(!taskTracker.addAssignedTask(result.getRequest(), this))
             logger.error("Unexpected to re-add task to assigned state, id=" + result.getRequest().getId());

@@ -86,6 +86,7 @@ public class TaskScheduler {
         private String autoScaleDownBalancedByAttributeName=null;
         private ScaleDownOrderEvaluator scaleDownOrderEvaluator;
         private Map<ScaleDownConstraintEvaluator, Double> weightedScaleDownConstraintEvaluators;
+        private PreferentialNamedConsumableResourceEvaluator preferentialNamedConsumableResourceEvaluator = new DefaultPreferentialNamedConsumableResourceEvaluator();
         private Action1<AutoScaleAction> autoscalerCallback=null;
         private long delayAutoscaleUpBySecs=0L;
         private long delayAutoscaleDownBySecs=0L;
@@ -100,6 +101,7 @@ public class TaskScheduler {
         private boolean disableShortfallEvaluation=false;
         private Map<String, ResAllocs> resAllocs=null;
         private boolean singleOfferMode=false;
+        private final List<SchedulingEventListener> schedulingEventListeners = new ArrayList<>();
 
         /**
          * (Required) Call this method to establish a method that your task scheduler will call to notify you
@@ -165,6 +167,11 @@ public class TaskScheduler {
          */
         public Builder withFitnessCalculator(VMTaskFitnessCalculator fitnessCalculator) {
             this.fitnessCalculator = fitnessCalculator;
+            return this;
+        }
+
+        public Builder withSchedulingEventListener(SchedulingEventListener schedulingEventListener) {
+            this.schedulingEventListeners.add(schedulingEventListener);
             return this;
         }
 
@@ -234,6 +241,11 @@ public class TaskScheduler {
          */
         public Builder withWeightedScaleDownConstraintEvaluators(Map<ScaleDownConstraintEvaluator, Double> weightedScaleDownConstraintEvaluators) {
             this.weightedScaleDownConstraintEvaluators = weightedScaleDownConstraintEvaluators;
+            return this;
+        }
+
+        public Builder withPreferentialNamedConsumableResourceEvaluator(PreferentialNamedConsumableResourceEvaluator preferentialNamedConsumableResourceEvaluator) {
+            this.preferentialNamedConsumableResourceEvaluator = preferentialNamedConsumableResourceEvaluator;
             return this;
         }
 
@@ -454,6 +466,7 @@ public class TaskScheduler {
     private long lastVMPurgeAt=System.currentTimeMillis();
     private final Builder builder;
     private final StateMonitor stateMonitor;
+    private final SchedulingEventListener schedulingEventListener;
     private final AutoScaler autoScaler;
     private final int EXEC_SVC_THREADS=Runtime.getRuntime().availableProcessors();
     private final ExecutorService executorService = Executors.newFixedThreadPool(EXEC_SVC_THREADS);
@@ -468,9 +481,10 @@ public class TaskScheduler {
             throw new IllegalArgumentException("Lease reject action must be non-null");
         this.builder = builder;
         this.stateMonitor = new StateMonitor();
+        this.schedulingEventListener = CompositeSchedulingEventListener.of(builder.schedulingEventListeners);
         taskTracker = new TaskTracker();
         resAllocsEvaluator = new ResAllocsEvaluater(taskTracker, builder.resAllocs);
-        assignableVMs = new AssignableVMs(taskTracker, builder.leaseRejectAction,
+        assignableVMs = new AssignableVMs(taskTracker, builder.leaseRejectAction, builder.preferentialNamedConsumableResourceEvaluator,
                 builder.leaseOfferExpirySecs, builder.maxOffersToReject, builder.autoScaleByAttributeName,
                 builder.singleOfferMode, builder.autoScaleByAttributeName);
         if(builder.autoScaleByAttributeName != null && !builder.autoScaleByAttributeName.isEmpty()) {
@@ -771,107 +785,113 @@ public class TaskScheduler {
                 failedTasksForAutoScaler.add(taskOrFailure.getTask());
             }
         } else {
-            while (true) {
-                final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
-                if(logger.isDebugEnabled())
-                    logger.debug("TaskSched: task=" + (taskOrFailure == null? "null" : taskOrFailure.getTask().getId()));
-                if (taskOrFailure == null)
-                    break;
-                if(taskOrFailure.hasFailure()) {
-                    schedulingResult.addFailures(
-                            taskOrFailure.getTask(),
-                            Collections.singletonList(new TaskAssignmentResult(
-                                    assignableVMs.getDummyVM(),
-                                    taskOrFailure.getTask(),
-                                    false,
-                                    Collections.singletonList(taskOrFailure.getAssignmentFailure()),
-                                    null,
-                                    0
-                            )
-                    ));
-                    continue;
-                }
-                TaskRequest task = taskOrFailure.getTask();
-                failedTasksForAutoScaler.add(task);
-                if(hasResAllocs) {
-                    if(resAllocsEvaluator.taskGroupFailed(task.taskGroupName())) {
-                        if(logger.isDebugEnabled())
-                            logger.debug("Resource allocation limits reached for task: " + task.getId());
-                        continue;
-                    }
-                    final AssignmentFailure resAllocsFailure = resAllocsEvaluator.hasResAllocs(task);
-                    if(resAllocsFailure != null) {
-                        final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(),
-                                task, false, Collections.singletonList(resAllocsFailure), null, 0.0));
-                        schedulingResult.addFailures(task, failures);
-                        failedTasksForAutoScaler.remove(task); // don't scale up for resAllocs failures
-                        if(logger.isDebugEnabled())
-                            logger.debug("Resource allocation limit reached for task " + task.getId() + ": " + resAllocsFailure);
-                        continue;
-                    }
-                }
-                final AssignmentFailure maxResourceFailure = assignableVMs.getFailedMaxResource(null, task);
-                if(maxResourceFailure != null) {
-                    final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(), task, false,
-                            Collections.singletonList(maxResourceFailure), null, 0.0));
-                    schedulingResult.addFailures(task, failures);
+            schedulingEventListener.onScheduleStart();
+            try {
+                while (true) {
+                    final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
                     if(logger.isDebugEnabled())
-                        logger.debug("Task {}: maxResource failure: {}", task.getId(), maxResourceFailure);
-                    continue;
-                }
-                // create batches of VMs to evaluate assignments concurrently across the batches
-                final BlockingQueue<AssignableVirtualMachine> virtualMachines = new ArrayBlockingQueue<>(avms.size(), false, avms);
-                int nThreads = (int)Math.ceil((double)avms.size()/ PARALLEL_SCHED_EVAL_MIN_BATCH_SIZE);
-                List<Future<EvalResult>> futures = new ArrayList<>();
-                if(logger.isDebugEnabled())
-                    logger.debug("Launching {} threads for evaluating assignments for task {}", nThreads, task.getId());
-                for(int b=0; b<nThreads && b<EXEC_SVC_THREADS; b++) {
-                    futures.add(executorService.submit(new Callable<EvalResult>() {
-                        @Override
-                        public EvalResult call() throws Exception {
-                            return evalAssignments(task, virtualMachines);
-                        }
-                    }));
-                }
-                List<EvalResult> results = new ArrayList<>();
-                List<TaskAssignmentResult> bestResults = new ArrayList<>();
-                for(Future<EvalResult> f: futures) {
-                    try {
-                        EvalResult evalResult = f.get();
-                        if(evalResult.exception!=null) {
-                            logger.warn("Error during concurrent task assignment eval - " + evalResult.exception.getMessage(),
-                                    evalResult.exception);
-                            schedulingResult.addException(evalResult.exception);
-                        }
-                        else {
-                            results.add(evalResult);
-                            bestResults.add(evalResult.result);
+                        logger.debug("TaskSched: task=" + (taskOrFailure == null? "null" : taskOrFailure.getTask().getId()));
+                    if (taskOrFailure == null)
+                        break;
+                    if(taskOrFailure.hasFailure()) {
+                        schedulingResult.addFailures(
+                                taskOrFailure.getTask(),
+                                Collections.singletonList(new TaskAssignmentResult(
+                                        assignableVMs.getDummyVM(),
+                                        taskOrFailure.getTask(),
+                                        false,
+                                        Collections.singletonList(taskOrFailure.getAssignmentFailure()),
+                                        null,
+                                        0
+                                )
+                        ));
+                        continue;
+                    }
+                    TaskRequest task = taskOrFailure.getTask();
+                    failedTasksForAutoScaler.add(task);
+                    if(hasResAllocs) {
+                        if(resAllocsEvaluator.taskGroupFailed(task.taskGroupName())) {
                             if(logger.isDebugEnabled())
-                                logger.debug("Task {}: best result so far: {}", task.getId(), evalResult.result);
-                            totalNumAllocations += evalResult.numAllocationTrials;
+                                logger.debug("Resource allocation limits reached for task: " + task.getId());
+                            continue;
                         }
-                    } catch (InterruptedException|ExecutionException e) {
-                        logger.error("Unexpected during concurrent task assignment eval - " + e.getMessage(), e);
+                        final AssignmentFailure resAllocsFailure = resAllocsEvaluator.hasResAllocs(task);
+                        if(resAllocsFailure != null) {
+                            final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(),
+                                    task, false, Collections.singletonList(resAllocsFailure), null, 0.0));
+                            schedulingResult.addFailures(task, failures);
+                            failedTasksForAutoScaler.remove(task); // don't scale up for resAllocs failures
+                            if(logger.isDebugEnabled())
+                                logger.debug("Resource allocation limit reached for task " + task.getId() + ": " + resAllocsFailure);
+                            continue;
+                        }
+                    }
+                    final AssignmentFailure maxResourceFailure = assignableVMs.getFailedMaxResource(null, task);
+                    if(maxResourceFailure != null) {
+                        final List<TaskAssignmentResult> failures = Collections.singletonList(new TaskAssignmentResult(assignableVMs.getDummyVM(), task, false,
+                                Collections.singletonList(maxResourceFailure), null, 0.0));
+                        schedulingResult.addFailures(task, failures);
+                        if(logger.isDebugEnabled())
+                            logger.debug("Task {}: maxResource failure: {}", task.getId(), maxResourceFailure);
+                        continue;
+                    }
+                    // create batches of VMs to evaluate assignments concurrently across the batches
+                    final BlockingQueue<AssignableVirtualMachine> virtualMachines = new ArrayBlockingQueue<>(avms.size(), false, avms);
+                    int nThreads = (int)Math.ceil((double)avms.size()/ PARALLEL_SCHED_EVAL_MIN_BATCH_SIZE);
+                    List<Future<EvalResult>> futures = new ArrayList<>();
+                    if(logger.isDebugEnabled())
+                        logger.debug("Launching {} threads for evaluating assignments for task {}", nThreads, task.getId());
+                    for(int b=0; b<nThreads && b<EXEC_SVC_THREADS; b++) {
+                        futures.add(executorService.submit(new Callable<EvalResult>() {
+                            @Override
+                            public EvalResult call() throws Exception {
+                                return evalAssignments(task, virtualMachines);
+                            }
+                        }));
+                    }
+                    List<EvalResult> results = new ArrayList<>();
+                    List<TaskAssignmentResult> bestResults = new ArrayList<>();
+                    for(Future<EvalResult> f: futures) {
+                        try {
+                            EvalResult evalResult = f.get();
+                            if(evalResult.exception!=null) {
+                                logger.warn("Error during concurrent task assignment eval - " + evalResult.exception.getMessage(),
+                                        evalResult.exception);
+                                schedulingResult.addException(evalResult.exception);
+                            }
+                            else {
+                                results.add(evalResult);
+                                bestResults.add(evalResult.result);
+                                if(logger.isDebugEnabled())
+                                    logger.debug("Task {}: best result so far: {}", task.getId(), evalResult.result);
+                                totalNumAllocations += evalResult.numAllocationTrials;
+                            }
+                        } catch (InterruptedException|ExecutionException e) {
+                            logger.error("Unexpected during concurrent task assignment eval - " + e.getMessage(), e);
+                        }
+                    }
+                    if(!schedulingResult.getExceptions().isEmpty())
+                        break;
+                    TaskAssignmentResult successfulResult = getSuccessfulResult(bestResults);
+                    List<TaskAssignmentResult> failures = new ArrayList<>();
+                    if(successfulResult == null) {
+                        if(logger.isDebugEnabled())
+                            logger.debug("Task {}: no successful results", task.getId());
+                        for(EvalResult er: results)
+                            failures.addAll(er.assignmentResults);
+                        schedulingResult.addFailures(task, failures);
+                    }
+                    else {
+                        if(logger.isDebugEnabled())
+                            logger.debug("Task {}: found successful assignment on host {}", task.getId(),
+                                    successfulResult.getHostname());
+                        successfulResult.assignResult();
+                        failedTasksForAutoScaler.remove(task);
+                        schedulingEventListener.onAssignment(successfulResult);
                     }
                 }
-                if(!schedulingResult.getExceptions().isEmpty())
-                    break;
-                TaskAssignmentResult successfulResult = getSuccessfulResult(bestResults);
-                List<TaskAssignmentResult> failures = new ArrayList<>();
-                if(successfulResult == null) {
-                    if(logger.isDebugEnabled())
-                        logger.debug("Task {}: no successful results", task.getId());
-                    for(EvalResult er: results)
-                        failures.addAll(er.assignmentResults);
-                    schedulingResult.addFailures(task, failures);
-                }
-                else {
-                    if(logger.isDebugEnabled())
-                        logger.debug("Task {}: found successful assignment on host {}", task.getId(),
-                                successfulResult.getHostname());
-                    successfulResult.assignResult();
-                    failedTasksForAutoScaler.remove(task);
-                }
+            } finally {
+                schedulingEventListener.onScheduleFinish();
             }
         }
         List<VirtualMachineLease> idleResourcesList = new ArrayList<>();

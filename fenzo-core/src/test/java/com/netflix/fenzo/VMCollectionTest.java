@@ -130,6 +130,7 @@ public class VMCollectionTest {
         Action1<VirtualMachineLease> leaseRejectAction = l -> {};
         return new VMCollection(s -> {
             AssignableVirtualMachine avm = new AssignableVirtualMachine(
+                    DefaultPreferentialNamedConsumableResourceEvaluator.INSTANCE,
                     vmIdTohostNames,
                     leasesToHostnames,
                     s,

@@ -19,8 +19,6 @@ package com.netflix.fenzo;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -131,19 +129,41 @@ public class PreferentialNamedConsumableResourceSet {
             return usedSubResources;
         }
 
-        double getFitness(TaskRequest request) {
-            String r = getResNameVal(attrName, request);
-            if(resName == null)
-                return 0.5 / maxFitness; // unassigned: 0.0 indicates no fitness, so return 0.5, which is less than
-                // the case of assigned with 0 sub-resources
-            if(!resName.equals(r))
+        double getFitness(TaskRequest request, PreferentialNamedConsumableResourceEvaluator evaluator) {
+            TaskRequest.NamedResourceSetRequest setRequest = request.getCustomNamedResources()==null
+                    ? null
+                    : request.getCustomNamedResources().get(attrName);
+
+            // This particular resource type is not requested. We assign to it virtual resource name 'CustomResAbsentKey',
+            // and request 0 sub-resources.
+            if(setRequest == null) {
+                if(resName == null) {
+                    return evaluator.evaluateIdle(index, 0, limit);
+                }
+                if(resName.equals(CustomResAbsentKey)) {
+                    return evaluator.evaluate(index, 0, usedSubResources, limit);
+                }
                 return 0.0;
-            final TaskRequest.NamedResourceSetRequest setRequest = request.getCustomNamedResources()==null?
-                    null : request.getCustomNamedResources().get(attrName);
-            double subResNeed = setRequest==null? 0.0 : setRequest.getNumSubResources();
-            if(usedSubResources + subResNeed > limit)
+            }
+
+            double subResNeed = setRequest.getNumSubResources();
+
+            // Resource not assigned yet to any task
+            if(resName == null) {
+                if(subResNeed > limit) {
+                    return 0.0;
+                }
+                return evaluator.evaluateIdle(index, subResNeed, limit);
+            }
+
+            // Resource assigned different name than requested
+            if(!resName.equals(setRequest.getResValue())) {
                 return 0.0;
-            return Math.min(1.0, usedSubResources + subResNeed + 1.0 / maxFitness);
+            }
+            if(usedSubResources + subResNeed > limit) {
+                return 0.0;
+            }
+            return evaluator.evaluate(index, subResNeed, usedSubResources, limit);
         }
 
         void consume(TaskRequest request) {
@@ -209,8 +229,8 @@ public class PreferentialNamedConsumableResourceSet {
 //        return false;
 //    }
 
-    ConsumeResult consume(TaskRequest request) {
-        return consumeIntl(request, false);
+    ConsumeResult consume(TaskRequest request, PreferentialNamedConsumableResourceEvaluator evaluator) {
+        return consumeIntl(request, false, evaluator);
     }
 
     void assign(TaskRequest request) {
@@ -233,15 +253,15 @@ public class PreferentialNamedConsumableResourceSet {
     }
 
     // returns 0.0 for no fitness at all, or <=1.0 for fitness
-    double getFitness(TaskRequest request) {
-        return consumeIntl(request, true).fitness;
+    double getFitness(TaskRequest request, PreferentialNamedConsumableResourceEvaluator evaluator) {
+        return consumeIntl(request, true, evaluator).fitness;
     }
 
-    private ConsumeResult consumeIntl(TaskRequest request, boolean skipConsume) {
+    private ConsumeResult consumeIntl(TaskRequest request, boolean skipConsume, PreferentialNamedConsumableResourceEvaluator evaluator) {
         PreferentialNamedConsumableResource best = null;
         double bestFitness=0.0;
         for(PreferentialNamedConsumableResource r: usageBy) {
-            double f = r.getFitness(request);
+            double f = r.getFitness(request, evaluator);
             if(f == 0.0)
                 continue;
             if(bestFitness < f) {
