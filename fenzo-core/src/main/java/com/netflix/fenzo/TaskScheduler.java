@@ -102,6 +102,7 @@ public class TaskScheduler {
         private Map<String, ResAllocs> resAllocs=null;
         private boolean singleOfferMode=false;
         private final List<SchedulingEventListener> schedulingEventListeners = new ArrayList<>();
+        private int maxConcurrent = Runtime.getRuntime().availableProcessors();
 
         /**
          * (Required) Call this method to establish a method that your task scheduler will call to notify you
@@ -427,6 +428,21 @@ public class TaskScheduler {
         }
 
         /**
+         * Fenzo creates multiple threads to speed up task placement evaluation. By default the number of threads
+         * created is equal to the number of available CPUs. As the computation cost is a multiplication of
+         * (scheduling_loop_rate * number_of_agents * number_of_tasks_in_queue), having a large agent fleet with
+         * an accumulated unscheduled workload may easily saturate all available CPUs, affecting the whole system
+         * performance. To avoid this, it is recommended to configure Fenzo with a fewer amount of threads.
+         *
+         * @param maxConcurrent maximum number of threads Fenzo is allowed to use
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskScheduler}
+         */
+        public Builder withMaxConcurrent(int maxConcurrent) {
+            this.maxConcurrent = maxConcurrent;
+            return this;
+        }
+
+        /**
          * Creates a {@link TaskScheduler} based on the various builder methods you have chained.
          *
          * @return a {@code TaskScheduler} built according to the specifications you indicated
@@ -468,8 +484,8 @@ public class TaskScheduler {
     private final StateMonitor stateMonitor;
     private final SchedulingEventListener schedulingEventListener;
     private final AutoScaler autoScaler;
-    private final int EXEC_SVC_THREADS=Runtime.getRuntime().availableProcessors();
-    private final ExecutorService executorService = Executors.newFixedThreadPool(EXEC_SVC_THREADS);
+    private final int maxConcurrent;
+    private final ExecutorService executorService;
     private final AtomicBoolean isShutdown = new AtomicBoolean();
     private final ResAllocsEvaluater resAllocsEvaluator;
     private final TaskTracker taskTracker;
@@ -480,6 +496,8 @@ public class TaskScheduler {
         if(builder.leaseRejectAction ==null)
             throw new IllegalArgumentException("Lease reject action must be non-null");
         this.builder = builder;
+        this.maxConcurrent = builder.maxConcurrent;
+        this.executorService = Executors.newFixedThreadPool(maxConcurrent);
         this.stateMonitor = new StateMonitor();
         this.schedulingEventListener = CompositeSchedulingEventListener.of(builder.schedulingEventListeners);
         taskTracker = new TaskTracker();
@@ -841,7 +859,7 @@ public class TaskScheduler {
                     List<Future<EvalResult>> futures = new ArrayList<>();
                     if(logger.isDebugEnabled())
                         logger.debug("Launching {} threads for evaluating assignments for task {}", nThreads, task.getId());
-                    for(int b=0; b<nThreads && b<EXEC_SVC_THREADS; b++) {
+                    for(int b = 0; b<nThreads && b< maxConcurrent; b++) {
                         futures.add(executorService.submit(new Callable<EvalResult>() {
                             @Override
                             public EvalResult call() throws Exception {
