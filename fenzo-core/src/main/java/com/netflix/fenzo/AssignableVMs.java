@@ -77,7 +77,7 @@ class AssignableVMs {
     private final Map<String, Map<VMResource, Double>> maxResourcesMap;
     private final Map<VMResource, Double> totalResourcesMap;
     private final VMRejectLimiter vmRejectLimiter;
-    private final AssignableVirtualMachine dummyVM = new AssignableVirtualMachine(null, null, "", null, 0L, null) {
+    private final AssignableVirtualMachine dummyVM = new AssignableVirtualMachine(null, null, null, "", null, 0L, null) {
         @Override
         void assignResult(TaskAssignmentResult result) {
             throw new UnsupportedOperationException();
@@ -88,11 +88,12 @@ class AssignableVMs {
     private final BlockingQueue<String> unknownLeaseIdsToExpire = new LinkedBlockingQueue<>();
 
     AssignableVMs(TaskTracker taskTracker, Action1<VirtualMachineLease> leaseRejectAction,
+                  PreferentialNamedConsumableResourceEvaluator preferentialNamedConsumableResourceEvaluator,
                   long leaseOfferExpirySecs, int maxOffersToReject,
                   String attrNameToGroupMaxResources, boolean singleLeaseMode, String autoScaleByAttributeName) {
         this.taskTracker = taskTracker;
         vmCollection = new VMCollection(
-                hostname -> new AssignableVirtualMachine(vmIdToHostnameMap, leaseIdToHostnameMap, hostname,
+                hostname -> new AssignableVirtualMachine(preferentialNamedConsumableResourceEvaluator, vmIdToHostnameMap, leaseIdToHostnameMap, hostname,
                         leaseRejectAction, leaseOfferExpirySecs, taskTracker, singleLeaseMode),
                 autoScaleByAttributeName
         );
