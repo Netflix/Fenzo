@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,7 +90,6 @@ public class PreferentialNamedConsumableResourceSet {
     }
 
     public static class PreferentialNamedConsumableResource {
-        private final double maxFitness;
         private final String hostname;
         private final int index;
         private final String attrName;
@@ -104,9 +104,6 @@ public class PreferentialNamedConsumableResourceSet {
             this.attrName = attrName;
             this.limit = limit;
             usageBy = new HashMap<>();
-            // we add 1.0 to max fitness possible since we add 1.0 for the situation when there is already a task
-            // assigned with the same resValue even though it uses 0.0 subResources, versus, there are no assignments yet.
-            maxFitness = limit + 1.0;
         }
 
         public int getIndex() {
@@ -125,9 +122,10 @@ public class PreferentialNamedConsumableResourceSet {
             return usageBy;
         }
 
-        double getUsedCount() {
-            if(resName==null)
+        public int getUsedCount() {
+            if(resName == null) {
                 return -1;
+            }
             return usedSubResources;
         }
 
@@ -223,6 +221,10 @@ public class PreferentialNamedConsumableResourceSet {
         return name;
     }
 
+    public List<PreferentialNamedConsumableResource> getUsageBy() {
+        return Collections.unmodifiableList(usageBy);
+    }
+
 //    boolean hasAvailability(TaskRequest request) {
 //        for(PreferentialNamedConsumableResource r: usageBy) {
 //            if(r.hasAvailability(request))
@@ -298,7 +300,7 @@ public class PreferentialNamedConsumableResourceSet {
     List<Double> getUsedCounts() {
         List<Double> counts = new ArrayList<>(usageBy.size());
         for(PreferentialNamedConsumableResource r: usageBy)
-            counts.add(r.getUsedCount());
+            counts.add((double) r.getUsedCount());
         return counts;
     }
 }
