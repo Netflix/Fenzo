@@ -447,8 +447,8 @@ public class TaskScheduler {
         }
 
         /**
-         * Use the given supplier to determine how many tasks should be evaluated in the next scheduling iteration. This
-         * can be used to dynamically change how many task evaluations are done in order to increase/reduce the scheduling iteration
+         * Use the given supplier to determine how many successful tasks should be evaluated in the next scheduling iteration. This
+         * can be used to dynamically change how many successful task evaluations are done in order to increase/reduce the scheduling iteration
          * duration. The default supplier implementation will return {@link Long#MAX_VALUE} such that all tasks will be
          * evaluated.
          *
@@ -818,13 +818,9 @@ public class TaskScheduler {
         long tasksIterationCount = 0;
         if(avms.isEmpty()) {
             while (true) {
-                if (tasksIterationCount >= taskBatchSize) {
-                    break;
-                }
                 final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
                 if (taskOrFailure == null)
                     break;
-                tasksIterationCount++;
                 failedTasksForAutoScaler.add(taskOrFailure.getTask());
             }
         } else {
@@ -839,7 +835,6 @@ public class TaskScheduler {
                         logger.debug("TaskSched: task=" + (taskOrFailure == null? "null" : taskOrFailure.getTask().getId()));
                     if (taskOrFailure == null)
                         break;
-                    tasksIterationCount++;
                     if(taskOrFailure.hasFailure()) {
                         schedulingResult.addFailures(
                                 taskOrFailure.getTask(),
@@ -933,6 +928,7 @@ public class TaskScheduler {
                             logger.debug("Task {}: found successful assignment on host {}", task.getId(),
                                     successfulResult.getHostname());
                         successfulResult.assignResult();
+                        tasksIterationCount++;
                         failedTasksForAutoScaler.remove(task);
                         schedulingEventListener.onAssignment(successfulResult);
                     }
