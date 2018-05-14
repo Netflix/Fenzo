@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.common.ThreadFactoryBuilder;
 import com.netflix.fenzo.plugins.NoOpScaleDownOrderEvaluator;
 import com.netflix.fenzo.queues.Assignable;
 import com.netflix.fenzo.queues.QueuableTask;
@@ -34,8 +35,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -103,6 +106,7 @@ public class TaskScheduler {
         private boolean singleOfferMode=false;
         private final List<SchedulingEventListener> schedulingEventListeners = new ArrayList<>();
         private int maxConcurrent = Runtime.getRuntime().availableProcessors();
+        private Supplier<Long> taskBatchSizeSupplier = () -> Long.MAX_VALUE;
 
         /**
          * (Required) Call this method to establish a method that your task scheduler will call to notify you
@@ -443,6 +447,20 @@ public class TaskScheduler {
         }
 
         /**
+         * Use the given supplier to determine how many successful tasks should be evaluated in the next scheduling iteration. This
+         * can be used to dynamically change how many successful task evaluations are done in order to increase/reduce the scheduling iteration
+         * duration. The default supplier implementation will return {@link Long#MAX_VALUE} such that all tasks will be
+         * evaluated.
+         *
+         * @param taskBatchSizeSupplier the supplier that returns the task batch size for the next scheduling iteration.
+         * @return this same {@code Builder}, suitable for further chaining or to build the {@link TaskSchedulingService}.
+         */
+        public Builder withTaskBatchSizeSupplier(Supplier<Long> taskBatchSizeSupplier) {
+            this.taskBatchSizeSupplier = taskBatchSizeSupplier;
+            return this;
+        }
+
+        /**
          * Creates a {@link TaskScheduler} based on the various builder methods you have chained.
          *
          * @return a {@code TaskScheduler} built according to the specifications you indicated
@@ -497,7 +515,8 @@ public class TaskScheduler {
             throw new IllegalArgumentException("Lease reject action must be non-null");
         this.builder = builder;
         this.maxConcurrent = builder.maxConcurrent;
-        this.executorService = Executors.newFixedThreadPool(maxConcurrent);
+        ThreadFactory threadFactory = ThreadFactoryBuilder.newBuilder().withNameFormat("fenzo-worker-%d").build();
+        this.executorService = Executors.newFixedThreadPool(maxConcurrent, threadFactory);
         this.stateMonitor = new StateMonitor();
         this.schedulingEventListener = CompositeSchedulingEventListener.of(builder.schedulingEventListeners);
         taskTracker = new TaskTracker();
@@ -795,6 +814,8 @@ public class TaskScheduler {
         Set<TaskRequest> failedTasksForAutoScaler = new HashSet<>();
         Map<String, VMAssignmentResult> resultMap = new HashMap<>(avms.size());
         final SchedulingResult schedulingResult = new SchedulingResult(resultMap);
+        long taskBatchSize = builder.taskBatchSizeSupplier.get();
+        long tasksIterationCount = 0;
         if(avms.isEmpty()) {
             while (true) {
                 final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
@@ -806,6 +827,9 @@ public class TaskScheduler {
             schedulingEventListener.onScheduleStart();
             try {
                 while (true) {
+                    if (tasksIterationCount >= taskBatchSize) {
+                        break;
+                    }
                     final Assignable<? extends TaskRequest> taskOrFailure = taskIterator.next();
                     if(logger.isDebugEnabled())
                         logger.debug("TaskSched: task=" + (taskOrFailure == null? "null" : taskOrFailure.getTask().getId()));
@@ -904,6 +928,7 @@ public class TaskScheduler {
                             logger.debug("Task {}: found successful assignment on host {}", task.getId(),
                                     successfulResult.getHostname());
                         successfulResult.assignResult();
+                        tasksIterationCount++;
                         failedTasksForAutoScaler.remove(task);
                         schedulingEventListener.onAssignment(successfulResult);
                     }
