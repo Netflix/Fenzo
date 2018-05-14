@@ -16,6 +16,7 @@
 
 package com.netflix.fenzo;
 
+import com.netflix.fenzo.common.ThreadFactoryBuilder;
 import com.netflix.fenzo.functions.Action0;
 import com.netflix.fenzo.functions.Action1;
 import com.netflix.fenzo.functions.Func1;
@@ -39,6 +40,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -495,7 +497,8 @@ public class TaskSchedulingService {
         private boolean optimizingShortfallEvaluator = false;
 
         public Builder() {
-            executorService = new ScheduledThreadPoolExecutor(1);
+            ThreadFactory threadFactory = ThreadFactoryBuilder.newBuilder().withNameFormat("fenzo-main").build();
+            executorService = new ScheduledThreadPoolExecutor(1, threadFactory);
         }
 
         /**

@@ -552,4 +552,29 @@ public class BasicSchedulerTests {
         Assert.assertNotNull(ref.get());
         Assert.assertEquals(2, ref.get().size());
     }
+
+    @Test
+    public void testTaskBatchSize() {
+        TaskScheduler taskScheduler = new TaskScheduler.Builder()
+                .withLeaseOfferExpirySecs(1000000)
+                .withLeaseRejectAction(virtualMachineLease -> System.out.println("Rejecting offer on host " + virtualMachineLease.hostname()))
+                .withTaskBatchSizeSupplier(() -> 2L)
+                .build();
+        List<VirtualMachineLease> leases = LeaseProvider.getLeases(1, 5, 50, 1, 10);
+        List<TaskRequest> taskRequests = new ArrayList<>();
+        taskRequests.add(TaskRequestProvider.getTaskRequest(1, 10, 0));
+        taskRequests.add(TaskRequestProvider.getTaskRequest(1, 10, 0));
+        taskRequests.add(TaskRequestProvider.getTaskRequest(1, 10, 0));
+        taskRequests.add(TaskRequestProvider.getTaskRequest(1, 10, 0));
+        taskRequests.add(TaskRequestProvider.getTaskRequest(1, 10, 0));
+        SchedulingResult schedulingResult = taskScheduler.scheduleOnce(taskRequests, leases);
+        Assert.assertEquals(2, schedulingResult.getResultMap().values().iterator().next().getTasksAssigned().size());
+        taskRequests = new ArrayList<>();
+        taskRequests.add(TaskRequestProvider.getTaskRequest(1, 10, 0));
+        schedulingResult = taskScheduler.scheduleOnce(taskRequests, leases);
+        Assert.assertEquals(1, schedulingResult.getResultMap().values().iterator().next().getTasksAssigned().size());
+        taskRequests = new ArrayList<>();
+        schedulingResult = taskScheduler.scheduleOnce(taskRequests, leases);
+        Assert.assertEquals(0, schedulingResult.getResultMap().size());
+    }
 }
