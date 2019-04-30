@@ -492,7 +492,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     }
 
     void expireLease(String leaseId) {
-        logger.info("Got request to expire lease on " + hostname);
+        logger.debug("Got request to expire lease on " + hostname);
         leasesToExpire.offer(leaseId);
     }
 

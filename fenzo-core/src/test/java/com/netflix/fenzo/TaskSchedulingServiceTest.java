@@ -16,23 +16,35 @@
 
 package com.netflix.fenzo;
 
-import com.netflix.fenzo.functions.Action0;
-import com.netflix.fenzo.functions.Action1;
-import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
-import com.netflix.fenzo.queues.*;
-import com.netflix.fenzo.queues.tiered.QueuableTaskProvider;
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import com.netflix.fenzo.functions.Action0;
+import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.plugins.BinPackingFitnessCalculators;
+import com.netflix.fenzo.queues.QAttributes;
+import com.netflix.fenzo.queues.QueuableTask;
+import com.netflix.fenzo.queues.TaskQueue;
+import com.netflix.fenzo.queues.TaskQueueException;
+import com.netflix.fenzo.queues.TaskQueueMultiException;
+import com.netflix.fenzo.queues.TaskQueues;
+import com.netflix.fenzo.queues.tiered.QueuableTaskProvider;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TaskSchedulingServiceTest {
 
@@ -52,11 +64,8 @@ public class TaskSchedulingServiceTest {
                 .withTaskQueue(queue)
                 .withLoopIntervalMillis(loopMillis)
                 .withMaxDelayMillis(maxDelayMillis)
-                .withPreSchedulingLoopHook(new Action0() {
-                    @Override
-                    public void call() {
-                        //System.out.println("Pre-scheduling hook");
-                    }
+                .withPreSchedulingLoopHook(() -> {
+                    //System.out.println("Pre-scheduling hook");
                 })
                 .withSchedulingResultCallback(resultCallback)
                 .withTaskScheduler(scheduler)
@@ -64,15 +73,15 @@ public class TaskSchedulingServiceTest {
     }
 
     public TaskScheduler getScheduler() {
+        return getScheduler(avms -> avms);
+    }
+
+    public TaskScheduler getScheduler(Func1<List<AssignableVirtualMachine>, List<AssignableVirtualMachine>> assignableVMsEvaluator) {
         return new TaskScheduler.Builder()
                 .withLeaseOfferExpirySecs(1000000)
-                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
-                    @Override
-                    public void call(VirtualMachineLease virtualMachineLease) {
-                        System.out.println("Rejecting offer on host " + virtualMachineLease.hostname());
-                    }
-                })
+                .withLeaseRejectAction(virtualMachineLease -> System.out.println("Rejecting offer on host " + virtualMachineLease.hostname()))
                 .withFitnessCalculator(BinPackingFitnessCalculators.cpuMemBinPacker)
+                .withAssignableVMsEvaluator(assignableVMsEvaluator)
                 .build();
     }
 
@@ -88,15 +97,12 @@ public class TaskSchedulingServiceTest {
         final CountDownLatch latch = new CountDownLatch(1);
         TaskQueue queue = TaskQueues.createTieredQueue(2);
         final TaskScheduler scheduler = getScheduler();
-        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
-            @Override
-            public void call(SchedulingResult schedulingResult) {
-                //System.out.println("Got scheduling result with " + schedulingResult.getResultMap().size() + " results");
-                if (schedulingResult.getResultMap().size() > 0) {
-                    //System.out.println("Assignment on host " + schedulingResult.getResultMap().values().iterator().next().getHostname());
-                    latch.countDown();
-                    scheduler.shutdown();
-                }
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            //System.out.println("Got scheduling result with " + schedulingResult.getResultMap().size() + " results");
+            if (schedulingResult.getResultMap().size() > 0) {
+                //System.out.println("Assignment on host " + schedulingResult.getResultMap().values().iterator().next().getHostname());
+                latch.countDown();
+                scheduler.shutdown();
             }
         };
         final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, 1000L, resultCallback);
@@ -144,30 +150,27 @@ public class TaskSchedulingServiceTest {
         final CountDownLatch latch = new CountDownLatch(numTasks);
         final TaskScheduler scheduler = getScheduler();
         final AtomicReference<TaskSchedulingService> ref = new AtomicReference<>();
-        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
-            @Override
-            public void call(SchedulingResult schedulingResult) {
-                //System.out.println("Got scheduling result with " + schedulingResult.getResultMap().size() + " results");
-                if (!schedulingResult.getExceptions().isEmpty()) {
-                    Assert.fail(schedulingResult.getExceptions().get(0).getMessage());
-                }
-                else if (schedulingResult.getResultMap().size() > 0) {
-                    final VMAssignmentResult vmAssignmentResult = schedulingResult.getResultMap().values().iterator().next();
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            //System.out.println("Got scheduling result with " + schedulingResult.getResultMap().size() + " results");
+            if (!schedulingResult.getExceptions().isEmpty()) {
+                Assert.fail(schedulingResult.getExceptions().get(0).getMessage());
+            }
+            else if (schedulingResult.getResultMap().size() > 0) {
+                final VMAssignmentResult vmAssignmentResult = schedulingResult.getResultMap().values().iterator().next();
 //                    System.out.println("Assignment on host " + vmAssignmentResult.getHostname() +
 //                            " with " + vmAssignmentResult.getTasksAssigned().size() + " tasks"
 //                    );
-                    for (TaskAssignmentResult r: vmAssignmentResult.getTasksAssigned()) {
-                        latch.countDown();
-                    }
-                    ref.get().addLeases(
-                            Collections.singletonList(LeaseProvider.getConsumedLease(vmAssignmentResult))
-                    );
+                for (TaskAssignmentResult r: vmAssignmentResult.getTasksAssigned()) {
+                    latch.countDown();
                 }
-                else {
-                    final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
-                    if (!failures.isEmpty()) {
-                        Assert.fail(failures.values().iterator().next().iterator().next().toString());
-                    }
+                ref.get().addLeases(
+                        Collections.singletonList(LeaseProvider.getConsumedLease(vmAssignmentResult))
+                );
+            }
+            else {
+                final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
+                if (!failures.isEmpty()) {
+                    Assert.fail(failures.values().iterator().next().iterator().next().toString());
                 }
             }
         };
@@ -189,25 +192,22 @@ public class TaskSchedulingServiceTest {
         TaskQueue queue = TaskQueues.createTieredQueue(2);
         final TaskScheduler scheduler = getScheduler();
         final BlockingQueue<QueuableTask> assignmentResults = new LinkedBlockingQueue<>();
-        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
-            @Override
-            public void call(SchedulingResult schedulingResult) {
-                final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
-                if (!resultMap.isEmpty()) {
-                    for (VMAssignmentResult r: resultMap.values()) {
-                        for (TaskAssignmentResult t: r.getTasksAssigned()) {
-                            assignmentResults.offer((QueuableTask)t.getRequest());
-                            //System.out.println("*******             Assignment for task " + t.getTaskId());
-                        }
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
+            if (!resultMap.isEmpty()) {
+                for (VMAssignmentResult r: resultMap.values()) {
+                    for (TaskAssignmentResult t: r.getTasksAssigned()) {
+                        assignmentResults.offer((QueuableTask)t.getRequest());
+                        //System.out.println("*******             Assignment for task " + t.getTaskId());
                     }
                 }
+            }
 //                final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
 //                if (!failures.isEmpty()) {
 //                    for (Map.Entry<TaskRequest, List<TaskAssignmentResult>> entry: failures.entrySet()) {
 //                        System.out.println("******                failures for task " + entry.getKey().getId());
 //                    }
 //                }
-            }
         };
         final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, 50L, resultCallback);
         // First, fill 4 VMs, each with 8 cores, with A using 15 cores, B using 6 cores, and C using 11 cores, with
@@ -265,25 +265,22 @@ public class TaskSchedulingServiceTest {
         TaskQueue queue = TaskQueues.createTieredQueue(2);
         final TaskScheduler scheduler = getScheduler();
         final BlockingQueue<QueuableTask> assignmentResults = new LinkedBlockingQueue<>();
-        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
-            @Override
-            public void call(SchedulingResult schedulingResult) {
-                final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
-                if (!resultMap.isEmpty()) {
-                    for (VMAssignmentResult r: resultMap.values()) {
-                        for (TaskAssignmentResult t: r.getTasksAssigned()) {
-                            assignmentResults.offer((QueuableTask)t.getRequest());
-                            //System.out.println("*******             Assignment for task " + t.getTaskId());
-                        }
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
+            if (!resultMap.isEmpty()) {
+                for (VMAssignmentResult r: resultMap.values()) {
+                    for (TaskAssignmentResult t: r.getTasksAssigned()) {
+                        assignmentResults.offer((QueuableTask)t.getRequest());
+                        //System.out.println("*******             Assignment for task " + t.getTaskId());
                     }
                 }
+            }
 //                final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
 //                if (!failures.isEmpty()) {
 //                    for (Map.Entry<TaskRequest, List<TaskAssignmentResult>> entry: failures.entrySet()) {
 //                        System.out.println("******                failures for task " + entry.getKey().getId());
 //                    }
 //                }
-            }
         };
         final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, 50L, resultCallback);
         // fill 4 hosts with tasks from A (tier 0) and tasks from D1 (tier 1)
@@ -313,17 +310,14 @@ public class TaskSchedulingServiceTest {
         Assert.assertEquals(tier1bktA.getBucketName(), task.getQAttributes().getBucketName());
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Map<TaskQueue.TaskState, Collection<QueuableTask>>> ref = new AtomicReference<>();
-        schedulingService.requestAllTasks(new Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>() {
-            @Override
-            public void call(Map<TaskQueue.TaskState, Collection<QueuableTask>> stateCollectionMap) {
-                //System.out.println("**************** Got tasks collection");
-                final Collection<QueuableTask> tasks = stateCollectionMap.get(TaskQueue.TaskState.QUEUED);
-                //System.out.println("********* size=" + tasks.size());
+        schedulingService.requestAllTasks(stateCollectionMap -> {
+            //System.out.println("**************** Got tasks collection");
+            final Collection<QueuableTask> tasks = stateCollectionMap.get(TaskQueue.TaskState.QUEUED);
+            //System.out.println("********* size=" + tasks.size());
 //                if (!tasks.isEmpty())
 //                    System.out.println("******** bucket: " + tasks.iterator().next().getQAttributes().getBucketName());
-                ref.set(stateCollectionMap);
-                latch.countDown();
-            }
+            ref.set(stateCollectionMap);
+            latch.countDown();
         });
         if (!latch.await(1000, TimeUnit.MILLISECONDS))
             Assert.fail("Time out waiting for tasks collection");
@@ -341,25 +335,22 @@ public class TaskSchedulingServiceTest {
         final TaskScheduler scheduler = getScheduler();
         final BlockingQueue<QueuableTask> assignmentResults = new LinkedBlockingQueue<>();
         final AtomicReference<TaskSchedulingService> ref = new AtomicReference<>();
-        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
-            @Override
-            public void call(SchedulingResult schedulingResult) {
-                final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
-                if (!resultMap.isEmpty()) {
-                    for (VMAssignmentResult r: resultMap.values()) {
-                        for (TaskAssignmentResult t: r.getTasksAssigned()) {
-                            assignmentResults.offer((QueuableTask)t.getRequest());
-                        }
-                        ref.get().addLeases(Collections.singletonList(LeaseProvider.getConsumedLease(r)));
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            final Map<String, VMAssignmentResult> resultMap = schedulingResult.getResultMap();
+            if (!resultMap.isEmpty()) {
+                for (VMAssignmentResult r: resultMap.values()) {
+                    for (TaskAssignmentResult t: r.getTasksAssigned()) {
+                        assignmentResults.offer((QueuableTask)t.getRequest());
                     }
+                    ref.get().addLeases(Collections.singletonList(LeaseProvider.getConsumedLease(r)));
                 }
+            }
 //                final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
 //                if (!failures.isEmpty()) {
 //                    for (Map.Entry<TaskRequest, List<TaskAssignmentResult>> entry: failures.entrySet()) {
 //                        System.out.println("******                failures for task " + entry.getKey().getId());
 //                    }
 //                }
-            }
         };
         final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, 50L, resultCallback);
         ref.set(schedulingService);
@@ -405,15 +396,12 @@ public class TaskSchedulingServiceTest {
         }
         final AtomicReference<String> bucketRef = new AtomicReference<>();
         final CountDownLatch latch = new CountDownLatch(1);
-        schedulingService.requestAllTasks(new Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>() {
-            @Override
-            public void call(Map<TaskQueue.TaskState, Collection<QueuableTask>> stateCollectionMap) {
-                final Collection<QueuableTask> tasks = stateCollectionMap.get(TaskQueue.TaskState.QUEUED);
-                if (tasks != null && !tasks.isEmpty()) {
-                    for (QueuableTask t : tasks)
-                        bucketRef.set(t.getQAttributes().getBucketName());
-                    latch.countDown();
-                }
+        schedulingService.requestAllTasks(stateCollectionMap -> {
+            final Collection<QueuableTask> tasks = stateCollectionMap.get(TaskQueue.TaskState.QUEUED);
+            if (tasks != null && !tasks.isEmpty()) {
+                for (QueuableTask t : tasks)
+                    bucketRef.set(t.getQAttributes().getBucketName());
+                latch.countDown();
             }
         });
         if (!latch.await(2000, TimeUnit.MILLISECONDS))
@@ -427,14 +415,11 @@ public class TaskSchedulingServiceTest {
         final CountDownLatch latch = new CountDownLatch(1);
         TaskQueue queue = TaskQueues.createTieredQueue(2);
         final TaskScheduler scheduler = getScheduler();
-        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
-            @Override
-            public void call(SchedulingResult schedulingResult) {
-                //System.out.println("Got scheduling result with " + schedulingResult.getResultMap().size() + " results");
-                if (schedulingResult.getResultMap().size() > 0) {
-                    //System.out.println("Assignment on host " + schedulingResult.getResultMap().values().iterator().next().getHostname());
-                    latch.countDown();
-                }
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            //System.out.println("Got scheduling result with " + schedulingResult.getResultMap().size() + " results");
+            if (schedulingResult.getResultMap().size() > 0) {
+                //System.out.println("Assignment on host " + schedulingResult.getResultMap().values().iterator().next().getHostname());
+                latch.countDown();
             }
         };
         final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, 100L, 200L, resultCallback);
@@ -447,15 +432,12 @@ public class TaskSchedulingServiceTest {
             Assert.fail("Did not assign resources in time");
         final CountDownLatch latch2 = new CountDownLatch(1);
         final AtomicBoolean found = new AtomicBoolean();
-        schedulingService.requestVmCurrentStates(new Action1<List<VirtualMachineCurrentState>>() {
-            @Override
-            public void call(List<VirtualMachineCurrentState> states) {
-                for (VirtualMachineCurrentState s: states) {
-                    for (TaskRequest t: s.getRunningTasks()) {
-                        if (t.getId().equals(task.getId())) {
-                            found.set(true);
-                            latch2.countDown();
-                        }
+        schedulingService.requestVmCurrentStates(states -> {
+            for (VirtualMachineCurrentState s: states) {
+                for (TaskRequest t: s.getRunningTasks()) {
+                    if (t.getId().equals(task.getId())) {
+                        found.set(true);
+                        latch2.countDown();
                     }
                 }
             }
@@ -467,19 +449,16 @@ public class TaskSchedulingServiceTest {
         schedulingService.removeTask(task.getId(), task.getQAttributes(), leases.get(0).hostname());
         found.set(false);
         final CountDownLatch latch3 = new CountDownLatch(1);
-        schedulingService.requestVmCurrentStates(new Action1<List<VirtualMachineCurrentState>>() {
-            @Override
-            public void call(List<VirtualMachineCurrentState> states) {
-                for (VirtualMachineCurrentState s: states) {
-                    for (TaskRequest t: s.getRunningTasks()) {
-                        if (t.getId().equals(task.getId())) {
-                            found.set(true);
-                            latch3.countDown();
-                        }
+        schedulingService.requestVmCurrentStates(states -> {
+            for (VirtualMachineCurrentState s: states) {
+                for (TaskRequest t: s.getRunningTasks()) {
+                    if (t.getId().equals(task.getId())) {
+                        found.set(true);
+                        latch3.countDown();
                     }
                 }
-                latch3.countDown();
             }
+            latch3.countDown();
         });
         if (!latch3.await(5, TimeUnit.SECONDS)) {
             Assert.fail("Timeout waiting for vm states");
@@ -493,11 +472,8 @@ public class TaskSchedulingServiceTest {
         TaskQueue queue = TaskQueues.createTieredQueue(2);
         final TaskScheduler scheduler = getScheduler();
         queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 100, 1)));
-        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
-            @Override
-            public void call(SchedulingResult schedulingResult) {
-                // no-op
-            }
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            // no-op
         };
         final long maxDelay = 500L;
         final long loopMillis = 50L;
@@ -536,11 +512,8 @@ public class TaskSchedulingServiceTest {
     public void testInitWithPrevRunningTasks() throws Exception {
         TaskQueue queue = TaskQueues.createTieredQueue(2);
         final TaskScheduler scheduler = getScheduler();
-        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
-            @Override
-            public void call(SchedulingResult schedulingResult) {
-                // no-op
-            }
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            // no-op
         };
         final long maxDelay = 500L;
         final long loopMillis = 50L;
@@ -554,15 +527,12 @@ public class TaskSchedulingServiceTest {
         final AtomicReference<String> ref = new AtomicReference<>();
         final CountDownLatch latch = new CountDownLatch(1);
         schedulingService.requestVmCurrentStates(
-                new Action1<List<VirtualMachineCurrentState>>() {
-                    @Override
-                    public void call(List<VirtualMachineCurrentState> states) {
-                        if (states != null && !states.isEmpty()) {
-                            final VirtualMachineCurrentState state = states.iterator().next();
-                            ref.set(state.getHostname());
-                        }
-                        latch.countDown();
+                states -> {
+                    if (states != null && !states.isEmpty()) {
+                        final VirtualMachineCurrentState state = states.iterator().next();
+                        ref.set(state.getHostname());
                     }
+                    latch.countDown();
                 }
         );
         if (!latch.await(maxDelay * 2, TimeUnit.MILLISECONDS)) {
@@ -582,26 +552,23 @@ public class TaskSchedulingServiceTest {
         final CountDownLatch latch = new CountDownLatch(6);
         final AtomicReference<List<Exception>> ref = new AtomicReference<>();
         final AtomicBoolean printFailures = new AtomicBoolean();
-        Action1<SchedulingResult> resultCallback = new Action1<SchedulingResult>() {
-            @Override
-            public void call(SchedulingResult schedulingResult) {
-                final List<Exception> exceptions = schedulingResult.getExceptions();
-                if (exceptions != null && !exceptions.isEmpty())
-                    ref.set(exceptions);
-                else if (!schedulingResult.getResultMap().isEmpty())
-                    System.out.println("#Assignments: " + schedulingResult.getResultMap().values().iterator().next().getTasksAssigned().size());
-                else if(printFailures.get()) {
-                    final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
-                    if (!failures.isEmpty()) {
-                        for (Map.Entry<TaskRequest, List<TaskAssignmentResult>> entry: failures.entrySet()) {
-                            System.out.println("       Failure for " + entry.getKey().getId() + ":");
-                            for(TaskAssignmentResult r: entry.getValue())
-                                System.out.println("            " + r.toString());
-                        }
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            final List<Exception> exceptions = schedulingResult.getExceptions();
+            if (exceptions != null && !exceptions.isEmpty())
+                ref.set(exceptions);
+            else if (!schedulingResult.getResultMap().isEmpty())
+                System.out.println("#Assignments: " + schedulingResult.getResultMap().values().iterator().next().getTasksAssigned().size());
+            else if(printFailures.get()) {
+                final Map<TaskRequest, List<TaskAssignmentResult>> failures = schedulingResult.getFailures();
+                if (!failures.isEmpty()) {
+                    for (Map.Entry<TaskRequest, List<TaskAssignmentResult>> entry: failures.entrySet()) {
+                        System.out.println("       Failure for " + entry.getKey().getId() + ":");
+                        for(TaskAssignmentResult r: entry.getValue())
+                            System.out.println("            " + r.toString());
                     }
                 }
-                latch.countDown();
             }
+            latch.countDown();
         };
         final long maxDelay = 100L;
         final long loopMillis = 20L;
@@ -681,13 +648,36 @@ public class TaskSchedulingServiceTest {
         schedulingService.shutdown();
     }
 
-    private void setupTaskGetter(TaskSchedulingService schedulingService, final AtomicLong gotTasksAt, final CountDownLatch latch) throws TaskQueueException {
-        schedulingService.requestAllTasks(new Action1<Map<TaskQueue.TaskState, Collection<QueuableTask>>>() {
-            @Override
-            public void call(Map<TaskQueue.TaskState, Collection<QueuableTask>> stateCollectionMap) {
-                gotTasksAt.set(System.currentTimeMillis());
+    @Test
+    public void testAssignableVMsEvaluator() throws Exception {
+        int numVms = 10;
+        int numTasks = 5;
+        long loopMillis = 100;
+        TaskQueue queue = TaskQueues.createTieredQueue(2);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final TaskScheduler scheduler = getScheduler(avms -> avms.stream().limit(1).collect(Collectors.toList()));
+        final AtomicReference<TaskSchedulingService> ref = new AtomicReference<>();
+        Action1<SchedulingResult> resultCallback = schedulingResult -> {
+            if (schedulingResult.getTotalVMsCount() == numVms && schedulingResult.getFailures().size() == numTasks - 1) {
                 latch.countDown();
             }
+        };
+        final TaskSchedulingService schedulingService = getSchedulingService(queue, scheduler, loopMillis, resultCallback);
+        ref.set(schedulingService);
+        schedulingService.start();
+        schedulingService.addLeases(LeaseProvider.getLeases(numVms, 1, 4000, 1, 10));
+        for (int i = 0; i < numTasks; i++) {
+            queue.queueTask(QueuableTaskProvider.wrapTask(tier1bktA, TaskRequestProvider.getTaskRequest(1, 1000, 1)));
+        }
+        if (!latch.await(loopMillis * 10, TimeUnit.MILLISECONDS)) {
+            Assert.fail("Latch timed out without having a successful scheduling result");
+        }
+    }
+
+    private void setupTaskGetter(TaskSchedulingService schedulingService, final AtomicLong gotTasksAt, final CountDownLatch latch) throws TaskQueueException {
+        schedulingService.requestAllTasks(stateCollectionMap -> {
+            gotTasksAt.set(System.currentTimeMillis());
+            latch.countDown();
         });
     }
 

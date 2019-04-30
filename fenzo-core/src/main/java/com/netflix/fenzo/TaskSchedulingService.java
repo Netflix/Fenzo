@@ -136,12 +136,7 @@ public class TaskSchedulingService {
      * new leases.
      */
     public void start() {
-        executorService.scheduleWithFixedDelay(new Runnable() {
-            @Override
-            public void run() {
-                TaskSchedulingService.this.scheduleOnce();
-            }
-        }, 0, loopIntervalMillis, TimeUnit.MILLISECONDS);
+        executorService.scheduleWithFixedDelay(TaskSchedulingService.this::scheduleOnce, 0, loopIntervalMillis, TimeUnit.MILLISECONDS);
     }
 
     /**
