@@ -346,7 +346,7 @@ class AssignableVMs {
                         vmCollection.remove(avm);
                         if (avm.getCurrVMId() != null)
                             vmIdToHostnameMap.remove(avm.getCurrVMId(), avm.getHostname());
-                        logger.info("Removed inactive host " + avm.getHostname());
+                        logger.debug("Removed inactive host " + avm.getHostname());
                     }
                 }
             }

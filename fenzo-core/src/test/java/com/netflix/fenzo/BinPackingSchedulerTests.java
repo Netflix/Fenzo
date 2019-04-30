@@ -45,12 +45,7 @@ public class BinPackingSchedulerTests {
         return new TaskScheduler.Builder()
                 .withFitnessCalculator(fitnessCalculator)
                 .withLeaseOfferExpirySecs(1000000)
-                .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
-                    @Override
-                    public void call(VirtualMachineLease virtualMachineLease) {
-                        logger.info("Rejecting lease on " + virtualMachineLease.hostname());
-                    }
-                })
+                .withLeaseRejectAction(virtualMachineLease -> logger.info("Rejecting lease on " + virtualMachineLease.hostname()))
                 .build();
     }
 

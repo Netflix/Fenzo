@@ -300,7 +300,7 @@ class Tier implements UsageTrackedQueue {
             for (QueueBucket b : sortedBuckets.getSortedList()) {
                 b.setTotalResources(tierResources);
             }
-            logger.info("Re-sorting buckets in tier " + tierNumber + " after totals changed");
+            logger.debug("Re-sorting buckets in tier " + tierNumber + " after totals changed");
             sortedBuckets.resort();
         }
     }
