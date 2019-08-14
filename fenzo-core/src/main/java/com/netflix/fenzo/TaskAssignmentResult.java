@@ -29,20 +29,21 @@ import java.util.List;
  */
 public class TaskAssignmentResult {
     @JsonIgnore
-    final private AssignableVirtualMachine avm;
+    private final AssignableVirtualMachine avm;
     @JsonIgnore
-    final private TaskRequest request;
-    final private String taskId;
-    final private String hostname;
-    final private List<Integer> assignedPorts;
-    final private List<PreferentialNamedConsumableResourceSet.ConsumeResult> rSets;
-    final private boolean successful;
-    final private List<AssignmentFailure> failures;
-    final private ConstraintFailure constraintFailure;
-    final private double fitness;
+    private final TaskRequest request;
+    private final String taskId;
+    private final String hostname;
+    private final String vmId;
+    private final List<Integer> assignedPorts;
+    private final List<PreferentialNamedConsumableResourceSet.ConsumeResult> rSets;
+    private final boolean successful;
+    private final List<AssignmentFailure> failures;
+    private final ConstraintFailure constraintFailure;
+    private final double fitness;
 
     @JsonCreator
-    @JsonIgnoreProperties(ignoreUnknown=true)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     TaskAssignmentResult(@JsonProperty("avm") AssignableVirtualMachine avm,
                          @JsonProperty("request") TaskRequest request,
                          @JsonProperty("successful") boolean successful,
@@ -52,7 +53,8 @@ public class TaskAssignmentResult {
         this.avm = avm;
         this.request = request;
         this.taskId = request.getId();
-        this.hostname = avm==null? "":avm.getHostname();
+        this.hostname = avm == null ? "" : avm.getHostname();
+        this.vmId = avm == null ? null : avm.getCurrVMId();
         this.successful = successful;
         this.failures = failures;
         this.constraintFailure = constraintFailure;
@@ -77,6 +79,16 @@ public class TaskAssignmentResult {
      */
     public String getHostname() {
         return hostname;
+    }
+
+    /**
+     * Returns the identifier of the host machine at the time when this task was assigned to it, which can be
+     * <tt>null</tt> when not provided by {@link VirtualMachineLease machine leases}.
+     *
+     * @return the identifier of the machine
+     */
+    public String getVMId() {
+        return vmId;
     }
 
     void assignResult() {
@@ -128,7 +140,7 @@ public class TaskAssignmentResult {
      * the host did not succeed because of insufficient resources.
      *
      * @return a list of reasons why the task could not be assigned to the host because of insufficient
-     *         resources
+     * resources
      */
     public List<AssignmentFailure> getFailures() {
         return failures;
@@ -147,7 +159,7 @@ public class TaskAssignmentResult {
      * Get the result of the fitness calculation applied to this host for this task.
      *
      * @return a number between 0.0 (indicating that the host is completely unfit for this task) to 1.0
-     *         (indicating that the host is a perfect fit for this task)
+     * (indicating that the host is a perfect fit for this task)
      */
     public double getFitness() {
         return fitness;
