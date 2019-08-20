@@ -130,7 +130,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
     private static final Logger logger = LoggerFactory.getLogger(AssignableVirtualMachine.class);
     private final ConcurrentMap<String, String> leaseIdToHostnameMap;
     private final ConcurrentMap<String, String> vmIdToHostnameMap;
-    private String currVMId =null;
+    private volatile String currVMId =null;
     private final TaskTracker taskTracker;
     private volatile long disabledUntil=0L;
     // This may have to be configurable, but, for now weight the job's soft constraints more than system wide fitness calculators
