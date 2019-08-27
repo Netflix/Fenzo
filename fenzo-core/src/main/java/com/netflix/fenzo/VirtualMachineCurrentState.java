@@ -36,6 +36,14 @@ public interface VirtualMachineCurrentState {
     String getHostname();
 
     /**
+     * Get the virtual machine id provided by the last seen {@link VirtualMachineLease lease} of this host.
+     *
+     * @return an identifier provided by the last {@link VirtualMachineLease}. It can be <tt>null</tt> when no leases
+     * were seen yet, or when leases do not include a VM id.
+     */
+    String getVMId();
+
+    /**
      * Get a map of resource sets of the virtual machine.
      *
      * @return The map of resource sets
@@ -53,6 +61,7 @@ public interface VirtualMachineCurrentState {
     /**
      * Get all offers for the VM that represent the available resources. There may be more than one offer over time
      * if Mesos master offered partial resources for the VM multiple times.
+     *
      * @return A collection of Mesos resource offers.
      */
     Collection<Protos.Offer> getAllCurrentOffers();
@@ -61,7 +70,7 @@ public interface VirtualMachineCurrentState {
      * Get list of task assignment results for this host so far in the current scheduling run.
      *
      * @return a collection of tasks that the current scheduling iteration assigned to this host but that are
-     *         not launched/executing yet
+     * not launched/executing yet
      */
     Collection<TaskAssignmentResult> getTasksCurrentlyAssigned();
 
