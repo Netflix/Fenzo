@@ -841,10 +841,17 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             public String getHostname() {
                 return hostname;
             }
+
+            @Override
+            public String getVMId() {
+                return currVMId;
+            }
+
             @Override
             public Map<String, PreferentialNamedConsumableResourceSet> getResourceSets() {
                 return resourceSets;
             }
+
             @Override
             public VirtualMachineLease getCurrAvailableResources() {
                 return currTotalLease;
@@ -852,7 +859,6 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
 
             @Override
             public Collection<Protos.Offer> getAllCurrentOffers() {
-                System.out.println("****************************** ");
                 return offers;
             }
 
@@ -860,10 +866,12 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             public Collection<TaskAssignmentResult> getTasksCurrentlyAssigned() {
                 return Collections.emptyList();
             }
+
             @Override
             public Collection<TaskRequest> getRunningTasks() {
                 return Collections.unmodifiableCollection(previouslyAssignedTasksMap.values());
             }
+
             @Override
             public long getDisabledUntil() {
                 return disabledUntil;
@@ -881,10 +889,17 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             public String getHostname() {
                 return hostname;
             }
+
+            @Override
+            public String getVMId() {
+                return currVMId;
+            }
+
             @Override
             public Map<String, PreferentialNamedConsumableResourceSet> getResourceSets() {
                 return resourceSets;
             }
+
             @Override
             public VirtualMachineLease getCurrAvailableResources() {
                 return currTotalLease;
@@ -899,10 +914,12 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
             public Collection<TaskAssignmentResult> getTasksCurrentlyAssigned() {
                 return Collections.unmodifiableCollection(assignmentResults.values());
             }
+
             @Override
             public Collection<TaskRequest> getRunningTasks() {
                 return Collections.unmodifiableCollection(previouslyAssignedTasksMap.values());
             }
+
             @Override
             public long getDisabledUntil() {
                 return disabledUntil;
