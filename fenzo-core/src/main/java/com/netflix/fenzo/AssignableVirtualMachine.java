@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * This class represents a VM that contains resources that can be assigned to tasks.
  */
-class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
+public class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
 
     /* package */ static final String PseuoHostNamePrefix = "FenzoPsueodHost-";
 
@@ -831,7 +831,7 @@ class AssignableVirtualMachine implements Comparable<AssignableVirtualMachine>{
         };
     }
 
-    VirtualMachineCurrentState getVmCurrentState() {
+    public VirtualMachineCurrentState getVmCurrentState() {
         final List<Protos.Offer> offers = new LinkedList<>();
         for (VirtualMachineLease l: leasesMap.values()) {
             offers.add(l.getOffer());
