@@ -25,8 +25,13 @@ import java.util.*;
 public class ScalarResourceTests {
 
     private TaskScheduler getScheduler() {
+        return getScheduler(false);
+    }
+
+    private TaskScheduler getScheduler(boolean singleLeaseMode) {
         return new TaskScheduler.Builder()
                 .withLeaseOfferExpirySecs(1000000)
+                .withSingleOfferPerVM(singleLeaseMode)
                 .withLeaseRejectAction(new Action1<VirtualMachineLease>() {
                     @Override
                     public void call(VirtualMachineLease virtualMachineLease) {
@@ -130,5 +135,19 @@ public class ScalarResourceTests {
             tasksAssigned += r.getTasksAssigned().size();
         }
         Assert.assertEquals((int)(scalars2OnHost*2.0), tasksAssigned);
+    }
+
+    @Test
+    public void testInsufficientScalarResourcesWithSingleLeaseMode() {
+        final TaskScheduler scheduler = getScheduler(true);
+        final double scalarsOnHost=4.0;
+        final TaskRequest task = TaskRequestProvider.getTaskRequest(null, 1, 100, 1, 1, 1, null, null, null, Collections.singletonMap("gpu", scalarsOnHost+1.0));
+        final VirtualMachineLease host1 = LeaseProvider.getLeaseOffer("host1", 4.0, 4000.0, 100, 1024,
+                Collections.singletonList(new VirtualMachineLease.Range(1, 10)), null, Collections.singletonMap("gpu", scalarsOnHost));
+        final SchedulingResult result = scheduler.scheduleOnce(Collections.singletonList(task), Collections.singletonList(host1));
+        Assert.assertEquals(1, result.getFailures().size());
+        Assert.assertEquals(0, result.getResultMap().size());
+        Assert.assertEquals(VMResource.Other, result.getFailures().values().iterator().next().get(0).getFailures().get(0).getResource());
+        System.out.println(result.getFailures().values().iterator().next().get(0).getFailures().get(0));
     }
 }

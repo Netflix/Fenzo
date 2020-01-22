@@ -555,17 +555,25 @@ public class AssignableVirtualMachine implements Comparable<AssignableVirtualMac
         currTotalNetworkMbps -= request.getNetworkMbps();
         final Map<String, Double> scalarRequests = request.getScalarRequests();
         if(scalarRequests != null && !scalarRequests.isEmpty()) {
-            for(Map.Entry<String, Double> entry: scalarRequests.entrySet()) {
+            for (Map.Entry<String, Double> entry : scalarRequests.entrySet()) {
                 Double oldVal = currTotalScalars.get(entry.getKey());
-                if(oldVal != null) {
-                    double newVal = oldVal - entry.getValue();
-                    if(newVal < 0.0) {
-                        logger.warn(hostname + ": Scalar resource " + entry.getKey() + " is " + newVal + " after removing " +
-                                entry.getValue() + " from task " + request.getId());
-                        currTotalScalars.put(entry.getKey(), 0.0);
+                if (singleLeaseMode) {
+                    // resources must be able to be negative in single lease mode
+                    if (oldVal == null) {
+                        oldVal = 0.0;
                     }
-                    else
-                        currTotalScalars.put(entry.getKey(), newVal);
+                    currTotalScalars.put(entry.getKey(), oldVal - entry.getValue());
+                } else {
+                    if (oldVal != null) {
+                        double newVal = oldVal - entry.getValue();
+                        if (newVal < 0.0) {
+                            logger.warn(hostname + ": Scalar resource " + entry.getKey() + " is " + newVal + " after removing " +
+                                    entry.getValue() + " from task " + request.getId());
+                            currTotalScalars.put(entry.getKey(), 0.0);
+                        } else {
+                            currTotalScalars.put(entry.getKey(), newVal);
+                        }
+                    }
                 }
             }
         }
