@@ -17,6 +17,7 @@
 package com.netflix.fenzo;
 
 import com.netflix.fenzo.functions.Action1;
+import org.apache.mesos.Protos;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -149,5 +150,38 @@ public class ScalarResourceTests {
         Assert.assertEquals(0, result.getResultMap().size());
         Assert.assertEquals(VMResource.Other, result.getFailures().values().iterator().next().get(0).getFailures().get(0).getResource());
         System.out.println(result.getFailures().values().iterator().next().get(0).getFailures().get(0));
+    }
+
+    @Test
+    public void testRemovingLeaseAndAddingBackSameLeaseWithSingleLeaseMode() {
+        final TaskScheduler scheduler = getScheduler(true);
+
+        final TaskRequest task = TaskRequestProvider.getTaskRequest(null, 1, 1, 1,
+                1, 1, null, null, null, Collections.emptyMap());
+
+        final VirtualMachineLease lease1 = LeaseProvider.getLeaseOffer("host1", 1.0, 1.0, 1, 1,
+                Collections.singletonList(new VirtualMachineLease.Range(1, 10)), null, Collections.emptyMap());
+
+        final SchedulingResult result1 = scheduler.scheduleOnce(Collections.singletonList(task), Collections.singletonList(lease1));
+        Assert.assertEquals(0, result1.getFailures().size());
+        Assert.assertEquals(1, result1.getResultMap().size());
+
+        // Expire the leases and run a scheduling loop to make sure they are gone
+        scheduler.expireAllLeases();
+        scheduler.scheduleOnce(Collections.emptyList(), Collections.emptyList());
+
+        List<VirtualMachineCurrentState> vmCurrentStates1 = scheduler.getVmCurrentStates();
+        Collection<Protos.Offer> offers1 = vmCurrentStates1.get(0).getAllCurrentOffers();
+        Assert.assertEquals(0, offers1.size());
+
+        // Run another scheduling iteration with the same lease and make sure it can be added back as an offer
+        final SchedulingResult result2 = scheduler.scheduleOnce(Collections.singletonList(task), Collections.singletonList(lease1));
+        Assert.assertEquals(0, result2.getFailures().size());
+        Assert.assertEquals(1, result2.getResultMap().size());
+
+        List<VirtualMachineCurrentState> vmCurrentStates2 = scheduler.getVmCurrentStates();
+        Collection<Protos.Offer> offers2 = vmCurrentStates2.get(0).getAllCurrentOffers();
+        Assert.assertEquals(1, offers2.size());
+        System.out.println(vmCurrentStates2.get(0).getAllCurrentOffers());
     }
 }

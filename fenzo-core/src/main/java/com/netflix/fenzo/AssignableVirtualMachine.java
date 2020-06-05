@@ -397,8 +397,14 @@ public class AssignableVirtualMachine implements Comparable<AssignableVirtualMac
     boolean addLease(VirtualMachineLease lease) {
         if (logger.isDebugEnabled())
             logger.debug("{}: adding lease id {}", hostname, lease.getId());
-        if(singleLeaseMode && firstLeaseAdded)
-            return false;
+        if(singleLeaseMode && firstLeaseAdded) {
+            if (leasesMap.isEmpty()) {
+                leasesMap.put(lease.getId(), lease);
+                return true;
+            } else {
+                return false;
+            }
+        }
         if(!Objects.equals(currVMId, lease.getVMID())) {
             currVMId = lease.getVMID();
             vmIdToHostnameMap.put(lease.getVMID(), hostname);
