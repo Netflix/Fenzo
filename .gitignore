@@ -68,3 +68,6 @@ bin/
 
 # Scala build
 *.cache
+
+# publishing secrets
+secrets/signing-key
