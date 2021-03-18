@@ -18,7 +18,7 @@ ext.githubProjectName = 'Fenzo'
 
 buildscript {
     repositories {
-        jcenter()
+        mavenCentral()
         maven {
             url "https://plugins.gradle.org/m2/"
         }
@@ -41,7 +41,7 @@ allprojects {
 subprojects {
     group = 'com.netflix.fenzo'
 
-    repositories { jcenter() }
+    repositories { mavenCentral() }
 
     apply plugin: 'nebula.dependency-lock'
     apply plugin: 'java'
