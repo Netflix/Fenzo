@@ -303,13 +303,14 @@ class AssignableVMs {
 
     private void addTotalResources(AssignableVirtualMachine avm) {
         final Map<VMResource, Double> maxResources = avm.getMaxResources();
-        for (VMResource r: maxResources.keySet()) {
-            Double v = maxResources.get(r);
+        for (Map.Entry<VMResource, Double> r: maxResources.entrySet()) {
+            VMResource k = r.getKey();
+            Double v = r.getValue();
             if (v != null) {
-                if (totalResourcesMap.get(r) == null)
-                    totalResourcesMap.put(r, v);
+                if (totalResourcesMap.get(k) == null)
+                    totalResourcesMap.put(k, v);
                 else
-                    totalResourcesMap.put(r, totalResourcesMap.get(r) + v);
+                    totalResourcesMap.put(k, totalResourcesMap.get(k) + v);
             }
         }
     }
