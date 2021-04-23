@@ -51,9 +51,7 @@ public abstract class AbstractInMemoryDao<T> {
         subMap.put(id, type);
         Map existingTriggerMap = map.putIfAbsent(group, subMap);
         if (existingTriggerMap != null) {
-            synchronized (map) {
-                map.get(group).put(id, type);
-            }
+            map.get(group).put(id, type);
         }
     }
 
@@ -66,9 +64,7 @@ public abstract class AbstractInMemoryDao<T> {
      * @param type
      */
     protected void update(String group, String id, T type) {
-        synchronized (map) {
-            map.get(group).put(id, type);
-        }
+        map.get(group).put(id, type);
     }
 
     /**
@@ -98,9 +94,7 @@ public abstract class AbstractInMemoryDao<T> {
      * @param id
      */
     protected void delete(String group, String id) {
-        synchronized (map) {
-            map.get(group).remove(id);
-        }
+        map.get(group).remove(id);
     }
 
     /**
