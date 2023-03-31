@@ -468,7 +468,7 @@ public class ConstraintsTests {
     }
 
     @Test
-    public void testExceptionInConstraints() throws Exception {
+    public void testExceptionInConstraints() {
         final List<VirtualMachineLease> threeVMs = getThreeVMs();
         List<TaskRequest> tasks = new ArrayList<>();
         tasks.add(TaskRequestProvider.getTaskRequest(1, 1000, 1));
@@ -481,14 +481,10 @@ public class ConstraintsTests {
         tasks.add(TaskRequestProvider.getTaskRequest(1, 100, 1));
         tasks.add(TaskRequestProvider.getTaskRequest(1, 1000, 1, Collections.singletonList(c1), null));
         tasks.add(TaskRequestProvider.getTaskRequest(1, 100, 1));
-        try {
-            final SchedulingResult result = getTaskScheduler().scheduleOnce(tasks, threeVMs);
-            // expect to see 1 result for the first task before encountering exception with the 2nd task
-            Assert.assertEquals(0, result.getResultMap().size());
-            Assert.assertEquals(1, result.getExceptions().size());
-        }
-        catch (IllegalStateException e) {
-            Assert.fail("Unexpected exception: " + e.getMessage());
-        }
+
+        final SchedulingResult result = getTaskScheduler().scheduleOnce(tasks, threeVMs);
+        // expect to see 1 result for the first task before encountering exception with the 2nd task
+        Assert.assertEquals(0, result.getResultMap().size());
+        Assert.assertEquals(1, result.getExceptions().size());
     }
 }
