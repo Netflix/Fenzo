@@ -73,10 +73,13 @@ class VMCollection {
         InternalVMCloner vmCloner = new InternalVMCloner();
         Map<String, List<String>> result = new HashMap<>();
         long now = System.currentTimeMillis();
-        for (String g: groupCounts.keySet()) {
+        for (Map.Entry<String, Integer> g: groupCounts.entrySet()) {
             List<String> hostnames = new LinkedList<>();
-            result.put(g, hostnames);
-            final ConcurrentMap<String, AssignableVirtualMachine> avmsMap = vms.get(g);
+            String k = g.getKey();
+            Integer v = g.getValue();
+
+            result.put(k, hostnames);
+            final ConcurrentMap<String, AssignableVirtualMachine> avmsMap = vms.get(k);
             if (avmsMap != null) {
                 final List<AssignableVirtualMachine> vmsList = avmsMap.values()
                         .stream()
@@ -103,15 +106,15 @@ class VMCollection {
                                         (entry.getValue() == null ? "null" : entry.getValue().getText().getValue())
                                 );
                     }
-                    int n = groupCounts.get(g);
-                    final AutoScaleRule rule = ruleGetter.call(g);
+                    int n = groupCounts.get(k);
+                    final AutoScaleRule rule = ruleGetter.call(k);
                     if (rule != null) {
                         int max = rule.getMaxSize();
                         if (max < Integer.MAX_VALUE && n > (max - vmsList.size()))
                             n = max - vmsList.size();
                     }
                     for (int i = 0; i < n; i++) {
-                        final String hostname = createHostname(g, i);
+                        final String hostname = createHostname(k, i);
                         addLease(vmCloner.cloneLease(lease, hostname, now));
                         if(logger.isDebugEnabled())
                             logger.debug("Added cloned lease for " + hostname);

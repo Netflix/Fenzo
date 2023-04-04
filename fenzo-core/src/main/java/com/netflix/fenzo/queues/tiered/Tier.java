@@ -309,12 +309,13 @@ class Tier implements UsageTrackedQueue {
         if (currTotalResourcesMap.size() != totalResourcesMap.size())
             return true;
         Set<VMResource> curr = new HashSet<>(currTotalResourcesMap.keySet());
-        for (VMResource r : totalResourcesMap.keySet()) {
-            final Double c = currTotalResourcesMap.get(r);
-            final Double n = totalResourcesMap.get(r);
+        for (Map.Entry<VMResource, Double> r : totalResourcesMap.entrySet()) {
+            VMResource k = r.getKey();
+            final Double n = r.getValue();
+            final Double c = currTotalResourcesMap.get(k);
             if ((c == null && n != null) || (c != null && n == null) || (n != null && !n.equals(c)))
                 return true;
-            curr.remove(r);
+            curr.remove(k);
         }
         return !curr.isEmpty();
     }
